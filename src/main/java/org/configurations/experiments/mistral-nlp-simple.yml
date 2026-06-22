@@ -1,0 +1,14 @@
+models:
+  - "mistral"
+ontologies:
+  - "src/main/resources/ontologies/small/animals.owl"
+  - "src/main/resources/ontologies/small/university.owl"
+  - "src/main/resources/ontologies/small/generations.owl"
+  - "src/main/resources/ontologies/small/football.owl"
+  - "src/main/resources/ontologies/small/cl.owl"
+system: >
+  Answer with only True or False.
+queryFormat: >
+  nlp
+maxTokens: 2
+type: "statementsQuerying"
