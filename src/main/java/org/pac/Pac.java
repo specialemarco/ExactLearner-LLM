@@ -90,6 +90,10 @@ public class Pac {
         return statement;
     }
 
+    public void incrementProvidedSamples() {
+        providedSamples++;
+    }
+
     public double computeInstanceSpaceSize() {
         var cn = this.classes.size();
         var rn = this.objectProperties.size();

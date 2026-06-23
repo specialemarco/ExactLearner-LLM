@@ -344,7 +344,7 @@ public abstract class LaunchLearner {
         return null;
     }
 
-    private OWLSubClassOfAxiom getCounterExampleSubClassOf(OWLSubClassOfAxiom counterexample) throws Exception {
+    protected OWLSubClassOfAxiom getCounterExampleSubClassOf(OWLSubClassOfAxiom counterexample) throws Exception {
         OWLSubClassOfAxiom newCounterexampleAxiom;
         OWLClassExpression left = counterexample.getSubClass();
         OWLClassExpression right = counterexample.getSuperClass();
