@@ -9,6 +9,6 @@ system: >
     3. take a deep breath before answering;
     4. if you are unsure about the classification, answer with False.
 queryFormat: >
-  nlp
+  manchester
 maxTokens: 2
 type: "statementsQuerying"

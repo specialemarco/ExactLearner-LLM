@@ -43,8 +43,8 @@ public class LaunchLLMLearner extends LaunchLearner {
     private double totalEquivalenceQ = 0;
 
 
-    private double epsilon = 0.2;
-    private double delta = 0.1;
+    protected double epsilon = 0.2;
+    protected double delta = 0.1;
 
     protected final CacheManager cacheManager = new CacheManager(false);;
 
@@ -133,7 +133,7 @@ public class LaunchLLMLearner extends LaunchLearner {
         System.out.println("Average n° CE compared to Pac Samples: " + totalCE / divider);
     }
 
-    private void setup(String ontology, String model) {
+    protected void setup(String ontology, String model) {
         try {
             myMetrics = new Metrics(myRenderer);
             System.out.println("Trying to load groundTruthOntology");
@@ -153,7 +153,7 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
     }
 
-    private void runLearningExperiment(String[] args, int hypothesisSize, String model) throws Throwable {
+    protected void runLearningExperiment(String[] args, int hypothesisSize, String model) throws Throwable {
         long timeStart = System.currentTimeMillis();
         runLearner(hypothesisSize);
         long timeEnd = System.currentTimeMillis();

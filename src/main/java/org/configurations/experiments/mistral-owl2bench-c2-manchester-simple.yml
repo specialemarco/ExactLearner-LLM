@@ -1,0 +1,10 @@
+models:
+  - "mistral"
+ontologies:
+  - "/fp/projects01/ec12/ec-marcos/data/owl2bench-1-el-class_names_exists_thing/expertOntology.owl"
+system: >
+  Answer with only True or False.
+queryFormat: >
+  manchester
+maxTokens: 2
+type: "statementsQuerying"
