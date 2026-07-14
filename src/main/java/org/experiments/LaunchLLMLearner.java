@@ -153,6 +153,11 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
     }
 
+    // MODIFICATION (A-induced integration): visibility changed from private to
+    // protected. The method body below is Ana's original training-and-save
+    // logic, unchanged. Making it protected allows LaunchLLMLearnerAInduced
+    // (a subclass in the same package) to call it directly from its own
+    // overridden run() method, instead of duplicating this logic.
     protected void runLearningExperiment(String[] args, int hypothesisSize, String model) throws Throwable {
         long timeStart = System.currentTimeMillis();
         runLearner(hypothesisSize);

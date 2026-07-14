@@ -90,6 +90,16 @@ public class Pac {
         return statement;
     }
 
+    // NEW METHOD (A-induced integration): exposes a way to advance the
+    // providedSamples counter from outside this class. Ana's original design
+    // only ever advances this counter internally, inside getRandomStatement()
+    // (see "providedSamples++;" a few lines above) — every call to that method
+    // draws one uniform-random sample AND consumes one unit of the PAC budget
+    // in a single step. LaunchLLMLearnerAInduced.getCounterExample() bypasses
+    // getRandomStatement() entirely (it draws candidates from
+    // ABoxInducedSubsumptionSampler.sample() instead), so without this method
+    // the PAC sample budget (numberOfSamples) would never be consumed and the
+    // A-induced sampling loop would never terminate on its own.
     public void incrementProvidedSamples() {
         providedSamples++;
     }

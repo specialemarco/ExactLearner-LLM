@@ -344,6 +344,13 @@ public abstract class LaunchLearner {
         return null;
     }
 
+    // MODIFICATION (A-induced integration): visibility changed from private to
+    // protected. This method is Ana's original counterexample-refinement logic
+    // (mergeLeft/saturateLeft/branchRight/composeLeft/composeRight/unsaturateRight,
+    // see body below, unchanged) — it needed to become accessible so that
+    // LaunchLLMLearnerAInduced.getCounterExample() (in a different class, same
+    // package) can call it on the axioms produced by the A-induced sampler,
+    // exactly as LaunchLearner's own uniform-PAC code path already does.
     protected OWLSubClassOfAxiom getCounterExampleSubClassOf(OWLSubClassOfAxiom counterexample) throws Exception {
         OWLSubClassOfAxiom newCounterexampleAxiom;
         OWLClassExpression left = counterexample.getSubClass();
