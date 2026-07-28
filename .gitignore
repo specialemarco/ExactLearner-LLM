@@ -129,4 +129,4 @@ nb-configuration.xml
 ##############################
 ## CUSTOM
 ##############################
-src/main/resources/openai-key.json
+src/main/resources/openai-key.json.ipynb_checkpoints/

@@ -42,6 +42,24 @@ import org.evaluation.Evaluation;
  */
 public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
+    // Round index for paclo's per-round growing sample budget
+    // (Pac.callsToSamplingOracle(i)).
+    //
+    // NOTE (July 2026 investigation): paclo's original formula assumes round 1
+    // is the very first learning attempt. In this system, learner.precomputation()
+    // runs BEFORE this loop and already resolves most simple concept-name-only
+    // relations via an exhaustive O(n^2) check (85,000+ LLM calls observed on
+    // C2, vs. only ~33 calls in the A-induced sampling loop that follows).
+    // Starting the round index at 1 therefore understates how much has
+    // already been learned, producing an unrealistically small initial
+    // budget (q_1=14) that causes the loop to terminate almost immediately.
+    //
+    // STARTING_ROUND_INDEX is an empirically adjustable starting point,
+    // not a theoretically derived value — increase it to give the A-induced
+    // loop a larger initial budget, at the cost of more LLM calls per run.
+    private static final int STARTING_ROUND_INDEX = 20; // TODO: tune further if needed (tested: 1, 20)
+    private int paclobBudgetRoundIndex = STARTING_ROUND_INDEX;
+
     // The ABox-induced sampler. Left null until the first call to
     // getCounterExample(), then lazily initialized by initAboxSampler()
     // (because it depends on files — initialOntology.owl, baseSet — that
@@ -156,27 +174,55 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         if (aboxSampler == null) {
             initAboxSampler();
             if (aboxSampler == null) {
-                System.out.println("A-induced setup not available for this ontology — falling back to uniform PAC");
+                System.out.println("Setup AInduced non disponibile per questa ontologia — fallback a PAC uniforme");
                 return super.getCounterExample(pac);
             }
         }
 
-        while (pac.getNumberOfProvidedSamples() < pac.getNumberOfSamples()) {
-            // NOTE: incrementProvidedSamples() is a small addition to Ana's
-            // Pac class (see Pac.java). It exists because pac.getRandomStatement()
-            // normally advances this counter internally; since we bypass that
-            // method entirely and call aboxSampler.sample() directly, we must
-            // advance the counter here ourselves, or the PAC sample budget
-            // would never be consumed and this loop would run forever.
+        // paclo-style growing per-round budget (Eq. 1, Obiedkov & Sertkaya 2025),
+        // replacing the previous flat pac.getNumberOfSamples() budget.
+        int roundIndex = paclobBudgetRoundIndex;
+        long localBudget = pac.callsToSamplingOracle(roundIndex);
+        System.out.println("PACLO-BUDGET-DEBUG: round=" + roundIndex + " q_i=" + localBudget);
+
+        OWLSubClassOfAxiom found = searchForCounterExample(pac, localBudget);
+        if (found != null) {
+            paclobBudgetRoundIndex++;
+            return found;
+        }
+
+        System.out.println("RETRY-DEBUG: budget locale (" + localBudget + ") esaurito senza controesempio, aggiorno sampler su hypothesisOntology e riprovo");
+
+        org.semanticweb.elk.owlapi.ElkReasonerFactory rf = new org.semanticweb.elk.owlapi.ElkReasonerFactory();
+        org.semanticweb.owlapi.reasoner.OWLReasoner hypothesisReasoner = rf.createReasoner(hypothesisOntology);
+        hypothesisReasoner.precomputeInferences(
+            org.semanticweb.owlapi.reasoner.InferenceType.CLASS_HIERARCHY,
+            org.semanticweb.owlapi.reasoner.InferenceType.CLASS_ASSERTIONS);
+        aboxSampler.update_sampler(hypothesisReasoner);
+
+        // Retry uses the NEXT round's (larger) budget, treating the retry
+        // itself as an additional round rather than reusing q_i unchanged.
+        int retryRoundIndex = roundIndex + 1;
+        long retryBudget = pac.callsToSamplingOracle(retryRoundIndex);
+        System.out.println("PACLO-BUDGET-DEBUG: retry round=" + retryRoundIndex + " q_i=" + retryBudget);
+
+        found = searchForCounterExample(pac, retryBudget);
+        paclobBudgetRoundIndex = retryRoundIndex + 1;
+        System.out.println("RETRY-DEBUG: secondo tentativo " + (found != null ? "ha trovato un controesempio" : "esaurito anch'esso, chiudo il round"));
+        return found;
+    }
+
+    private OWLSubClassOfAxiom searchForCounterExample(Pac pac, long localBudget) throws Exception {
+        for (long attempt = 0; attempt < localBudget; ++attempt) {
             pac.incrementProvidedSamples();
             OWLSubClassOfAxiom selectedAxiom = aboxSampler.sample();
             if (selectedAxiom == null) return null;
-            if (pac.getNumberOfProvidedSamples() <= 10) {
+            if (attempt < 10) {
                 System.out.println("DEBUG sampled: " + selectedAxiom.getSubClass() + " SubClassOf " + selectedAxiom.getSuperClass());
             }
             boolean entH = elQueryEngineForH.entailed(selectedAxiom);
             boolean entT = llmQueryEngineForT.entailed(selectedAxiom);
-            if (pac.getNumberOfProvidedSamples() <= 10) {
+            if (attempt < 10) {
                 System.out.println("DEBUG entH=" + entH + " entT(Mistral)=" + entT);
             }
             if (!entH && entT) {

@@ -34,7 +34,40 @@ public class OntologyManipulator {
         } catch (OWLOntologyCreationException e) {
             throw new RuntimeException(e);
         }
-        return OntologyManipulator.filterUnusedAxioms(ontology.getAxioms()).size();
+        Set<OWLAxiom> all = ontology.getAxioms();
+        long subclassOf = all.stream().filter(a -> a.isOfType(AxiomType.SUBCLASS_OF)).count();
+        long equivClasses = all.stream().filter(a -> a.isOfType(AxiomType.EQUIVALENT_CLASSES)).count();
+        long subObjProp = all.stream().filter(a -> a.isOfType(AxiomType.SUB_OBJECT_PROPERTY)).count();
+        long equivObjProp = all.stream().filter(a -> a.isOfType(AxiomType.EQUIVALENT_OBJECT_PROPERTIES)).count();
+        long objPropDomain = all.stream().filter(a -> a.isOfType(AxiomType.OBJECT_PROPERTY_DOMAIN)).count();
+        long disjointClasses = all.stream().filter(a -> a.isOfType(AxiomType.DISJOINT_CLASSES)).count();
+        long objectOneOf = all.stream().filter(a -> a.isOfType(AxiomType.getAxiomType("ObjectOneOf"))).count();
+        int filtered = OntologyManipulator.filterUnusedAxioms(all).size();
+        System.out.println("AXIOM-COUNT-DEBUG: SUBCLASS_OF=" + subclassOf
+            + " EQUIVALENT_CLASSES=" + equivClasses
+            + " SUB_OBJECT_PROPERTY=" + subObjProp
+            + " EQUIVALENT_OBJECT_PROPERTIES=" + equivObjProp
+            + " OBJECT_PROPERTY_DOMAIN=" + objPropDomain
+            + " DISJOINT_CLASSES=" + disjointClasses
+            + " ObjectOneOf=" + objectOneOf
+            + " | total axioms in ontology=" + all.size()
+            + " | filterUnusedAxioms result=" + filtered);
+
+        // TEMPORARY DUMP — inspect actual axiom content, not just counts,
+        // to check for duplication/overlap with SUBCLASS_OF and to compare
+        // against the paper's reported figures (56 subrole, 49 domain, 42 range).
+        ManchesterOWLSyntaxOWLObjectRendererImpl dumpRenderer = new ManchesterOWLSyntaxOWLObjectRendererImpl();
+        System.out.println("AXIOM-DUMP-DEBUG: --- SUB_OBJECT_PROPERTY (" + subObjProp + ") ---");
+        all.stream().filter(a -> a.isOfType(AxiomType.SUB_OBJECT_PROPERTY))
+            .forEach(a -> System.out.println("AXIOM-DUMP-DEBUG: " + dumpRenderer.render(a)));
+        System.out.println("AXIOM-DUMP-DEBUG: --- OBJECT_PROPERTY_DOMAIN (" + objPropDomain + ") ---");
+        all.stream().filter(a -> a.isOfType(AxiomType.OBJECT_PROPERTY_DOMAIN))
+            .forEach(a -> System.out.println("AXIOM-DUMP-DEBUG: " + dumpRenderer.render(a)));
+        System.out.println("AXIOM-DUMP-DEBUG: --- DISJOINT_CLASSES (" + disjointClasses + ") ---");
+        all.stream().filter(a -> a.isOfType(AxiomType.DISJOINT_CLASSES))
+            .forEach(a -> System.out.println("AXIOM-DUMP-DEBUG: " + dumpRenderer.render(a)));
+
+        return filtered;
     }
 
     public static OWLOntology getInferredOntology(String ontologyName) throws OWLOntologyCreationException {
@@ -114,12 +147,12 @@ public class OntologyManipulator {
 
     public static Set<OWLAxiom> filterUnusedAxioms(Set<OWLAxiom> axioms) {
         return axioms.stream().filter(axiom -> axiom.isOfType(AxiomType.SUBCLASS_OF)
-                        || axiom.isOfType(AxiomType.EQUIVALENT_CLASSES)
-                        || axiom.isOfType(AxiomType.SUB_OBJECT_PROPERTY)
-                        || axiom.isOfType(AxiomType.EQUIVALENT_OBJECT_PROPERTIES)
-                        || axiom.isOfType(AxiomType.OBJECT_PROPERTY_DOMAIN)
-                        || axiom.isOfType(AxiomType.DISJOINT_CLASSES)
-                        || axiom.isOfType(AxiomType.getAxiomType("ObjectOneOf")))
+                        || axiom.isOfType(AxiomType.EQUIVALENT_CLASSES))
+                        //|| axiom.isOfType(AxiomType.SUB_OBJECT_PROPERTY)
+                        //|| axiom.isOfType(AxiomType.EQUIVALENT_OBJECT_PROPERTIES)
+                        //|| axiom.isOfType(AxiomType.OBJECT_PROPERTY_DOMAIN)
+                        //|| axiom.isOfType(AxiomType.DISJOINT_CLASSES)
+                        //|| axiom.isOfType(AxiomType.getAxiomType("ObjectOneOf")))
                 .collect(Collectors.toSet());
     }
 

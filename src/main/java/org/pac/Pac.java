@@ -29,6 +29,12 @@ public class Pac {
         double x = computeInstanceSpaceSize();
         this.numberOfSamples = Math.round((hypothesisSize*Math.log(x) - Math.log(delta)) / epsilon);
         this.numberOfAxioms = x;
+        System.out.println("PAC-SIZE-DEBUG: classes.size()=" + classes.size()
+            + " objectProperties.size()=" + objectProperties.size()
+            + " hypothesisSize=" + hypothesisSize
+            + " epsilon=" + epsilon + " delta=" + delta
+            + " x(instanceSpaceSize)=" + x
+            + " numberOfSamples=" + this.numberOfSamples);
         this.seed = seed;
         this.factory = OWLManager.getOWLDataFactory();
 
@@ -102,6 +108,17 @@ public class Pac {
     // A-induced sampling loop would never terminate on its own.
     public void incrementProvidedSamples() {
         providedSamples++;
+    }
+
+    /**
+     * Ported from paclo's LearningFrameworkSubsumption.callsToSamplingOracle().
+     * Per-round sampling budget from Eq. 1 of Obiedkov & Sertkaya (2025):
+     * q_i(epsilon,delta) = ceil(log_{1-epsilon}(delta/(i*(i+1))))
+     * Grows with i (the round/equivalence-query index), unlike the flat
+     * Occam-bound numberOfSamples computed once in the constructor above.
+     */
+    public int callsToSamplingOracle(int i) {
+        return (int) Math.ceil(Math.log(delta / (i * (i + 1))) / Math.log(1 - epsilon));
     }
 
     public double computeInstanceSpaceSize() {

@@ -1,7 +1,9 @@
 package org.sampler;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -15,109 +17,71 @@ import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 
 /**
- * NEW FILE — added for the A-induced sampling integration.
+ * Ported from Baris Sertkaya's WeightedABoxInducedSubsumptionSampler
+ * (https://github.com/sertkaya/paclo), NOT the plain ABoxInducedSubsumptionSampler
+ * previously ported here, which had a positional weight-index misalignment in
+ * sampleConclusion() and sampled premise individuals uniformly instead of
+ * proportionally to 2^|C(a,K0)| as required by Sec. 4 of Obiedkov & Sertkaya (2025).
  *
- * This class ports the ABox-induced subsumption sampling algorithm from
- * Baris Sertkaya's paclo repository (Obiedkov & Sertkaya, "PAC learning of
- * concept inclusions for ontology-mediated query answering", 2025) into
- * ExactLearner-LLM.
- *
- * Instead of sampling candidate axioms C ⊑ D uniformly at random from the
- * space of all EL expressions (as Ana's original PAC-based sampler does),
- * this sampler draws candidates that are grounded in the ABox of the
- * ontology: it picks a real individual, looks at which baseSet concepts
- * that individual is known to be an instance of, and builds the premise
- * and conclusion from that evidence. The idea is that axioms derived this
- * way are more likely to be semantically meaningful than purely random
- * combinations of concepts.
- *
- * PORTING NOTES — two deliberate differences from Baris's original class:
- *  1) sample() here returns a fully-built OWLSubClassOfAxiom, not a raw
- *     Pair<Set<OWLClassExpression>, OWLClassExpression> as in paclo. Ana's
- *     learning loop (LaunchLLMLearnerAInduced.getCounterExample) expects a
- *     single finished axiom to test for entailment, so the assembly of the
- *     left-hand side (intersection of the premise concepts) is done here
- *     instead of by the caller.
- *  2) The constructor takes an OWLDataFactory instead of paclo's
- *     "boolean uniformConclusions" flag. We always use the weighted
- *     conclusion-sampling strategy (see sampleConclusion below), which is
- *     the same default Baris uses in his own experiments
- *     (new ABoxInducedSubsumptionSampler(baseSet, reasoner, false) in
- *     PACloOracle.java, where false means "not uniform", i.e. weighted).
- *     The OWLDataFactory is needed here only because this class now builds
- *     the final axiom itself (see point 1).
- *
- * Everything else — the sampling statistics for premises and conclusions —
- * is functionally identical to Baris's original implementation.
+ * Key correctness points preserved from the original:
+ * - instanceCounts is a Map keyed by concept identity (no positional misalignment).
+ * - samplePremise() selects individuals with probability proportional to
+ *   2^|C(a,K0)| (Boley et al. two-step method), using BigInteger cumulative
+ *   weights to avoid overflow.
+ * - Only individuals with at least one type in the base set are eligible for
+ *   premise sampling (untyped individuals would always yield an empty/Top
+ *   premise and waste samples) — this is a behavioural difference from the
+ *   previous version, which sampled uniformly over ALL individuals in the
+ *   ontology signature.
  */
 public class ABoxInducedSubsumptionSampler {
 
-    // All individuals present in the ontology's ABox (after the caller has
-    // injected the real ABox at runtime — see LaunchLLMLearnerAInduced).
-    private OWLNamedIndividual[] individuals;
+    private final Set<OWLClassExpression> baseSet;
+    private final OWLDataFactory factory;
 
-    // The baseSet: the fixed collection of concept expressions (concept
-    // names and/or existential restrictions) that premises and conclusions
-    // are built from. Read from the external "baseSet" file for the chosen
-    // BaseSet configuration (C1/C2/C3).
-    private OWLClassExpression[] baseConcepts;
+    // Key: concept expression from the base set, Value: number of its instances in the current reasoner
+    private final Map<OWLClassExpression, Integer> instanceCounts = new HashMap<>();
+    // Key: individual, Value: base-set concepts of which it is an instance
+    private Map<OWLNamedIndividual, ArrayList<OWLClassExpression>> instanceTypes;
 
-    // For each individual that is an instance of at least one baseSet
-    // concept, the list of baseSet concepts it is known to instantiate.
-    // Populated by update_sampler() using the reasoner's actual inferred
-    // instances (not just asserted ABox facts).
-    private Map<OWLNamedIndividual, ArrayList<OWLClassExpression>> individualTypes;
-
-    // For each baseSet concept (by index), how many individuals are NOT
-    // known instances of it. Used to weight conclusion sampling towards
-    // concepts with fewer known instances (see sampleConclusion).
-    private long[] noninstanceCounts;
-
-    // Needed to assemble the final OWLSubClassOfAxiom returned by sample().
-    private OWLDataFactory factory;
+    private OWLNamedIndividual[] instanceNames;
+    private BigInteger[] instanceWeights;
+    private BigInteger cumulativeInstanceWeight = BigInteger.ZERO;
+    private long numberOfInstances;
 
     public ABoxInducedSubsumptionSampler(Set<OWLClassExpression> baseSet, OWLReasoner reasoner, OWLDataFactory factory) {
-        this.baseConcepts = baseSet.toArray(new OWLClassExpression[0]);
+        this.baseSet = baseSet;
         this.factory = factory;
-        this.individuals = reasoner.getRootOntology().getIndividualsInSignature().toArray(new OWLNamedIndividual[0]);
-        this.individualTypes = new HashMap<>();
-        this.noninstanceCounts = new long[baseConcepts.length];
+        this.numberOfInstances = reasoner.getRootOntology().getIndividualsInSignature().size();
         update_sampler(reasoner);
     }
 
-    /**
-     * Recomputes, for every baseSet concept, which individuals are its
-     * instances according to the given reasoner, and how many are not.
-     * Called once at construction time. (Baris's original class also
-     * supports calling this again later to refresh the sampler as the
-     * hypothesis grows; that usage is not exercised in this integration
-     * since we do not currently re-sample mid-run with an updated
-     * hypothesis reasoner.)
-     */
     public void update_sampler(OWLReasoner reasoner) {
-        individualTypes.clear();
-        for (int i = 0; i < baseConcepts.length; ++i) {
-            OWLClassExpression ce = baseConcepts[i];
+        instanceTypes = new HashMap<>();
+
+        for (OWLClassExpression ce : baseSet) {
             Set<OWLNamedIndividual> instances = reasoner.getInstances(ce).getFlattened();
-            noninstanceCounts[i] = individuals.length - instances.size();
+            instanceCounts.put(ce, instances.size());
             for (OWLNamedIndividual ind : instances) {
-                individualTypes.computeIfAbsent(ind, k -> new ArrayList<>()).add(ce);
+                instanceTypes.computeIfAbsent(ind, k -> new ArrayList<>(Collections.singletonList(ce)));
+                if (!instanceTypes.get(ind).contains(ce)) {
+                    instanceTypes.get(ind).add(ce);
+                }
             }
+        }
+
+        instanceNames = new OWLNamedIndividual[instanceTypes.size()];
+        instanceWeights = new BigInteger[instanceTypes.size()];
+
+        int i = 0;
+        cumulativeInstanceWeight = BigInteger.ZERO;
+        for (Map.Entry<OWLNamedIndividual, ArrayList<OWLClassExpression>> entry : instanceTypes.entrySet()) {
+            instanceNames[i] = entry.getKey();
+            cumulativeInstanceWeight = cumulativeInstanceWeight.add(BigInteger.ONE.shiftLeft(entry.getValue().size()));
+            instanceWeights[i++] = cumulativeInstanceWeight;
         }
     }
 
-    /**
-     * Draws one candidate subsumption axiom "premise ⊑ conclusion" from the
-     * ABox-induced distribution. This is the method LaunchLLMLearnerAInduced
-     * calls in place of Ana's original pac.getRandomStatement().
-     *
-     * The left-hand side is assembled here (not by the caller) because,
-     * unlike paclo's original sample(), this method must hand back a
-     * complete, ready-to-test OWLSubClassOfAxiom:
-     *   - empty premise            -> owl:Thing (⊤) is used as the subject
-     *   - premise with one concept -> that concept is used directly
-     *   - premise with 2+ concepts -> their conjunction (⊓) is used
-     */
     public OWLSubClassOfAxiom sample() {
         Set<OWLClassExpression> premise = samplePremise();
         OWLClassExpression conclusion = sampleConclusion(premise);
@@ -129,75 +93,63 @@ public class ABoxInducedSubsumptionSampler {
         return factory.getOWLSubClassOfAxiom(lhs, conclusion);
     }
 
-    /**
-     * Builds a candidate premise by picking one random individual from the
-     * ABox and, independently for each baseSet concept that individual is
-     * known to instantiate, flipping a coin to decide whether that concept
-     * joins the premise. This means the premise is always grounded in a
-     * real individual's actual (inferred) type set, rather than being an
-     * arbitrary combination of baseSet concepts.
-     *
-     * The retry loop (do/while) guards against the degenerate case where
-     * the sampled premise happens to equal the entire baseSet — that would
-     * leave sampleConclusion() with no candidate concepts to choose from.
-     */
     private Set<OWLClassExpression> samplePremise() {
         Set<OWLClassExpression> premise = new HashSet<>();
+        if (instanceNames.length == 0) {
+            return premise; // nessun individuo tipizzato: premessa vuota (Top)
+        }
         do {
             premise.clear();
-            OWLNamedIndividual ind = individuals[ThreadLocalRandom.current().nextInt(individuals.length)];
-            if (individualTypes.containsKey(ind)) {
-                for (OWLClassExpression expr : individualTypes.get(ind)) {
-                    if (ThreadLocalRandom.current().nextBoolean()) {
-                        premise.add(expr);
-                    }
+            int idx = randomIndexBig(instanceWeights, cumulativeInstanceWeight);
+            OWLNamedIndividual ind = instanceNames[idx];
+            for (OWLClassExpression expr : instanceTypes.get(ind)) {
+                if (ThreadLocalRandom.current().nextBoolean()) {
+                    premise.add(expr);
                 }
             }
-        } while (premise.size() == baseConcepts.length);
+        } while (premise.size() == baseSet.size());
         return premise;
     }
 
-    /**
-     * Picks a conclusion concept from the baseSet concepts NOT already in
-     * the premise, with probability weighted by noninstanceCounts: concepts
-     * with fewer known instances (i.e. "rarer" or more specific concepts)
-     * are favoured. This is the "weighted" (non-uniform) conclusion
-     * strategy — the same default Baris uses in his own experiments.
-     * The weights array is a cumulative sum, enabling the binary search in
-     * randomIndex() to pick an index in O(log n) proportional to weight.
-     */
     private OWLClassExpression sampleConclusion(Set<OWLClassExpression> premise) {
-        Set<OWLClassExpression> remaining = new HashSet<>(Arrays.asList(baseConcepts));
+        Set<OWLClassExpression> remaining = new HashSet<>(baseSet);
         remaining.removeAll(premise);
         OWLClassExpression[] types = remaining.toArray(new OWLClassExpression[0]);
+
         long[] weights = new long[types.length];
-        weights[0] = noninstanceCounts[0];
-        for (int i = 1; i < types.length; ++i) {
-            weights[i] = weights[i - 1] + noninstanceCounts[i];
+        long total = 0;
+        for (int i = 0; i < types.length; ++i) {
+            total += (numberOfInstances - instanceCounts.get(types[i]));
+            weights[i] = total;
         }
-        return types[randomIndex(weights)];
+        return types[randomIndexLong(weights, total)];
     }
 
-    /**
-     * Weighted random index selection via binary search over a cumulative
-     * weight array. If all weights are zero (every candidate concept has
-     * every individual as an instance, i.e. noninstanceCounts are all 0),
-     * falls back to a plain uniform choice to avoid dividing by zero.
-     */
-    private int randomIndex(long[] weights) {
-        int low = 0;
-        int high = weights.length - 1;
-        if (weights[high] == 0) return ThreadLocalRandom.current().nextInt(weights.length);
-        long r = ThreadLocalRandom.current().nextLong(weights[high]);
-        while (low < high) {
-            int mid = (low + high) / 2;
-            if (r < weights[mid]) high = mid;
-            else low = mid + 1;
+    private static int randomIndexLong(long[] weights, long total) {
+        if (total <= 0) {
+            return ThreadLocalRandom.current().nextInt(weights.length);
         }
-        return low;
+        long r = ThreadLocalRandom.current().nextLong(total);
+        int index = Arrays.binarySearch(weights, r);
+        if (index < 0) index = -(index + 1);
+        if (index == weights.length) index--;
+        while (index > 0 && weights[index] == weights[index - 1]) index--;
+        return index;
+    }
+
+    private static int randomIndexBig(BigInteger[] weights, BigInteger total) {
+        BigInteger r;
+        do {
+            r = new BigInteger(total.bitLength(), ThreadLocalRandom.current());
+        } while (r.compareTo(total) >= 0);
+        int index = Arrays.binarySearch(weights, r);
+        if (index < 0) index = -(index + 1);
+        if (index == weights.length) index--;
+        while (index > 0 && weights[index].equals(weights[index - 1])) index--;
+        return index;
     }
 
     public boolean hasIndividuals() {
-        return individuals.length > 0;
+        return instanceNames != null && instanceNames.length > 0;
     }
 }
