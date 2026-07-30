@@ -1,6 +1,6 @@
-from statistics import PRETTY_MODEL_NAMES
-from statistics.figures import PATH as FIGURES_PATH
-from statistics.cache import PATH as CACHE_PATH
+from plot_config import PRETTY_MODEL_NAMES
+from figures import PATH as FIGURES_PATH
+from cache import PATH as CACHE_PATH
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
