@@ -303,7 +303,10 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
     /** Draws up to batchSize candidates, never more than the remaining PAC budget. */
     private List<OWLSubClassOfAxiom> drawBlock(int batchSize, Pac pac) {
-        long remaining = pac.getNumberOfSamples() - pac.getNumberOfProvidedSamples();
+        // getNumberOfProvidedSamples() returns double (it is a counter Ana exposes
+        // for the statistics), so narrow it explicitly rather than letting the
+        // subtraction promote to double.
+        long remaining = pac.getNumberOfSamples() - (long) pac.getNumberOfProvidedSamples();
         int want = (int) Math.min(Math.max(batchSize, 1), Math.max(remaining, 0));
         List<OWLSubClassOfAxiom> block = new ArrayList<>(want);
         for (int i = 0; i < want; i++) {
