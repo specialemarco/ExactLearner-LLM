@@ -19,11 +19,13 @@ public class NLPLLMEngine extends LLMEngine {
         super(ontology, manager, workloadManager, parser, simplifier);
     }
 
+    // Overrides buildMessage rather than runTaskAndGetResult so that queryFor()
+    // produces exactly the string that would be sent. The order below is the
+    // same as the previous runTaskAndGetResult override: collapse doubled
+    // spaces, rephrase, then let the superclass collapse again.
     @Override
-    protected Boolean runTaskAndGetResult(String message) {
-        message = message.replace("  ", " ");
-        message = addExtraSemantic(message);
-        return super.runTaskAndGetResult(message);
+    protected String buildMessage(String rendered) {
+        return super.buildMessage(addExtraSemantic(rendered.replace("  ", " ")));
     }
 
     private String addExtraSemantic(String message) {

@@ -58,8 +58,34 @@ public class LLMEngine implements BaseEngine {
 
 
     protected Boolean runTaskAndGetResult(String message) {
-        message = message.replace("  ", " ");
-        return workloadManager.runWorkload(message);
+        return workloadManager.runWorkload(buildMessage(message));
+    }
+
+    /**
+     * Turns a rendered axiom into the exact string sent to the model, which is
+     * also the cache key. Subclasses override this to add their own phrasing.
+     *
+     * Split out of runTaskAndGetResult so that the transformation has a single
+     * definition. Anything that needs to know a query string WITHOUT issuing it
+     * -- batch pre-warming, in particular -- must produce a byte-identical
+     * string, or it writes cache entries the learner will never read.
+     */
+    protected String buildMessage(String rendered) {
+        return rendered.replace("  ", " ");
+    }
+
+    /**
+     * The query string this engine would send for a subclass axiom, without
+     * sending it. Mirrors the rendering in entailed(OWLSubClassOfAxiom).
+     *
+     * Only valid for axioms whose superclass is not an intersection: those are
+     * split into several queries when EXACTLEARNER_SPLIT is on, so a single
+     * string cannot represent them. Precomputation only ever asks about pairs
+     * of atomic classes, which is the intended use.
+     */
+    public String queryFor(OWLSubClassOfAxiom axiom) {
+        String rendered = renderer.render(axiom).replaceAll("\r", " ").replaceAll("\n", " ");
+        return buildMessage(rendered);
     }
 
     @Override

@@ -14,6 +14,7 @@ import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.utils.Metrics;
 import org.experiments.logger.CacheManager;
 import org.experiments.logger.SmartLogger;
+import org.experiments.workload.BatchPrewarmer;
 import org.experiments.workload.WorkLoadCounter;
 import org.experiments.workload.WorkloadManager;
 import org.experiments.workload.WorkloadManagerImpl;
@@ -160,6 +161,7 @@ public class LaunchLLMLearner extends LaunchLearner {
     // overridden run() method, instead of duplicating this logic.
     protected void runLearningExperiment(String[] args, int hypothesisSize, String model) throws Throwable {
         long timeStart = System.currentTimeMillis();
+        prewarmPrecomputationCache(model);
         runLearner(hypothesisSize);
         long timeEnd = System.currentTimeMillis();
         saveOWLFile(hypothesisOntology, hypoFile);
@@ -173,6 +175,34 @@ public class LaunchLLMLearner extends LaunchLearner {
         var statFile = new File(dir, filename);
         printAndSaveStats(timeStart, timeEnd, args, true,
                 targetFile, statFile, myMetrics, learner, oracle, conceptNumber, roleNumber, groundTruthOntology, hypothesisOntology);
+    }
+
+    /**
+     * Optionally fills the cache for precomputation() with batched LLM calls
+     * before the learner starts. Off unless EXACTLEARNER_BATCH_SIZE is set.
+     *
+     * This changes only HOW the precomputation answers are obtained, never
+     * which questions are asked or how they are keyed -- precomputation() then
+     * runs unmodified and reads them all from the cache. Any failure leaves the
+     * cache untouched and the learner queries sequentially as before.
+     */
+    private void prewarmPrecomputationCache(String model) {
+        int batchSize = BatchPrewarmer.batchSizeFromEnv();
+        if (batchSize <= 0) {
+            return;
+        }
+        if (!(llmQueryEngineForT instanceof LLMEngine engine)) {
+            System.out.println("Batch pre-warm skipped: engine is not an LLMEngine.");
+            return;
+        }
+        try {
+            BatchPrewarmer.prewarmPrecomputation(
+                    engine, cacheManager.getCache(model, system), system, batchSize);
+        } catch (Throwable t) {
+            // Deliberately broad: a pre-warm is an optimisation, and must never
+            // be able to fail a run that would otherwise have completed.
+            System.out.println("Batch pre-warm failed, continuing sequentially: " + t);
+        }
     }
 
     private void runLearner(int hypothesisSize) throws Throwable {
