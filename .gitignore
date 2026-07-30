@@ -130,3 +130,6 @@ nb-configuration.xml
 ## CUSTOM
 ##############################
 src/main/resources/openai-key.json
+
+data_paclo
+*.md
