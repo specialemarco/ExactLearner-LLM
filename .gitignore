@@ -133,3 +133,6 @@ src/main/resources/openai-key.json
 
 data_paclo
 *.md
+logs/
+cp.txt
+.ipynb_checkpoints/

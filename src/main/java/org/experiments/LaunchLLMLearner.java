@@ -39,9 +39,11 @@ public class LaunchLLMLearner extends LaunchLearner {
     protected String queryFormat;
     protected Integer maxTokens;
     protected List<Integer> hypothesisSizes;
-    private double totalCE = 0;
-    private double totalMembershipQ = 0;
-    private double totalEquivalenceQ = 0;
+    // Protected rather than private so LaunchLLMLearnerAInduced can accumulate
+    // into them from its own runLearner override (see skipPrecomputation).
+    protected double totalCE = 0;
+    protected double totalMembershipQ = 0;
+    protected double totalEquivalenceQ = 0;
 
 
     protected double epsilon = 0.2;
@@ -187,6 +189,12 @@ public class LaunchLLMLearner extends LaunchLearner {
      * cache untouched and the learner queries sequentially as before.
      */
     private void prewarmPrecomputationCache(String model) {
+        if (!isPrecomputationEnabled()) {
+            // Nothing downstream will read these answers, so fetching 17k of
+            // them would be pure waste. See LaunchLLMLearnerAInduced.
+            System.out.println("Batch pre-warm skipped: precomputation is disabled for this run.");
+            return;
+        }
         int batchSize = BatchPrewarmer.batchSizeFromEnv();
         if (batchSize <= 0) {
             return;
@@ -205,7 +213,18 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
     }
 
-    private void runLearner(int hypothesisSize) throws Throwable {
+    /**
+     * Whether Learner.precomputation() will run for this experiment. Always true
+     * here; LaunchLLMLearnerAInduced overrides it when skipPrecomputation is set,
+     * so the batch pre-warm above can avoid fetching answers nothing will read.
+     */
+    protected boolean isPrecomputationEnabled() {
+        return true;
+    }
+
+    // Protected rather than private so LaunchLLMLearnerAInduced can bypass this
+    // whole method when running the A-induced loop without precomputation.
+    protected void runLearner(int hypothesisSize) throws Throwable {
         int numberOfCounterExamples = 0;
         int seed = 0;
         // Computes inclusions of the form A implies B

@@ -59,9 +59,74 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // combination in run()). Reported at evaluation time.
     private int counterExampleCount = 0;
 
+    // If true, Ana's precomputation() phase is skipped entirely and the run
+    // measures the A-induced loop's contribution on its own. Precomputation
+    // tests every ordered pair of class names before the loop starts, so it
+    // absorbs the "easy" atomic subsumptions; turning it off is what isolates
+    // how much the A-induced sampler finds by itself. Set via
+    // LaunchLLMLearnerAInducedNoPre, not by editing this default.
+    private boolean skipPrecomputation = false;
+
+    public void setSkipPrecomputation(boolean skip) {
+        this.skipPrecomputation = skip;
+    }
+
+    @Override
+    protected boolean isPrecomputationEnabled() {
+        return !skipPrecomputation;
+    }
+
     public static void main(String[] args) {
         LogManager.getRootLogger().atLevel(Level.OFF);
         new LaunchLLMLearnerAInduced().run(args);
+    }
+
+    /**
+     * Runs the A-induced equivalence-query loop WITHOUT Ana's precomputation()
+     * when skipPrecomputation is set; otherwise defers to the parent, which
+     * calls precomputation() first.
+     *
+     * The loop body below is the parent's, minus the precomputation call: build
+     * a Pac budget, then repeatedly ask for a counterexample until the sampler
+     * exhausts it. The per-sample normalisation of the totals at the end
+     * matches the parent so the two arms stay directly comparable.
+     */
+    @Override
+    protected void runLearner(int hypothesisSize) throws Throwable {
+        if (!skipPrecomputation) {
+            super.runLearner(hypothesisSize);
+            return;
+        }
+
+        int numberOfCounterExamples = 0;
+        int seed = 0;
+        Pac pac = new Pac(
+                parser.getClasses().get(),
+                parser.getObjectProperties(),
+                epsilon, delta, hypothesisSize, seed);
+        long totalPacSamples = pac.getNumberOfSamples();
+        System.out.println("SKIP PRECOMPUTATION: pure A-induced loop");
+        System.out.println("  PAC sample budget (numberOfSamples) = " + totalPacSamples);
+
+        while (true) {
+            myMetrics.setEquivCount(myMetrics.getEquivCount() + 1);
+            counterExample = getCounterExample(pac);
+            if (counterExample == null) {
+                System.out.println("No counterexample found, closing...");
+                break;
+            }
+            System.out.println("Counterexample number: " + ++numberOfCounterExamples);
+            int size = myMetrics.getSizeOfCounterexample(counterExample);
+            if (size > myMetrics.getSizeOfLargestCounterExample()) {
+                myMetrics.setSizeOfLargestCounterExample(size);
+            }
+            counterExample = learner.decompose(counterExample.getSubClass(), counterExample.getSuperClass());
+            checkTransformations();
+        }
+
+        totalCE += (double) numberOfCounterExamples / (double) totalPacSamples;
+        totalMembershipQ += (double) myMetrics.getMembCount() / (double) totalPacSamples;
+        totalEquivalenceQ += (double) myMetrics.getEquivCount() / (double) totalPacSamples;
     }
 
     /**

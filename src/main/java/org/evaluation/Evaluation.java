@@ -2,7 +2,9 @@ package org.evaluation;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.exactlearner.renderer.AnnotationShorFormProvider;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.InferenceType;
@@ -102,6 +104,13 @@ public class Evaluation {
         long timeElapsed = Duration.between(start, finish).toMillis();
         System.out.println("Result ontology classified: " + timeElapsed + " ms");
 
+        // Short-form renderer for readable output: reuses the same
+        // AnnotationShorFormProvider already used by LLMEngine.createRenderer()
+        // (falls back to the IRI fragment, e.g. "Woman", when no rdfs:label
+        // exists). Without it every axiom prints as a full IRI.
+        ManchesterOWLSyntaxOWLObjectRendererImpl shortRenderer = new ManchesterOWLSyntaxOWLObjectRendererImpl();
+        shortRenderer.setShortFormProvider(new AnnotationShorFormProvider(resultOntology));
+
         start = Instant.now();
 
         // Diagnostic pass: for every learned SubClassOf axiom, print a
@@ -112,10 +121,10 @@ public class Evaluation {
         for (OWLSubClassOfAxiom axiom : resultOntology.getAxioms(AxiomType.SUBCLASS_OF)) {
             System.out.println("***Subclass Axiom***");
             OWLClassExpression subClass = axiom.getSubClass();
-            System.out.println("Subclass: " + subClass);
+            System.out.println("Subclass: " + shortRenderer.render(subClass));
             Set<OWLNamedIndividual> subClassIndividuals = expertReasoner.getInstances(subClass, false).getFlattened();
             OWLClassExpression superClass = axiom.getSuperClass();
-            System.out.println("Superclass: " + superClass);
+            System.out.println("Superclass: " + shortRenderer.render(superClass));
             Set<OWLNamedIndividual> superClassIndividuals = expertReasoner.getInstances(superClass, false).getFlattened();
             Set<OWLNamedIndividual> intersection = new HashSet<>(subClassIndividuals);
             intersection.retainAll(superClassIndividuals);
@@ -143,7 +152,7 @@ public class Evaluation {
             Set<OWLNamedIndividual> inferredIndividuals = expertReasoner.getInstances(ce, false).getFlattened();
             Set<OWLNamedIndividual> inferredIndividualsResult = resultReasoner.getInstances(ce, false).getFlattened();
             if (!inferredIndividuals.isEmpty() || !inferredIndividualsResult.isEmpty()) {
-                System.out.println("ce:" + ce);
+                System.out.println("ce:" + shortRenderer.render(ce));
                 allInferred += inferredIndividuals.size();
                 allInferredResult += inferredIndividualsResult.size();
                 Set<OWLNamedIndividual> shared = new HashSet<OWLNamedIndividual>(inferredIndividuals);
