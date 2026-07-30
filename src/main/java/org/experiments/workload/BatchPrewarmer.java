@@ -183,6 +183,57 @@ public class BatchPrewarmer {
         return stored;
     }
 
+    /**
+     * Fetches arbitrary queries in batches and stores the answers in the cache.
+     *
+     * Used by the A-induced loop, which draws a block of candidates and prefetches
+     * their answers in one call so the GPU sees several prompts at a time instead
+     * of one. The loop itself is unchanged and still reads every answer through
+     * the engine, which finds them here.
+     *
+     * Returns the number of answers stored. Never throws: on any failure the cache
+     * is left as it was and the caller falls back to querying one at a time.
+     */
+    public static int fetchAndCache(Cache cache, String system, List<String> queries, int batchSize) {
+        if (cache == null || queries == null || queries.isEmpty() || batchSize <= 0) {
+            return 0;
+        }
+        String url = batchUrl();
+        if (url == null) {
+            return 0;
+        }
+
+        int stored = 0;
+        for (int from = 0; from < queries.size(); from += batchSize) {
+            int to = Math.min(from + batchSize, queries.size());
+            List<String> chunk = queries.subList(from, to);
+            BatchResponse response;
+            try {
+                response = postBatch(url, chunk, system);
+            } catch (Exception e) {
+                System.out.println("Batch fetch failed after " + stored + " answers: " + e
+                        + ". Remaining queries will be asked one at a time.");
+                return stored;
+            }
+            if (response == null || response.answers.size() != chunk.size()) {
+                System.out.println("Batch fetch aborted after " + stored
+                        + " answers: malformed response. Remaining queries will be asked "
+                        + "one at a time.");
+                return stored;
+            }
+            for (int i = 0; i < chunk.size(); i++) {
+                // Same rule as the pre-warm: never cache an answer whose reasoning
+                // was cut short by the token budget, since the cache never recomputes.
+                if (response.atCap.size() == chunk.size() && response.atCap.get(i)) {
+                    continue;
+                }
+                cache.storeQuery(chunk.get(i), response.answers.get(i));
+                stored++;
+            }
+        }
+        return stored;
+    }
+
     private record BatchResponse(List<String> answers, List<Boolean> atCap) {
     }
 

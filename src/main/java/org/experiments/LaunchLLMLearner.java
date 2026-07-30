@@ -39,6 +39,8 @@ public class LaunchLLMLearner extends LaunchLearner {
     protected String queryFormat;
     protected Integer maxTokens;
     protected List<Integer> hypothesisSizes;
+    // The model currently being run, set by setup(). Needed to resolve the cache.
+    protected String currentModel;
     // Protected rather than private so LaunchLLMLearnerAInduced can accumulate
     // into them from its own runLearner override (see skipPrecomputation).
     protected double totalCE = 0;
@@ -138,6 +140,9 @@ public class LaunchLLMLearner extends LaunchLearner {
 
     protected void setup(String ontology, String model) {
         try {
+            // Remembered so subclasses can reach this run's cache
+            // (cacheManager.getCache(model, system)) outside of setup.
+            this.currentModel = model;
             myMetrics = new Metrics(myRenderer);
             System.out.println("Trying to load groundTruthOntology");
             loadTargetOntology(ontology);

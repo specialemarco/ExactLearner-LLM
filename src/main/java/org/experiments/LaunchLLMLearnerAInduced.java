@@ -15,11 +15,17 @@ import org.semanticweb.owlapi.util.mansyntax.ManchesterOWLSyntaxParser;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.evaluation.Evaluation;
+import org.exactlearner.engine.LLMEngine;
+import org.experiments.logger.Cache;
+import org.experiments.workload.BatchPrewarmer;
 
 /**
  * NEW FILE — added for the A-induced sampling integration.
@@ -66,6 +72,13 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // how much the A-induced sampler finds by itself. Set via
     // LaunchLLMLearnerAInducedNoPre, not by editing this default.
     private boolean skipPrecomputation = false;
+
+    // Batched candidate evaluation. Resolved lazily and turned off permanently
+    // for the run if anything about the batch path is unavailable, so a broken
+    // batch endpoint degrades to the original one-at-a-time loop rather than
+    // failing a run that would otherwise have completed.
+    private boolean batchedLoopDisabled = false;
+    private Cache loopCache = null;
 
     public void setSkipPrecomputation(boolean skip) {
         this.skipPrecomputation = skip;
@@ -226,30 +239,125 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
             }
         }
 
+        int batchSize = batchedLoopSize();
+
         while (pac.getNumberOfProvidedSamples() < pac.getNumberOfSamples()) {
-            // NOTE: incrementProvidedSamples() is a small addition to Ana's
-            // Pac class (see Pac.java). It exists because pac.getRandomStatement()
-            // normally advances this counter internally; since we bypass that
-            // method entirely and call aboxSampler.sample() directly, we must
-            // advance the counter here ourselves, or the PAC sample budget
-            // would never be consumed and this loop would run forever.
-            pac.incrementProvidedSamples();
-            OWLSubClassOfAxiom selectedAxiom = aboxSampler.sample();
-            if (selectedAxiom == null) return null;
-            if (pac.getNumberOfProvidedSamples() <= 10) {
-                System.out.println("DEBUG sampled: " + selectedAxiom.getSubClass() + " SubClassOf " + selectedAxiom.getSuperClass());
+            // Draw a block of candidates and fetch their answers in ONE call, so
+            // the GPU sees batchSize prompts instead of one. This is purely a
+            // transport change: the examination loop below is byte-for-byte the
+            // original sequential one, and every answer it needs was just written
+            // into the cache the engine reads. With a measured 1-in-264 hit rate,
+            // almost every block is all-negative, so the speculation is nearly
+            // always fully used.
+            List<OWLSubClassOfAxiom> block = drawBlock(batchSize, pac);
+            if (block.isEmpty()) return null;
+            if (batchSize > 1) {
+                prefetchAnswers(block, batchSize);
             }
-            boolean entH = elQueryEngineForH.entailed(selectedAxiom);
-            boolean entT = llmQueryEngineForT.entailed(selectedAxiom);
-            if (pac.getNumberOfProvidedSamples() <= 10) {
-                System.out.println("DEBUG entH=" + entH + " entT(Mistral)=" + entT);
-            }
-            if (!entH && entT) {
-                counterExampleCount++;
-                return getCounterExampleSubClassOf(selectedAxiom);
+
+            for (OWLSubClassOfAxiom selectedAxiom : block) {
+                if (pac.getNumberOfProvidedSamples() >= pac.getNumberOfSamples()) {
+                    return null;
+                }
+                // NOTE: incrementProvidedSamples() is a small addition to Ana's
+                // Pac class (see Pac.java). It exists because pac.getRandomStatement()
+                // normally advances this counter internally; since we bypass that
+                // method entirely and call aboxSampler.sample() directly, we must
+                // advance the counter here ourselves, or the PAC sample budget
+                // would never be consumed and this loop would run forever.
+                //
+                // Only candidates actually EXAMINED consume budget. Anything left
+                // in the block after a counterexample is discarded unexamined, so
+                // the budget is spent exactly as it would be sequentially and the
+                // two modes stay directly comparable. Their answers stay in the
+                // cache, so redrawing them later costs nothing.
+                pac.incrementProvidedSamples();
+                if (pac.getNumberOfProvidedSamples() <= 10) {
+                    System.out.println("DEBUG sampled: " + selectedAxiom.getSubClass() + " SubClassOf " + selectedAxiom.getSuperClass());
+                }
+                boolean entH = elQueryEngineForH.entailed(selectedAxiom);
+                boolean entT = llmQueryEngineForT.entailed(selectedAxiom);
+                if (pac.getNumberOfProvidedSamples() <= 10) {
+                    System.out.println("DEBUG entH=" + entH + " entT=" + entT);
+                }
+                if (!entH && entT) {
+                    counterExampleCount++;
+                    return getCounterExampleSubClassOf(selectedAxiom);
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * Batch size for the loop above, from EXACTLEARNER_BATCH_SIZE. 1 means the
+     * loop behaves exactly as before, one candidate and one query at a time.
+     */
+    private int batchedLoopSize() {
+        if (batchedLoopDisabled) {
+            return 1;
+        }
+        int configured = BatchPrewarmer.batchSizeFromEnv();
+        return configured > 1 ? configured : 1;
+    }
+
+    /** Draws up to batchSize candidates, never more than the remaining PAC budget. */
+    private List<OWLSubClassOfAxiom> drawBlock(int batchSize, Pac pac) {
+        long remaining = pac.getNumberOfSamples() - pac.getNumberOfProvidedSamples();
+        int want = (int) Math.min(Math.max(batchSize, 1), Math.max(remaining, 0));
+        List<OWLSubClassOfAxiom> block = new ArrayList<>(want);
+        for (int i = 0; i < want; i++) {
+            OWLSubClassOfAxiom axiom = aboxSampler.sample();
+            if (axiom == null) break;   // sampler exhausted
+            block.add(axiom);
+        }
+        return block;
+    }
+
+    /**
+     * Asks the batch endpoint for every answer in the block that is not cached
+     * yet, and stores the results. Deliberately best-effort: on any failure the
+     * loop simply queries one at a time, which is correct, only slower.
+     *
+     * queryFor() is valid here because A-induced conclusions are single base-set
+     * concepts, never intersections. If the engine did ask something different,
+     * that query would just miss the cache and be issued normally.
+     */
+    private void prefetchAnswers(List<OWLSubClassOfAxiom> block, int batchSize) {
+        if (batchedLoopDisabled) return;
+        if (!(llmQueryEngineForT instanceof LLMEngine engine)) {
+            batchedLoopDisabled = true;
+            return;
+        }
+        Cache cache = loopCache();
+        if (cache == null) {
+            batchedLoopDisabled = true;
+            return;
+        }
+        try {
+            // LinkedHashSet: a block can draw the same axiom twice, and asking
+            // for it twice in one batch would waste a slot.
+            LinkedHashSet<String> pending = new LinkedHashSet<>();
+            for (OWLSubClassOfAxiom axiom : block) {
+                String query = engine.queryFor(axiom);
+                if (cache.resultString(query) == null) {
+                    pending.add(query);
+                }
+            }
+            if (!pending.isEmpty()) {
+                BatchPrewarmer.fetchAndCache(cache, system, new ArrayList<>(pending), batchSize);
+            }
+        } catch (Throwable t) {
+            System.out.println("A-induced batch prefetch failed, continuing sequentially: " + t);
+            batchedLoopDisabled = true;
+        }
+    }
+
+    private Cache loopCache() {
+        if (loopCache == null && currentModel != null) {
+            loopCache = cacheManager.getCache(currentModel, system);
+        }
+        return loopCache;
     }
 
     /**
