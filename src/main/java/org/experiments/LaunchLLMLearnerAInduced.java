@@ -317,6 +317,18 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      * reference entities by their short name (fragment after "#") rather
      * than a full IRI; the checker resolves short names back to the actual
      * OWLEntity objects declared in the reference ontology's signature.
+     *
+     * The checker must also know owl:Thing explicitly. The C2 baseSet
+     * (class_names_exists_thing) writes its fillers as the full IRI
+     * <http://www.w3.org/2002/07/owl#Thing>, and the Manchester parser
+     * hands exactly that bracketed string to the entity checker. Built-in
+     * entities are not part of referenceOntology.signature(), so the
+     * fragment-only map above resolves nothing for it and the parser
+     * aborts with "Encountered <...owl#Thing> ... Expected Class name".
+     * Registering owl:Thing/owl:Nothing under both their bracketed-IRI
+     * and short forms fixes C2; C1 and C3 are unaffected (their fillers
+     * are ordinary named classes that the parser resolves from the
+     * default ontology).
      */
     private Set<OWLClassExpression> readBaseSet(File f, OWLOntology referenceOntology) throws Exception {
         OWLOntologyManager om = OWLManager.createOWLOntologyManager();
@@ -328,6 +340,11 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
         final Map<String, OWLEntity> map = new HashMap<>();
         referenceOntology.signature().forEach(x -> map.put(x.getIRI().getFragment(), x));
+        for (OWLClass builtin : new OWLClass[]{df.getOWLThing(), df.getOWLNothing()}) {
+            map.put(builtin.getIRI().getFragment(), builtin);            // Thing / Nothing
+            map.put("owl:" + builtin.getIRI().getFragment(), builtin);   // owl:Thing / owl:Nothing
+            map.put("<" + builtin.getIRI() + ">", builtin);              // <http://...owl#Thing>
+        }
         parser.setOWLEntityChecker(new OWLEntityChecker() {
             private <T> T v(String name, Class<T> t) {
                 OWLEntity e = map.get(name);
