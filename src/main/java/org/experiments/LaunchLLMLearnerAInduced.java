@@ -80,8 +80,32 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     private boolean batchedLoopDisabled = false;
     private Cache loopCache = null;
 
+    /**
+     * Seed for the A-induced sampler, from the environment. Fixed by default so
+     * a rerun repeats the previous run's draws exactly; override it to get an
+     * independent repeat of the same experiment.
+     *
+     * Note this is NOT the `seed` local in runLearner, which belongs to Pac and
+     * has never governed A-induced sampling.
+     */
+    public static final String SAMPLER_SEED_ENV = "EXACTLEARNER_SAMPLER_SEED";
+
     public void setSkipPrecomputation(boolean skip) {
         this.skipPrecomputation = skip;
+    }
+
+    private long samplerSeed() {
+        String raw = System.getenv(SAMPLER_SEED_ENV);
+        if (raw == null || raw.isBlank()) {
+            return ABoxInducedSubsumptionSampler.DEFAULT_SEED;
+        }
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException e) {
+            System.out.println("Ignoring " + SAMPLER_SEED_ENV + "=" + raw + " (not a number), using "
+                    + ABoxInducedSubsumptionSampler.DEFAULT_SEED);
+            return ABoxInducedSubsumptionSampler.DEFAULT_SEED;
+        }
     }
 
     @Override
@@ -135,6 +159,10 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
             }
             counterExample = learner.decompose(counterExample.getSubClass(), counterExample.getSuperClass());
             checkTransformations();
+
+            // See LaunchLearner.checkpointHypothesis: without this a walltime
+            // kill discards every counterexample this loop has found.
+            checkpointHypothesis(numberOfCounterExamples);
         }
 
         totalCE += (double) numberOfCounterExamples / (double) totalPacSamples;
@@ -449,7 +477,10 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         Set<OWLClassExpression> baseSet = readBaseSet(baseSetFile, initialOntology);
 
         OWLDataFactory df = OWLManager.getOWLDataFactory();
-        aboxSampler = new ABoxInducedSubsumptionSampler(baseSet, initialOntologyReasoner, df);
+        long seed = samplerSeed();
+        aboxSampler = new ABoxInducedSubsumptionSampler(baseSet, initialOntologyReasoner, df, seed);
+        System.out.println("A-induced sampler seed: " + seed
+                + " (set " + SAMPLER_SEED_ENV + " to vary it across repeats)");
 
         this.aInducedBaseSet = baseSet;
         this.aInducedInitialReasoner = initialOntologyReasoner;

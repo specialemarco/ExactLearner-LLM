@@ -290,6 +290,46 @@ public abstract class LaunchLearner {
         this.roleNumber = roles.size();
     }
 
+    /**
+     * Writes the hypothesis learned SO FAR to hypoFile, mid-run.
+     *
+     * Without this the hypothesis exists only in memory until saveOWLFile()
+     * runs after the learning loop returns, so a job killed at walltime loses
+     * every counterexample it found — a measured 12-hour run produced 22
+     * counterexamples and saved none of them. Each counterexample costs on the
+     * order of half an hour of LLM queries, while this serialisation of a
+     * few dozen axioms costs milliseconds, so it is worth doing on every one.
+     *
+     * Deliberately does NOT call addLabelsHypothesisOntology(): that mutates
+     * hypothesisOntology by adding annotation axioms, and a checkpoint must not
+     * be able to change the state of the run it is recording. Labels are still
+     * added by the final saveOWLFile(), which overwrites this file on a clean
+     * finish. A checkpoint left behind by a killed job is therefore
+     * label-free but logically complete.
+     *
+     * Never throws: losing a checkpoint is bad, but failing a run that would
+     * otherwise have completed is worse.
+     */
+    protected void checkpointHypothesis(int counterExampleNumber) {
+        if (hypoFile == null || hypothesisOntology == null) {
+            return;
+        }
+        try {
+            OWLDocumentFormat format = myManager.getOntologyFormat(hypothesisOntology);
+            ManchesterSyntaxDocumentFormat manSyntaxFormat = new ManchesterSyntaxDocumentFormat();
+            if (format != null && format.isPrefixOWLDocumentFormat()) {
+                manSyntaxFormat.clear();
+            }
+            myManager.saveOntology(hypothesisOntology, manSyntaxFormat, IRI.create(hypoFile.toURI()));
+            System.out.println("Checkpointed hypothesis after counterexample "
+                    + counterExampleNumber + " -> " + hypoFile.getPath()
+                    + " (" + hypothesisOntology.getLogicalAxiomCount() + " logical axioms)");
+        } catch (Throwable t) {
+            System.out.println("Hypothesis checkpoint after counterexample "
+                    + counterExampleNumber + " failed, continuing: " + t);
+        }
+    }
+
     protected void saveOWLFile(OWLOntology ontology, File file) throws Exception {
         //learner.minimiseHypothesis(elQueryEngineForH, hypothesisOntology);
         addLabelsHypothesisOntology();

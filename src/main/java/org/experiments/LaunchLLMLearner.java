@@ -259,6 +259,10 @@ public class LaunchLLMLearner extends LaunchLearner {
             // Check if transformation can be applied
             checkTransformations();
             //addHypothesis(counterExample);
+
+            // Persist what has been learned so far. A job killed at walltime
+            // otherwise loses every counterexample found up to that point.
+            checkpointHypothesis(numberOfCounterExamples);
         }
         totalCE += (double) numberOfCounterExamples / (double) totalPacSamples;
         totalMembershipQ += (double) myMetrics.getMembCount() / (double) totalPacSamples;

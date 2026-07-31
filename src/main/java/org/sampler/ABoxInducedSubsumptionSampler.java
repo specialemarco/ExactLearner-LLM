@@ -4,11 +4,12 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLDataFactory;
@@ -33,14 +34,42 @@ import org.semanticweb.owlapi.reasoner.OWLReasoner;
  *   premise and waste samples) — this is a behavioural difference from the
  *   previous version, which sampled uniformly over ALL individuals in the
  *   ontology signature.
+ *
+ * REPRODUCIBILITY
+ * ---------------
+ * Every draw comes from the seeded Random held here, never from
+ * ThreadLocalRandom, so two runs with the same seed sample the same sequence
+ * of axioms. A seed alone is not sufficient: the weight arrays are indexed
+ * positionally, so the ENUMERATION ORDER of the base set and of the
+ * individuals has to be pinned as well, or the same random number would select
+ * a different individual from one JVM to the next. That is why the base set is
+ * sorted once into orderedBaseSet (OWLObject is Comparable) and every
+ * subsequent traversal — of concepts, of instances, of a premise — goes
+ * through an order-preserving collection. Reverting any of those to a
+ * HashSet/HashMap silently reintroduces run-to-run drift that a fixed seed
+ * will not protect you from.
+ *
+ * The probabilities themselves are untouched: the same weights are computed
+ * over the same elements, only enumerated in a defined order.
  */
 public class ABoxInducedSubsumptionSampler {
 
+    /**
+     * Used by the constructor that does not take a seed. Fixed rather than
+     * time-based precisely so that forgetting to pass a seed still yields a
+     * reproducible run.
+     */
+    public static final long DEFAULT_SEED = 0L;
+
     private final Set<OWLClassExpression> baseSet;
+    // The base set in a fixed order. Every positional traversal uses this;
+    // baseSet itself is kept only for membership tests and its size.
+    private final List<OWLClassExpression> orderedBaseSet;
     private final OWLDataFactory factory;
+    private final Random random;
 
     // Key: concept expression from the base set, Value: number of its instances in the current reasoner
-    private final Map<OWLClassExpression, Integer> instanceCounts = new HashMap<>();
+    private final Map<OWLClassExpression, Integer> instanceCounts = new LinkedHashMap<>();
     // Key: individual, Value: base-set concepts of which it is an instance
     private Map<OWLNamedIndividual, ArrayList<OWLClassExpression>> instanceTypes;
 
@@ -50,19 +79,34 @@ public class ABoxInducedSubsumptionSampler {
     private long numberOfInstances;
 
     public ABoxInducedSubsumptionSampler(Set<OWLClassExpression> baseSet, OWLReasoner reasoner, OWLDataFactory factory) {
+        this(baseSet, reasoner, factory, DEFAULT_SEED);
+    }
+
+    public ABoxInducedSubsumptionSampler(Set<OWLClassExpression> baseSet, OWLReasoner reasoner,
+                                         OWLDataFactory factory, long seed) {
         this.baseSet = baseSet;
+        this.orderedBaseSet = new ArrayList<>(baseSet);
+        // OWLObject implements Comparable, so this is a total order that does
+        // not depend on hash codes or on insertion order upstream.
+        Collections.sort(this.orderedBaseSet);
         this.factory = factory;
+        this.random = new Random(seed);
         this.numberOfInstances = reasoner.getRootOntology().getIndividualsInSignature().size();
         update_sampler(reasoner);
     }
 
     public void update_sampler(OWLReasoner reasoner) {
-        instanceTypes = new HashMap<>();
+        instanceTypes = new LinkedHashMap<>();
 
-        for (OWLClassExpression ce : baseSet) {
+        for (OWLClassExpression ce : orderedBaseSet) {
             Set<OWLNamedIndividual> instances = reasoner.getInstances(ce).getFlattened();
             instanceCounts.put(ce, instances.size());
-            for (OWLNamedIndividual ind : instances) {
+            // getFlattened() returns a hash-ordered set; sorting it fixes the
+            // insertion order of instanceTypes, which becomes the index order
+            // of instanceNames/instanceWeights below.
+            List<OWLNamedIndividual> orderedInstances = new ArrayList<>(instances);
+            Collections.sort(orderedInstances);
+            for (OWLNamedIndividual ind : orderedInstances) {
                 instanceTypes.computeIfAbsent(ind, k -> new ArrayList<>(Collections.singletonList(ce)));
                 if (!instanceTypes.get(ind).contains(ce)) {
                     instanceTypes.get(ind).add(ce);
@@ -94,7 +138,9 @@ public class ABoxInducedSubsumptionSampler {
     }
 
     private Set<OWLClassExpression> samplePremise() {
-        Set<OWLClassExpression> premise = new HashSet<>();
+        // LinkedHashSet, not HashSet: the premise is enumerated when it is
+        // turned into an intersection, so its order must not vary between runs.
+        Set<OWLClassExpression> premise = new LinkedHashSet<>();
         if (instanceNames.length == 0) {
             return premise; // no typed individuals: empty premise, i.e. Top
         }
@@ -103,7 +149,7 @@ public class ABoxInducedSubsumptionSampler {
             int idx = randomIndexBig(instanceWeights, cumulativeInstanceWeight);
             OWLNamedIndividual ind = instanceNames[idx];
             for (OWLClassExpression expr : instanceTypes.get(ind)) {
-                if (ThreadLocalRandom.current().nextBoolean()) {
+                if (random.nextBoolean()) {
                     premise.add(expr);
                 }
             }
@@ -112,8 +158,14 @@ public class ABoxInducedSubsumptionSampler {
     }
 
     private OWLClassExpression sampleConclusion(Set<OWLClassExpression> premise) {
-        Set<OWLClassExpression> remaining = new HashSet<>(baseSet);
-        remaining.removeAll(premise);
+        // Built from orderedBaseSet rather than from a HashSet difference, so
+        // that index i means the same concept on every run.
+        List<OWLClassExpression> remaining = new ArrayList<>(orderedBaseSet.size());
+        for (OWLClassExpression ce : orderedBaseSet) {
+            if (!premise.contains(ce)) {
+                remaining.add(ce);
+            }
+        }
         OWLClassExpression[] types = remaining.toArray(new OWLClassExpression[0]);
 
         long[] weights = new long[types.length];
@@ -125,11 +177,13 @@ public class ABoxInducedSubsumptionSampler {
         return types[randomIndexLong(weights, total)];
     }
 
-    private static int randomIndexLong(long[] weights, long total) {
+    private int randomIndexLong(long[] weights, long total) {
         if (total <= 0) {
-            return ThreadLocalRandom.current().nextInt(weights.length);
+            return random.nextInt(weights.length);
         }
-        long r = ThreadLocalRandom.current().nextLong(total);
+        // Random implements RandomGenerator as of Java 17, so this is the same
+        // unbiased bounded draw ThreadLocalRandom.nextLong(total) performed.
+        long r = random.nextLong(total);
         int index = Arrays.binarySearch(weights, r);
         if (index < 0) index = -(index + 1);
         if (index == weights.length) index--;
@@ -137,10 +191,10 @@ public class ABoxInducedSubsumptionSampler {
         return index;
     }
 
-    private static int randomIndexBig(BigInteger[] weights, BigInteger total) {
+    private int randomIndexBig(BigInteger[] weights, BigInteger total) {
         BigInteger r;
         do {
-            r = new BigInteger(total.bitLength(), ThreadLocalRandom.current());
+            r = new BigInteger(total.bitLength(), random);
         } while (r.compareTo(total) >= 0);
         int index = Arrays.binarySearch(weights, r);
         if (index < 0) index = -(index + 1);
