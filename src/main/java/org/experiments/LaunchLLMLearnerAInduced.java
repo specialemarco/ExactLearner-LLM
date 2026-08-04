@@ -202,6 +202,10 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                     conceptRelation = new org.exactlearner.learner.ConceptRelation<>();
                     setLLMEngine(model, ontologyShortName);
                     learner = new org.exactlearner.learner.Learner(llmQueryEngineForT, elQueryEngineForH, myMetrics, conceptRelation);
+                    // This override is the launcher run_experiment.sh actually
+                    // starts, so without this call EXACTLEARNER_BATCH_DECOMPOSE
+                    // does nothing at all and decomposition stays sequential.
+                    installDecomposePrefetcher(model);
                     oracle = new org.exactlearner.oracle.Oracle(llmQueryEngineForT, elQueryEngineForH);
 
                     // Force a fresh A-induced sampler for this ontology/model run.

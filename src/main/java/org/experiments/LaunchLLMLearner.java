@@ -249,8 +249,13 @@ public class LaunchLLMLearner extends LaunchLearner {
      * learner runs byte-identically to before, so leaving this unset reproduces
      * every earlier result exactly, and turning it on is a change to when
      * answers are fetched rather than to what the algorithm asks or concludes.
+     *
+     * Protected because LaunchLLMLearnerAInduced overrides run() and builds its
+     * own Learner, so it has to install this itself. Anything else that
+     * constructs a Learner must call this too, or it silently gets the
+     * sequential path -- the only symptom is the absence of one log line.
      */
-    private void installDecomposePrefetcher(String model) {
+    protected void installDecomposePrefetcher(String model) {
         if (!"true".equals(System.getenv(BATCH_DECOMPOSE_ENV))) {
             return;
         }

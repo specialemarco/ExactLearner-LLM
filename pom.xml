@@ -22,6 +22,19 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
+                    <excludes>
+                        <!--
+                          Opening a .java file in JupyterLab leaves a copy under
+                          .ipynb_checkpoints/, which the compiler then sees as a
+                          second declaration of the same public class and fails
+                          the build outright. The directory is gitignored, so it
+                          never appears in a diff and never reproduces on another
+                          machine, which makes the failure look like the pull
+                          broke something. Excluding it here is the only fix that
+                          survives someone opening the file again.
+                        -->
+                        <exclude>**/.ipynb_checkpoints/**</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
 

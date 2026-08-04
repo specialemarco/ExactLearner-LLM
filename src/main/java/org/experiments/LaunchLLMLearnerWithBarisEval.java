@@ -53,6 +53,7 @@ public class LaunchLLMLearnerWithBarisEval extends LaunchLLMLearner {
                     conceptRelation = new org.exactlearner.learner.ConceptRelation<>();
                     setLLMEngine(model, ontologyShortName);
                     learner = new org.exactlearner.learner.Learner(llmQueryEngineForT, elQueryEngineForH, myMetrics, conceptRelation);
+                    installDecomposePrefetcher(model);
                     oracle = new org.exactlearner.oracle.Oracle(llmQueryEngineForT, elQueryEngineForH);
 
                     runLearningExperiment(args, hypothesisSizes.get(ontologies.indexOf(ontology)), model);
