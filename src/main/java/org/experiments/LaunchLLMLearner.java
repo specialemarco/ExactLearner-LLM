@@ -12,6 +12,7 @@ import org.exactlearner.learner.Learner;
 import org.exactlearner.oracle.Oracle;
 import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.utils.Metrics;
+import org.experiments.logger.Cache;
 import org.experiments.logger.CacheManager;
 import org.experiments.logger.SmartLogger;
 import org.experiments.workload.BatchPrewarmer;
@@ -24,6 +25,8 @@ import org.utility.OntologyManipulator;
 import org.utility.YAMLConfigLoader;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -91,6 +94,7 @@ public class LaunchLLMLearner extends LaunchLearner {
                     conceptRelation = new ConceptRelation<>();
                     setLLMEngine(model, ontologyShortName);
                     learner = new Learner(llmQueryEngineForT, elQueryEngineForH, myMetrics, conceptRelation);
+                    installDecomposePrefetcher(model);
                     oracle = new Oracle(llmQueryEngineForT, elQueryEngineForH);
                     runLearningExperiment(args, hypothesisSizes.get(ontologies.indexOf(ontology)), model);
                     if (counter != null) {
@@ -216,6 +220,76 @@ public class LaunchLLMLearner extends LaunchLearner {
             // be able to fail a run that would otherwise have completed.
             System.out.println("Batch pre-warm failed, continuing sequentially: " + t);
         }
+    }
+
+    /** Opt-in switch for batching the decomposition path. Off unless set to "true". */
+    public static final String BATCH_DECOMPOSE_ENV = "EXACTLEARNER_BATCH_DECOMPOSE";
+
+    /**
+     * Lets the learner fetch each decomposition sweep's answers in batches
+     * instead of one at a time.
+     *
+     * WHY
+     * ---
+     * Measured: 48 counterexamples in 24 hours, ~235 model
+     * queries each, ~30 minutes apiece, and no sign of speeding up over the run.
+     * Almost all of that is decompose() and checkTransformations() walking the
+     * class signature one query at a time, which runs the model at batch size 1.
+     * The same hardware answers 32 prompts at 1.31 s each against 11.5 s for one,
+     * so a sweep that takes 20 minutes should take about 3.5.
+     *
+     * Unlike precomputation, these answers cannot be pre-warmed before the run:
+     * the questions depend on counterexamples that do not exist yet. They can
+     * only be fetched a sweep at a time, from inside the learner, which is why
+     * this goes through a prefetcher rather than a pass like BatchPrewarmer's.
+     *
+     * WHY IT IS OFF BY DEFAULT
+     * ------------------------
+     * decompose() is Ana's original algorithm. With no prefetcher installed the
+     * learner runs byte-identically to before, so leaving this unset reproduces
+     * every earlier result exactly, and turning it on is a change to when
+     * answers are fetched rather than to what the algorithm asks or concludes.
+     */
+    private void installDecomposePrefetcher(String model) {
+        if (!"true".equals(System.getenv(BATCH_DECOMPOSE_ENV))) {
+            return;
+        }
+        int batchSize = BatchPrewarmer.batchSizeFromEnv();
+        if (batchSize <= 0) {
+            System.out.println("Batched decomposition requested but " + BatchPrewarmer.BATCH_ENV
+                    + " is unset or 0, so it stays off.");
+            return;
+        }
+        if (!(llmQueryEngineForT instanceof LLMEngine engine)) {
+            System.out.println("Batched decomposition skipped: engine is not an LLMEngine.");
+            return;
+        }
+        Cache cache = cacheManager.getCache(model, system);
+        if (cache == null) {
+            System.out.println("Batched decomposition skipped: no cache available.");
+            return;
+        }
+
+        System.out.println("Batched decomposition ON, batch size " + batchSize + ".");
+        learner.setPrefetcher(axioms -> {
+            // A sweep asks about the same axiom more than once -- decompose()
+            // rebuilds the node description on every iteration, and split
+            // superclasses share conjuncts -- and a duplicate would burn a slot
+            // in the batch for an answer already in flight. LinkedHashSet keeps
+            // signature order, so the batches follow the order of the sweep and
+            // the answers the sweep needs first arrive first.
+            LinkedHashSet<String> pending = new LinkedHashSet<>();
+            for (OWLAxiom axiom : axioms) {
+                for (String query : engine.queriesFor(axiom)) {
+                    if (cache.resultString(query) == null) {
+                        pending.add(query);
+                    }
+                }
+            }
+            if (!pending.isEmpty()) {
+                BatchPrewarmer.fetchAndCache(cache, system, new ArrayList<>(pending), batchSize);
+            }
+        });
     }
 
     /**

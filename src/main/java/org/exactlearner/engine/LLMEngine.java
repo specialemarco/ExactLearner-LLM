@@ -9,6 +9,7 @@ import org.semanticweb.owlapi.io.OWLObjectRenderer;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
 import org.semanticweb.owlapi.model.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -84,8 +85,66 @@ public class LLMEngine implements BaseEngine {
      * of atomic classes, which is the intended use.
      */
     public String queryFor(OWLSubClassOfAxiom axiom) {
-        String rendered = renderer.render(axiom).replaceAll("\r", " ").replaceAll("\n", " ");
-        return buildMessage(rendered);
+        return buildMessage(render(axiom));
+    }
+
+    /**
+     * Every query string entailed(ax) would send, in the order it would send
+     * them, without sending any of them.
+     *
+     * queryFor() is not enough for the decomposition path. It skips two things
+     * entailed() does, and each one produces a cache entry the learner would
+     * never read:
+     *
+     *   - the simplifier, which rewrites the axiom (and can answer outright,
+     *     in which case no query is issued at all -- an empty list here);
+     *   - the intersection split, which turns one axiom with a conjunctive
+     *     superclass into one query per conjunct. decompose()'s right-hand scan
+     *     asks exactly that shape, since the superclass is a tree node.
+     *
+     * Both are read off the same helpers entailed() uses, so the two cannot
+     * drift apart. Returns an empty list for axiom types entailed() does not
+     * support: prefetching something unaskable must be a no-op, not a throw.
+     */
+    public List<String> queriesFor(OWLAxiom ax) {
+        if (ax.isOfType(AxiomType.EQUIVALENT_CLASSES)) {
+            List<String> queries = new ArrayList<>();
+            for (OWLSubClassOfAxiom sax : ((OWLEquivalentClassesAxiom) ax).asOWLSubClassOfAxioms()) {
+                queries.addAll(queriesFor(sax));
+            }
+            return queries;
+        }
+        if (!ax.isOfType(AxiomType.SUBCLASS_OF)) {
+            return List.of();
+        }
+
+        OWLSubClassOfAxiom axiom = (OWLSubClassOfAxiom) ax;
+        if (simplifier != null) {
+            Optional<OWLSubClassOfAxiom> opt = simplifier.shorten(axiom);
+            if (opt.isEmpty()) {
+                return List.of();
+            }
+            axiom = opt.get();
+        }
+        if (splitEnabled() && axiom.getSuperClass() instanceof OWLObjectIntersectionOf intersection) {
+            List<String> queries = new ArrayList<>();
+            for (OWLClassExpression sup : intersection.getOperands()) {
+                queries.add(buildMessage(render(getSubClassAxiom(axiom.getSubClass(), sup))));
+            }
+            return queries;
+        }
+        return List.of(buildMessage(render(axiom)));
+    }
+
+    /** The rendered form of an axiom, which is what gets fed to buildMessage. */
+    private String render(OWLAxiom axiom) {
+        return renderer.render(axiom).replaceAll("\r", " ").replaceAll("\n", " ");
+    }
+
+    /** Unset means on, matching the original inline check in entailed(). */
+    private static boolean splitEnabled() {
+        String split = System.getenv("EXACTLEARNER_SPLIT");
+        return split == null || split.equals("true");
     }
 
     @Override
@@ -141,21 +200,16 @@ public class LLMEngine implements BaseEngine {
             }
             axiom = opt.get();
         }
-        if (System.getenv("EXACTLEARNER_SPLIT") == null || System.getenv("EXACTLEARNER_SPLIT").equals("true")) {
-            if (axiom.getSuperClass() instanceof OWLObjectIntersectionOf intersection) {
-                OWLClassExpression expression = axiom.getSubClass();
-                for (OWLClassExpression sup : intersection.getOperands()) {
-                    OWLSubClassOfAxiom ax = getSubClassAxiom(expression, sup);
-                    String query = renderer.render(ax).replaceAll("\r", " ").replaceAll("\n", " ");
-                    if (!runTaskAndGetResult(query)) {
-                        return false;
-                    }
+        if (splitEnabled() && axiom.getSuperClass() instanceof OWLObjectIntersectionOf intersection) {
+            OWLClassExpression expression = axiom.getSubClass();
+            for (OWLClassExpression sup : intersection.getOperands()) {
+                if (!runTaskAndGetResult(render(getSubClassAxiom(expression, sup)))) {
+                    return false;
                 }
-                return true;
             }
+            return true;
         }
-        var query = renderer.render(axiom).replaceAll("\r", " ").replaceAll("\n", " ");
-        return runTaskAndGetResult(query);
+        return runTaskAndGetResult(render(axiom));
     }
 
     @Override

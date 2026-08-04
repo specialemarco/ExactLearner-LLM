@@ -26,6 +26,7 @@ public class Learner implements BaseLearner {
     private ELTree leftTree;
     private ELTree rightTree;
     private final ConceptRelation<OWLClass> relation;
+    private AxiomPrefetcher prefetcher;
 
     public Learner(BaseEngine elEngineForT, BaseEngine elEngineForH, Metrics metrics) {
         this(elEngineForT, elEngineForH, metrics, new ConceptRelation<>());
@@ -36,6 +37,106 @@ public class Learner implements BaseLearner {
         myEngineForT = elEngineForT;
         myMetrics = metrics;
         this.relation = relation;
+    }
+
+    /**
+     * Installs a prefetcher for the decomposition scans. Null, the default,
+     * leaves every query path below exactly as it was.
+     */
+    public void setPrefetcher(AxiomPrefetcher prefetcher) {
+        this.prefetcher = prefetcher;
+    }
+
+    /**
+     * Hands a batch of upcoming queries to the prefetcher, if one is installed.
+     *
+     * A prefetch is an optimisation and nothing more: it changes when answers
+     * arrive, never which questions get asked or what the scan concludes. So a
+     * failure here must never take the run down. One failure disables further
+     * attempts, because the causes -- no batch endpoint, no cache, an engine
+     * that is not an LLMEngine -- are all permanent for the rest of the run, and
+     * retrying every scan would bury the log.
+     */
+    private void prefetch(List<OWLAxiom> upcoming) {
+        if (prefetcher == null || upcoming.isEmpty()) {
+            return;
+        }
+        try {
+            prefetcher.prefetch(upcoming);
+        } catch (Throwable t) {
+            System.out.println("Decomposition prefetch failed, continuing sequentially: " + t);
+            prefetcher = null;
+        }
+    }
+
+    /**
+     * Warms a scan that holds the left side fixed and runs over the signature,
+     * as decompose() and decomposingLeft() both do.
+     *
+     * Only axioms the hypothesis fails to entail are included. isCounterExample
+     * asks the hypothesis first and reaches the model only when that check
+     * fails, so anything the hypothesis already entails would be paid for and
+     * never asked. The hypothesis engine is a local reasoner, so filtering here
+     * is free, and no membership counter is touched -- the scan below still does
+     * all its own counting.
+     */
+    private void prefetchLeftScan(OWLClassExpression left, List<OWLClass> classes) {
+        if (prefetcher == null) {
+            return;
+        }
+        List<OWLAxiom> upcoming = new ArrayList<>();
+        for (OWLClass cl : classes) {
+            if (!myEngineForH.entailed(myEngineForH.getSubClassAxiom(left, cl))) {
+                upcoming.add(myEngineForT.getSubClassAxiom(left, cl));
+            }
+        }
+        prefetch(upcoming);
+    }
+
+    /**
+     * Warms decomposingRight()'s sweep over one node's edges and labels.
+     *
+     * That sweep only changes the tree when it finds something, and it stops
+     * sweeping the moment it does -- it either removes the edge and breaks out
+     * of the label loop, or returns. So until the first hit every question in
+     * the edge-by-label product is asked against the same unmodified tree, which
+     * makes the whole product safe to fetch ahead.
+     *
+     * Both questions per pair are included: the root equivalence check and the
+     * subclass check. Neither is guarded by the hypothesis -- the hypothesis is
+     * only consulted after the target has already answered -- so unlike the
+     * signature scans there is nothing to filter out here. Answers past the
+     * first hit go unused by this sweep, but they are in the cache, so they cost
+     * their fetch once and stay available to every later query.
+     */
+    private void prefetchRightDecomposition(OWLClass cl, ELNode nod, List<ELEdge> edges) {
+        if (prefetcher == null) {
+            return;
+        }
+        List<OWLAxiom> upcoming = new ArrayList<>();
+        for (ELEdge edge : edges) {
+            for (OWLClass c : nod.getLabel()) {
+                if (nod.isRoot()) {
+                    upcoming.add(myEngineForT.getOWLEquivalentClassesAxiom(cl, c));
+                }
+                upcoming.add(myEngineForT.getSubClassAxiom(c, edge.transformToDescription()));
+            }
+        }
+        prefetch(upcoming);
+    }
+
+    /** The mirror of prefetchLeftScan for decompose()'s right-hand scan. */
+    private void prefetchRightScan(List<OWLClass> classes, OWLClassExpression right) {
+        if (prefetcher == null) {
+            return;
+        }
+        List<OWLAxiom> upcoming = new ArrayList<>();
+        for (OWLClass cl : classes) {
+            if (!myEngineForH.entailed(myEngineForH.getSubClassAxiom(cl, right))) {
+                upcoming.add(myEngineForT.getSubClassAxiom(cl, right));
+            }
+        }
+        prefetch(upcoming);
     }
 
     /**
@@ -50,9 +151,16 @@ public class Learner implements BaseLearner {
         ELTree treeR = new ELTree(right);
         ELTree treeL = new ELTree(left);
 
+        // Neither tree is modified anywhere below, and nothing here touches the
+        // hypothesis, so each node's sweep over the signature is a set of
+        // independent questions that happens to be asked in sequence. That is
+        // the whole basis for prefetching them: the sweep still runs exactly as
+        // written and still returns its first hit in signature order.
         for (int i = 0; i < treeL.getMaxLevel(); i++) {
 
             for (ELNode nod : treeL.getNodesOnLevel(i + 1)) {
+
+                prefetchLeftScan(nod.transformToDescription(), myEngineForT.getClassesInSignature());
 
                 for (OWLClass cl : myEngineForT.getClassesInSignature()) {
                     myMetrics.setMembCount(myMetrics.getMembCount() + 1);
@@ -67,6 +175,8 @@ public class Learner implements BaseLearner {
         for (int i = 0; i < treeR.getMaxLevel(); i++) {
 
             for (ELNode nod : treeR.getNodesOnLevel(i + 1)) {
+
+                prefetchRightScan(myEngineForT.getClassesInSignature(), nod.transformToDescription());
 
                 for (OWLClass cl : myEngineForT.getClassesInSignature()) {
                     myMetrics.setMembCount(myMetrics.getMembCount() + 1);
@@ -127,6 +237,7 @@ public class Learner implements BaseLearner {
         for (int i = 0; i < tree.getMaxLevel(); i++) {
             for (ELNode nod : tree.getNodesOnLevel(i + 1)) {
                 if (!nod.isRoot()) {
+                    prefetchLeftScan(nod.transformToDescription(), myEngineForT.getClassesInSignature());
                     for (OWLClass cls : myEngineForT.getClassesInSignature()) {
                         myMetrics.setMembCount(myMetrics.getMembCount() + 1);
                         if (isCounterExample(nod.transformToDescription(), cls)) {
@@ -144,6 +255,10 @@ public class Learner implements BaseLearner {
                     if (!myEngineForT.entailed(myEngineForT.getSubClassAxiom(tree.transformToClassExpression(),
                             oldTree.transformToClassExpression()))) {// we are removing things with top, this check is
                         // to avoid loop
+                        // The edge removal above is the last change to the tree
+                        // before this sweep, so the sweep itself sees a fixed
+                        // left-hand side and its questions are independent.
+                        prefetchLeftScan(tree.transformToClassExpression(), myEngineForT.getClassesInSignature());
                         for (OWLClass cls : myEngineForT.getClassesInSignature()) {
                             myMetrics.setMembCount(myMetrics.getMembCount() + 1);
                             if (isCounterExample(tree.transformToClassExpression(), cls)) {
@@ -224,6 +339,7 @@ public class Learner implements BaseLearner {
         for (int i = 0; i < tree.getMaxLevel(); i++) {
             for (ELNode nod : tree.getNodesOnLevel(i + 1)) {
                 List<ELEdge> edges = new ArrayList<>(nod.getEdges());
+                prefetchRightDecomposition(cl, nod, edges);
                 for (ELEdge edge : edges) { // Iterates through all the edges of the current node
                     for (OWLClass c : nod.getLabel()) { // Iterates through all the labels of the current node
                         if (nod.isRoot()) {
