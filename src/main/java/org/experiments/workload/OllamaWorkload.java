@@ -13,7 +13,7 @@ public class OllamaWorkload implements BaseWorkload {
     private final String system;
     private final String query;
     private final int maxTokens;
-    public static final List<String> supportedModels = List.of("mistral", "mixtral", "llama2", "llama2:13b","llama2:70b","megadolphin","llama3","llama3.1","llama3.1:70b", "llava-llama3","llama3:70b","llama3-chatqa","dolphin-llama3", "qordmlwls/llama3.1-medical-v2");
+    public static final List<String> supportedModels = List.of("mistral", "deepseek-r1-32b", "mixtral", "llama2", "llama2:13b","llama2:70b","megadolphin","llama3","llama3.1","llama3.1:70b", "llava-llama3","llama3:70b","llama3-chatqa","dolphin-llama3", "qordmlwls/llama3.1-medical-v2");
     public static final int timeout = 1000 * 60; // 1 minute
     public final Cache cache;
 
