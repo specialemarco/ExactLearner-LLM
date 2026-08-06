@@ -310,6 +310,28 @@ public abstract class LaunchLearner {
      * Never throws: losing a checkpoint is bad, but failing a run that would
      * otherwise have completed is worse.
      */
+    /**
+     * Sibling directory holding one hypothesis per counterexample, named
+     * <hypothesis>/0001.owl and so on.
+     *
+     * Zero-padded so the shell sorts them in the order they were found. Returns
+     * null on any failure, which the caller treats as "skip the trajectory copy"
+     * -- the checkpoint that the run itself depends on has already been written
+     * by then, and must not be put at risk by this.
+     */
+    private File trajectoryFile(int counterExampleNumber) {
+        try {
+            String base = hypoFile.getName().replaceFirst("\\.owl$", "");
+            File dir = new File(hypoFile.getParentFile(), base + "-trajectory");
+            if (!dir.isDirectory() && !dir.mkdirs()) {
+                return null;
+            }
+            return new File(dir, String.format("%04d.owl", counterExampleNumber));
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     protected void checkpointHypothesis(int counterExampleNumber) {
         if (hypoFile == null || hypothesisOntology == null) {
             return;
@@ -321,6 +343,18 @@ public abstract class LaunchLearner {
                 manSyntaxFormat.clear();
             }
             myManager.saveOntology(hypothesisOntology, manSyntaxFormat, IRI.create(hypoFile.toURI()));
+
+            // Also keep a numbered copy. hypoFile is what the rest of the run
+            // reads, so it has to keep being overwritten; but overwriting was
+            // all job 4022395 did, and 120 counterexamples collapsed into one
+            // final file with no way to see how the hypothesis got there.
+            // Convergence behaviour is the open question, and it can only be
+            // read off the sequence.
+            File trajectory = trajectoryFile(counterExampleNumber);
+            if (trajectory != null) {
+                myManager.saveOntology(hypothesisOntology, manSyntaxFormat, IRI.create(trajectory.toURI()));
+            }
+
             System.out.println("Checkpointed hypothesis after counterexample "
                     + counterExampleNumber + " -> " + hypoFile.getPath()
                     + " (" + hypothesisOntology.getLogicalAxiomCount() + " logical axioms)");

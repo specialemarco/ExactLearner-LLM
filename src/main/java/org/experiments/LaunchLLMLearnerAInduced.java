@@ -65,6 +65,10 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // combination in run()). Reported at evaluation time.
     private int counterExampleCount = 0;
 
+    // PAC sample index of the previous counterexample, so each one can report
+    // what it cost in candidates rather than only that it happened.
+    private long samplesAtLastCounterExample = 0;
+
     // If true, Ana's precomputation() phase is skipped entirely and the run
     // measures the A-induced loop's contribution on its own. Precomputation
     // tests every ordered pair of class names before the loop starts, so it
@@ -211,6 +215,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                     // Force a fresh A-induced sampler for this ontology/model run.
                     aboxSampler = null;
                     counterExampleCount = 0;
+                    samplesAtLastCounterExample = 0;
 
                     runLearningExperiment(args, hypothesisSizes.get(ontologies.indexOf(ontology)), model);
 
@@ -314,6 +319,21 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                 }
                 if (!entH && entT) {
                     counterExampleCount++;
+                    // The DEBUG prints above stop after sample 10, so job
+                    // 4022395 found 120 counterexamples without recording how
+                    // many candidates any of them cost. That makes the A-induced
+                    // hit rate -- and whether it falls as the hypothesis grows,
+                    // which is what convergence would look like -- unmeasurable
+                    // from the log. One line per counterexample fixes it.
+                    long samples = (long) pac.getNumberOfProvidedSamples();
+                    // The speculation figures are cumulative and go on this line
+                    // because a timed-out job never reaches an end-of-run
+                    // report -- four runs in a row have died at walltime.
+                    System.out.println("Counterexample " + counterExampleCount
+                            + " at sample " + samples
+                            + " (+" + (samples - samplesAtLastCounterExample) + " since the last one), "
+                            + learner.speculationSummary());
+                    samplesAtLastCounterExample = samples;
                     return getCounterExampleSubClassOf(selectedAxiom);
                 }
             }

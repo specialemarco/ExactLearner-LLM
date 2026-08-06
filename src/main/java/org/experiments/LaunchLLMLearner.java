@@ -226,6 +226,21 @@ public class LaunchLLMLearner extends LaunchLearner {
     public static final String BATCH_DECOMPOSE_ENV = "EXACTLEARNER_BATCH_DECOMPOSE";
 
     /**
+     * Opt-in switch for extending that batching to unsaturateLeft/saturateRight.
+     * Requires BATCH_DECOMPOSE_ENV, since it reuses the same prefetcher.
+     *
+     * Separate from it because the two carry different risk. The decomposition
+     * scans are unconditionally independent, so batching them can only change
+     * when answers arrive. These sweeps are independent only until a mutation is
+     * accepted, so the batch past an acceptance is bought and never used. That
+     * is still correct -- the sweep re-asks and the cache simply misses -- but
+     * whether it is faster depends on an acceptance rate nobody has measured.
+     * Two flags means job 4022395's numbers stay reproducible while this is
+     * being answered.
+     */
+    public static final String BATCH_UNSATURATE_ENV = "EXACTLEARNER_BATCH_UNSATURATE";
+
+    /**
      * Lets the learner fetch each decomposition sweep's answers in batches
      * instead of one at a time.
      *
@@ -275,7 +290,10 @@ public class LaunchLLMLearner extends LaunchLearner {
             return;
         }
 
-        System.out.println("Batched decomposition ON, batch size " + batchSize + ".");
+        boolean batchUnsaturate = "true".equals(System.getenv(BATCH_UNSATURATE_ENV));
+        learner.setBatchUnsaturation(batchUnsaturate);
+        System.out.println("Batched decomposition ON, batch size " + batchSize
+                + ", unsaturate/saturate sweeps " + (batchUnsaturate ? "ON" : "OFF") + ".");
         learner.setPrefetcher(axioms -> {
             // A sweep asks about the same axiom more than once -- decompose()
             // rebuilds the node description on every iteration, and split

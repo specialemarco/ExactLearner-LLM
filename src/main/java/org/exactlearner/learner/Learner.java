@@ -27,6 +27,17 @@ public class Learner implements BaseLearner {
     private ELTree rightTree;
     private final ConceptRelation<OWLClass> relation;
     private AxiomPrefetcher prefetcher;
+    private boolean batchUnsaturation;
+
+    // Speculation accounting for the unsaturate/saturate sweeps. A round is one
+    // prefetch; a restart is a round forced by a mutation invalidating the last
+    // one. rounds - restarts is how many sweeps ran fully off a single batch,
+    // so restarts/rounds is the speculation's miss rate. Reported by
+    // speculationSummary() because nothing else measures it -- the acceptance
+    // rate these sweeps run at was never instrumented, and it is exactly what
+    // decides whether batching them pays.
+    private int speculationRounds = 0;
+    private int speculationRestarts = 0;
 
     public Learner(BaseEngine elEngineForT, BaseEngine elEngineForH, Metrics metrics) {
         this(elEngineForT, elEngineForH, metrics, new ConceptRelation<>());
@@ -45,6 +56,22 @@ public class Learner implements BaseLearner {
      */
     public void setPrefetcher(AxiomPrefetcher prefetcher) {
         this.prefetcher = prefetcher;
+    }
+
+    /**
+     * Extends prefetching to the unsaturateLeft/saturateRight sweeps. Off by
+     * default, and separate from setPrefetcher, because unlike the decomposition
+     * scans these sweeps are only *conditionally* independent -- see
+     * prefetchUnsaturateLeftFrom -- so they carry a speculation risk the
+     * signature scans do not, and the two must be measurable apart.
+     */
+    public void setBatchUnsaturation(boolean batchUnsaturation) {
+        this.batchUnsaturation = batchUnsaturation;
+    }
+
+    /** rounds/restarts of the unsaturate/saturate speculation, for the run log. */
+    public String speculationSummary() {
+        return "speculation rounds=" + speculationRounds + " restarts=" + speculationRestarts;
     }
 
     /**
@@ -123,6 +150,77 @@ public class Learner implements BaseLearner {
             }
         }
         prefetch(upcoming);
+    }
+
+    /**
+     * Speculates the rest of one unsaturateLeft node sweep.
+     *
+     * These sweeps are dependent, which is why they were left sequential when
+     * the decomposition scans were batched -- but only *when a removal is
+     * accepted*. On rejection the label goes straight back, so the tree the next
+     * question is asked against is the one standing right now. Assuming every
+     * remaining removal is rejected therefore predicts the exact axioms the
+     * sweep will ask for, and the assumption breaks only on an acceptance, at
+     * which point the caller marks the speculation stale and this runs again
+     * from the new state. Rejection is the common case, so most sweeps run
+     * entirely off one batch; speculationSummary() reports how often that holds.
+     *
+     * Each candidate is built by making the same remove/restore pair the sweep
+     * itself makes, so the axiom is identical to the one it will ask about
+     * rather than a reconstruction that might render differently.
+     *
+     * ELNode.extendLabel bumps ELTree's size counter and remove() does not put
+     * it back, so this round-trip inflates that field -- exactly as every
+     * rejection in the real sweep already does. Nothing reads it: ELTree.getSize
+     * has no caller outside the setter. If that ever changes, this is one of the
+     * places that has to start restoring it.
+     */
+    private boolean prefetchUnsaturateLeftFrom(ELNode nod, List<OWLClass> classes, int from) {
+        if (prefetcher == null || !batchUnsaturation) {
+            return false;
+        }
+        speculationRounds++;
+        OWLClassExpression right = rightTree.transformToClassExpression();
+        List<OWLAxiom> upcoming = new ArrayList<>();
+        for (int k = from; k < classes.size(); k++) {
+            OWLClass cl1 = classes.get(k);
+            if (nod.getLabel().contains(cl1) && !cl1.toString().contains("Thing")) {
+                nod.remove(cl1);
+                upcoming.add(myEngineForT.getSubClassAxiom(leftTree.transformToClassExpression(), right));
+                nod.extendLabel(cl1);
+            }
+        }
+        prefetch(upcoming);
+        return true;
+    }
+
+    /**
+     * The mirror of the above for saturateRight's non-root sweep, which is the
+     * larger of the two: it walks the whole class signature per node, so one
+     * node is ~131 questions where an unsaturation node is a handful.
+     *
+     * Same conditional independence -- a label that fails to hold is removed
+     * again immediately, leaving the tree as it was. Root nodes are skipped
+     * because that branch only consults myEngineForH, a local reasoner, and
+     * costs nothing to answer.
+     */
+    private boolean prefetchSaturateRightFrom(ELNode nod, List<OWLClass> classes, int from) {
+        if (prefetcher == null || !batchUnsaturation || nod.isRoot()) {
+            return false;
+        }
+        speculationRounds++;
+        OWLClassExpression left = leftTree.transformToClassExpression();
+        List<OWLAxiom> upcoming = new ArrayList<>();
+        for (int k = from; k < classes.size(); k++) {
+            OWLClass cl1 = classes.get(k);
+            if (!nod.getLabel().contains(cl1)) {
+                nod.extendLabel(cl1);
+                upcoming.add(myEngineForT.getSubClassAxiom(left, rightTree.transformToClassExpression()));
+                nod.remove(cl1);
+            }
+        }
+        prefetch(upcoming);
+        return true;
     }
 
     /** The mirror of prefetchLeftScan for decompose()'s right-hand scan. */
@@ -392,8 +490,18 @@ public class Learner implements BaseLearner {
             List<ELNode> nodesList = leftTree.getNodesOnLevel(i + 1);
             for (ELNode nod : nodesList) {
                 List<OWLClass> classesList = relation.topologicalOrder(nod.getLabel());
-                for (OWLClass cl1 : classesList) {
+                // Indexed rather than for-each so a stale speculation can be
+                // rebuilt from the position the sweep has actually reached.
+                // Anything already examined must not be re-speculated: after an
+                // acceptance the tree differs, so those axioms would be fresh
+                // questions the sweep will never ask.
+                boolean stale = true;
+                for (int k = 0; k < classesList.size(); k++) {
+                    OWLClass cl1 = classesList.get(k);
                     if (nod.getLabel().contains(cl1) && !cl1.toString().contains("Thing")) {
+                        if (stale && prefetchUnsaturateLeftFrom(nod, classesList, k)) {
+                            stale = false;
+                        }
                         nod.remove(cl1);
                         myMetrics.setMembCount(myMetrics.getMembCount() + 1);
                         if (myEngineForT.entailed(myEngineForT.getSubClassAxiom(leftTree.transformToClassExpression(),
@@ -402,6 +510,12 @@ public class Learner implements BaseLearner {
                             myClass = (OWLClass) rightTree.transformToClassExpression();
 
                             unsaturationCounter++;
+                            // The tree moved, so the rest of the batch answers
+                            // questions about a tree that no longer exists.
+                            if (!stale) {
+                                speculationRestarts++;
+                            }
+                            stale = true;
                         } else {
                             nod.extendLabel(cl1);
                         }
@@ -423,7 +537,10 @@ public class Learner implements BaseLearner {
         this.rightTree = new ELTree(expression);
         for (int i = 0; i < rightTree.getMaxLevel(); i++) {
             for (ELNode nod : rightTree.getNodesOnLevel(i + 1)) {
-                for (OWLClass cl1 : myEngineForT.getClassesInSignature()) {
+                List<OWLClass> signature = myEngineForT.getClassesInSignature();
+                boolean stale = true;
+                for (int k = 0; k < signature.size(); k++) {
+                    OWLClass cl1 = signature.get(k);
                     if (!nod.getLabel().contains(cl1)) {
                         if (nod.isRoot()) {
                             if (cl1.equals(cl)) {
@@ -435,11 +552,20 @@ public class Learner implements BaseLearner {
                                 saturationCounter++;
                             } // No need to check other cases, as it should be in the hypothesis because of precomputation
                         } else {
+                            if (stale && prefetchSaturateRightFrom(nod, signature, k)) {
+                                stale = false;
+                            }
                             nod.extendLabel(cl1);
                             myMetrics.setMembCount(myMetrics.getMembCount() + 1);
                             if (myEngineForT.entailed(myEngineForT.getSubClassAxiom(leftTree.transformToClassExpression(),
                                     rightTree.transformToClassExpression()))) {
                                 saturationCounter++;
+                                // Label kept, so the tree the rest of the batch
+                                // assumed is gone.
+                                if (!stale) {
+                                    speculationRestarts++;
+                                }
+                                stale = true;
                             } else {
                                 nod.remove(cl1);
                             }
