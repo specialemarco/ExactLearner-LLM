@@ -247,6 +247,25 @@ export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
 # the learner itself is untouched. Set to 0 to disable.
 export EXACTLEARNER_BATCH_SIZE="${EXACTLEARNER_BATCH_SIZE:-16}"
 
+# Batch the learner's own sweeps. These default ON here rather than being passed
+# on the sbatch line, because job 4038936 burned a full 24 h walltime running the
+# sequential path: neither flag was in the environment, installDecomposePrefetcher
+# returned at its first guard, and the only symptom was a MISSING log line. Both
+# forms below still honour an override, so `EXACTLEARNER_BATCH_DECOMPOSE=false
+# sbatch ...` reproduces the pre-batching runs exactly.
+#
+#   DECOMPOSE  - decompose()'s signature scans. Unconditionally independent, so
+#                this only changes when answers are fetched.
+#   UNSATURATE - extends that to unsaturateLeft/saturateRight, which is where the
+#                bottleneck actually sits now. Only *conditionally* independent;
+#                watch "speculation rounds=/restarts=" on the counterexample
+#                lines. restarts approaching rounds means the speculation is
+#                being thrown away and this should go back to false.
+export EXACTLEARNER_BATCH_DECOMPOSE="${EXACTLEARNER_BATCH_DECOMPOSE:-true}"
+export EXACTLEARNER_BATCH_UNSATURATE="${EXACTLEARNER_BATCH_UNSATURATE:-true}"
+
+echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE"
+
 # Educloud sets http_proxy, and curl honours it for EVERY host including
 # localhost -- so a probe of our own server is bounced off the Squid proxy with
 # an HTML "Access Denied" page, the readiness loop never matches, and the job

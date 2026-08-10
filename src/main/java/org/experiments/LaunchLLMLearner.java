@@ -272,6 +272,13 @@ public class LaunchLLMLearner extends LaunchLearner {
      */
     protected void installDecomposePrefetcher(String model) {
         if (!"true".equals(System.getenv(BATCH_DECOMPOSE_ENV))) {
+            // Says so out loud. This used to be a bare return, and job 4038936
+            // spent 24 h on the sequential path because the only evidence was a
+            // line that was not printed -- which reads exactly like a log you
+            // have not scrolled to yet.
+            System.out.println("Batched decomposition OFF: " + BATCH_DECOMPOSE_ENV
+                    + " is " + System.getenv(BATCH_DECOMPOSE_ENV)
+                    + ", not \"true\". The learner runs one query at a time.");
             return;
         }
         int batchSize = BatchPrewarmer.batchSizeFromEnv();
