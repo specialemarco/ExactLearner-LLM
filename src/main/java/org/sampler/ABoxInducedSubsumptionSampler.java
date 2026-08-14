@@ -53,15 +53,28 @@ public class ABoxInducedSubsumptionSampler {
         this.baseSet = baseSet;
         this.factory = factory;
         this.numberOfInstances = reasoner.getRootOntology().getIndividualsInSignature().size();
-        update_sampler(reasoner);
+        // Initial setup always updates both premise (lhs) and conclusion (rhs)
+        // weights — mirrors paclo's constructor call: update_sampler(reasoner, true).
+        update_sampler(reasoner, true);
     }
 
-    public void update_sampler(OWLReasoner reasoner) {
+    /**
+     * Ported from paclo's commit "Fixing the distribution of the right handside"
+     * (WeightedABoxInducedSubsumptionSampler / formerly WeightedSubsumptionSampler).
+     * The updateConclusion flag lets callers refresh only the premise-side
+     * instance types on retry (after a failed sampling round), leaving the
+     * conclusion (rhs) weights — instanceCounts, used for rarity-based
+     * weighting in sampleConclusion() — stable. paclo's own retry call in
+     * LearningFrameworkSubsumption.getCounterExample() passes false here.
+     */
+    public void update_sampler(OWLReasoner reasoner, boolean updateConclusion) {
         instanceTypes = new HashMap<>();
 
         for (OWLClassExpression ce : baseSet) {
             Set<OWLNamedIndividual> instances = reasoner.getInstances(ce).getFlattened();
-            instanceCounts.put(ce, instances.size());
+            if (updateConclusion) {
+                instanceCounts.put(ce, instances.size());
+            }
             for (OWLNamedIndividual ind : instances) {
                 instanceTypes.computeIfAbsent(ind, k -> new ArrayList<>(Collections.singletonList(ce)));
                 if (!instanceTypes.get(ind).contains(ce)) {

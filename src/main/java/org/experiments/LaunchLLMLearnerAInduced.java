@@ -42,24 +42,6 @@ import org.evaluation.Evaluation;
  */
 public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
-    // Round index for paclo's per-round growing sample budget
-    // (Pac.callsToSamplingOracle(i)).
-    //
-    // NOTE (July 2026 investigation): paclo's original formula assumes round 1
-    // is the very first learning attempt. In this system, learner.precomputation()
-    // runs BEFORE this loop and already resolves most simple concept-name-only
-    // relations via an exhaustive O(n^2) check (85,000+ LLM calls observed on
-    // C2, vs. only ~33 calls in the A-induced sampling loop that follows).
-    // Starting the round index at 1 therefore understates how much has
-    // already been learned, producing an unrealistically small initial
-    // budget (q_1=14) that causes the loop to terminate almost immediately.
-    //
-    // STARTING_ROUND_INDEX is an empirically adjustable starting point,
-    // not a theoretically derived value — increase it to give the A-induced
-    // loop a larger initial budget, at the cost of more LLM calls per run.
-    private static final int STARTING_ROUND_INDEX = 20; // TODO: tune further if needed (tested: 1, 20)
-    private int paclobBudgetRoundIndex = STARTING_ROUND_INDEX;
-
     // The ABox-induced sampler. Left null until the first call to
     // getCounterExample(), then lazily initialized by initAboxSampler()
     // (because it depends on files — initialOntology.owl, baseSet — that
@@ -99,6 +81,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         String configurationFile = args[0];
         if (args.length > 1) epsilon = Double.parseDouble(args[1]);
         if (args.length > 2) delta = Double.parseDouble(args[2]);
+        if (args.length > 3) skipPrecomputation = Boolean.parseBoolean(args[3]);
+        System.out.println("skipPrecomputation = " + skipPrecomputation);
 
         org.experiments.logger.SmartLogger.checkCachedFiles();
         loadConfiguration(configurationFile);
@@ -179,15 +163,18 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
             }
         }
 
-        // paclo-style growing per-round budget (Eq. 1, Obiedkov & Sertkaya 2025),
-        // replacing the previous flat pac.getNumberOfSamples() budget.
-        int roundIndex = paclobBudgetRoundIndex;
-        long localBudget = pac.callsToSamplingOracle(roundIndex);
-        System.out.println("PACLO-BUDGET-DEBUG: round=" + roundIndex + " q_i=" + localBudget);
+        // Flat Occam-bound budget (pac.getNumberOfSamples()), validated to
+        // find real counterexamples on C3 (1->4) and C2 (48->186) when
+        // combined with the corrected weighted sampler. paclo's per-round
+        // growing budget (Pac.callsToSamplingOracle) was tried and found
+        // structurally unable to provide a sufficient budget given the
+        // observed ~1/275 LLM success rate on sampled candidates — see the
+        // paclo-stopping-condition-experiment branch for that negative
+        // result, kept as documentation.
+        long localBudget = pac.getNumberOfSamples();
 
         OWLSubClassOfAxiom found = searchForCounterExample(pac, localBudget);
         if (found != null) {
-            paclobBudgetRoundIndex++;
             return found;
         }
 
@@ -198,16 +185,14 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         hypothesisReasoner.precomputeInferences(
             org.semanticweb.owlapi.reasoner.InferenceType.CLASS_HIERARCHY,
             org.semanticweb.owlapi.reasoner.InferenceType.CLASS_ASSERTIONS);
-        aboxSampler.update_sampler(hypothesisReasoner);
+        // updateConclusion=false: on retry, refresh only the premise-side
+        // instance types, not the conclusion (rhs) weights — matches paclo's
+        // own retry call (LearningFrameworkSubsumption.getCounterExample()),
+        // fixed in Baris Sertkaya's "Fixing the distribution of the right
+        // handside" commit.
+        aboxSampler.update_sampler(hypothesisReasoner, false);
 
-        // Retry uses the NEXT round's (larger) budget, treating the retry
-        // itself as an additional round rather than reusing q_i unchanged.
-        int retryRoundIndex = roundIndex + 1;
-        long retryBudget = pac.callsToSamplingOracle(retryRoundIndex);
-        System.out.println("PACLO-BUDGET-DEBUG: retry round=" + retryRoundIndex + " q_i=" + retryBudget);
-
-        found = searchForCounterExample(pac, retryBudget);
-        paclobBudgetRoundIndex = retryRoundIndex + 1;
+        found = searchForCounterExample(pac, localBudget);
         System.out.println("RETRY-DEBUG: secondo tentativo " + (found != null ? "ha trovato un controesempio" : "esaurito anch'esso, chiudo il round"));
         return found;
     }
