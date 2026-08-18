@@ -475,6 +475,33 @@ if [[ "${JAVA_HEAP_DUMP:-0}" == "1" ]]; then
   echo "Heap dump on OOM: $HEAP_DUMP_DIR (up to $JAVA_HEAP)"
 fi
 
+# Flight Recorder, on by default (JFR=0 disables). Job 4044683 ran at 232.9
+# tok/s lifetime -- at or above the batch-16 benchmark -- while its GPUs sat
+# idle ~72% of the wall clock, so the run is bound by something on the Java side
+# that has never once been profiled. The GC log above answers "is it garbage
+# collection"; this answers "and if not, then what", by naming the hot method
+# instead of leaving us to infer it from reading code.
+#
+# disk=true plus an explicit repository is deliberate: four runs in a row have
+# died at the walltime, and SIGKILL means dumponexit never fires. The repository
+# keeps completed chunks on disk as the run goes, so a killed job still leaves
+# readable data even though no .jfr file was ever written. On a clean exit the
+# chunks move into the .jfr and the repository empties itself.
+#
+# Read it with:   jfr summary logs/jfr-<job>.jfr
+#                 jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
+# or open the file in JDK Mission Control for the flame graph.
+if [[ "${JFR:-1}" == "1" ]]; then
+  JFR_FILE="${JFR_FILE:-logs/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
+  JFR_REPO="${JFR_REPO:-logs/jfr-repo-${SLURM_JOB_ID:-$$}}"
+  mkdir -p "$(dirname "$JFR_FILE")" "$JFR_REPO"
+  JAVA_OPTS+=("-XX:StartFlightRecording=settings=profile,disk=true,dumponexit=true,maxsize=${JFR_MAXSIZE:-2g},filename=${JFR_FILE}"
+              "-XX:FlightRecorderOptions=repository=${JFR_REPO}")
+  echo "JFR: $JFR_FILE (repository $JFR_REPO, maxsize ${JFR_MAXSIZE:-2g})"
+else
+  echo "JFR: off"
+fi
+
 # The 8 cores are shared with the model server. G1 sizes its parallel workers
 # from the core count, so a heap this size can put every core into a collection
 # pause and stall the process feeding the GPUs. ELK's own worker pool is left

@@ -363,7 +363,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                     System.out.println("Counterexample " + counterExampleCount
                             + " at sample " + samples
                             + " (+" + (samples - samplesAtLastCounterExample) + " since the last one), "
-                            + learner.speculationSummary());
+                            + learner.speculationSummary()
+                            + " wall=" + wallClock());
                     samplesAtLastCounterExample = samples;
                     return getCounterExampleSubClassOf(selectedAxiom);
                 }

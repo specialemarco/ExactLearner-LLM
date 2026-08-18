@@ -18,6 +18,8 @@ import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLOb
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -307,6 +309,24 @@ public abstract class LaunchLearner {
     }
 
     /**
+     * Wall-clock stamp for the per-counterexample log lines.
+     *
+     * Job 4044683's counterexample lines carried no time at all, so a 3.5 MB
+     * log could not answer whether the run decelerated -- which is exactly what
+     * separates GC thrash from steady reasoning work, and what a whole extra
+     * job now has to be spent measuring. One field per line fixes that for
+     * every future run.
+     *
+     * Appended to the end of those lines rather than prefixed, deliberately:
+     * the analysis commands in the handover notes anchor on
+     * `^Counterexample ...` and `^Checkpointed hypothesis ...`, and a leading
+     * timestamp would silently break every one of them.
+     */
+    protected static String wallClock() {
+        return LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).toString();
+    }
+
+    /**
      * State a resumed run needs beyond the hypothesis itself.
      *
      * The hypothesis is most of it, but not all: the PAC counter is monotone
@@ -486,7 +506,7 @@ public abstract class LaunchLearner {
             System.out.println("Checkpointed hypothesis after counterexample "
                     + counterExampleNumber + " -> " + hypoFile.getPath()
                     + " (" + hypothesisOntology.getLogicalAxiomCount() + " logical axioms, "
-                    + state + ")");
+                    + state + ") wall=" + wallClock());
         } catch (Throwable t) {
             System.out.println("Hypothesis checkpoint after counterexample "
                     + counterExampleNumber + " failed, continuing: " + t);
