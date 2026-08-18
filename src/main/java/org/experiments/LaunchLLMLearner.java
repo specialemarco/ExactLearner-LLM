@@ -64,6 +64,11 @@ public class LaunchLLMLearner extends LaunchLearner {
         hypothesisSizes = ontologies.stream().map(OntologyManipulator::computeOntologySize).collect(Collectors.toList());
     }
 
+    // Optional 4th CLI arg: "skipprecomputation" (case-insensitive) disables
+    // learner.precomputation() in runLearner() below, for experiments isolating
+    // the A-induced sampling loop's contribution from precomputation's.
+    protected boolean skipPrecomputation = false;
+
     public void run(String[] args) {
         String configurationFile = args[0];
         if (args.length > 1) {
@@ -72,6 +77,10 @@ public class LaunchLLMLearner extends LaunchLearner {
         if (args.length > 2) {
             delta = Double.parseDouble(args[2]);
         }
+        if (args.length > 3) {
+            skipPrecomputation = Boolean.parseBoolean(args[3]);
+        }
+        System.out.println("skipPrecomputation = " + skipPrecomputation);
         SmartLogger.checkCachedFiles();
         loadConfiguration(configurationFile);
         try {
@@ -178,8 +187,12 @@ public class LaunchLLMLearner extends LaunchLearner {
     private void runLearner(int hypothesisSize) throws Throwable {
         int numberOfCounterExamples = 0;
         int seed = 0;
-        // Computes inclusions of the form A implies B
-        learner.precomputation();
+        if (!skipPrecomputation) {
+            // Computes inclusions of the form A implies B
+            learner.precomputation();
+        } else {
+            System.out.println("SKIPPING precomputation() — A-induced loop starts from an empty hypothesis.");
+        }
         Pac pac = new Pac(parser.getClasses().get(), parser.getObjectProperties(), epsilon, delta, hypothesisSize, seed);
         long totalPacSamples = pac.getNumberOfSamples();
         while (true) {

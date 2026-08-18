@@ -81,6 +81,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         String configurationFile = args[0];
         if (args.length > 1) epsilon = Double.parseDouble(args[1]);
         if (args.length > 2) delta = Double.parseDouble(args[2]);
+        if (args.length > 3) skipPrecomputation = Boolean.parseBoolean(args[3]);
+        System.out.println("skipPrecomputation = " + skipPrecomputation);
 
         org.experiments.logger.SmartLogger.checkCachedFiles();
         loadConfiguration(configurationFile);
