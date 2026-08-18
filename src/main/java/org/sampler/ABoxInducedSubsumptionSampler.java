@@ -78,6 +78,15 @@ public class ABoxInducedSubsumptionSampler {
     private BigInteger cumulativeInstanceWeight = BigInteger.ZERO;
     private long numberOfInstances;
 
+    /**
+     * How many times sample() has been called. Each call consumes a variable
+     * number of draws from `random` -- samplePremise() rejects and retries --
+     * so this count, not a number of nextInt() calls, is the only handle on
+     * where the stream is. A resumed run replays exactly this many samples to
+     * put `random` back in the state an uninterrupted run would have reached.
+     */
+    private long draws = 0L;
+
     public ABoxInducedSubsumptionSampler(Set<OWLClassExpression> baseSet, OWLReasoner reasoner, OWLDataFactory factory) {
         this(baseSet, reasoner, factory, DEFAULT_SEED);
     }
@@ -127,6 +136,7 @@ public class ABoxInducedSubsumptionSampler {
     }
 
     public OWLSubClassOfAxiom sample() {
+        draws++;
         Set<OWLClassExpression> premise = samplePremise();
         OWLClassExpression conclusion = sampleConclusion(premise);
         OWLClassExpression lhs = premise.isEmpty()
@@ -205,5 +215,22 @@ public class ABoxInducedSubsumptionSampler {
 
     public boolean hasIndividuals() {
         return instanceNames != null && instanceNames.length > 0;
+    }
+
+    /** How many samples have been drawn. See the `draws` field. */
+    public long getDraws() {
+        return draws;
+    }
+
+    /**
+     * Replays `target` samples and throws them away, so that the next sample()
+     * is the one an uninterrupted run would have produced. Purely local: no
+     * reasoner call, no model call, no cache lookup. A no-op if the stream is
+     * already at or past `target`.
+     */
+    public void fastForwardTo(long target) {
+        while (draws < target) {
+            sample();
+        }
     }
 }

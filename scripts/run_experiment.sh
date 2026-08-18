@@ -266,6 +266,19 @@ export EXACTLEARNER_BATCH_UNSATURATE="${EXACTLEARNER_BATCH_UNSATURATE:-true}"
 
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE"
 
+# DRAFT, and default OFF for that reason -- unlike the batching flags above,
+# this one has never run on the cluster and it changes what a run *is*, not only
+# how fast it gets there. Set, a job continues from the hypothesis and sample
+# position the previous one checkpointed, instead of starting from an empty
+# hypothesis; unset, loadHypothesisOntology() truncates as it always has.
+#
+# Every job so far has thrown its whole hypothesis away at the 24 h walltime,
+# so consecutive jobs repeat each other rather than accumulating. Discuss with
+# Baris before this becomes the default: it is the difference between "the run
+# died at the walltime" and "the run is 158 counterexamples in".
+export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
+echo "Resume: $EXACTLEARNER_RESUME"
+
 # Educloud sets http_proxy, and curl honours it for EVERY host including
 # localhost -- so a probe of our own server is bounced off the Squid proxy with
 # an HTML "Access Denied" page, the readiness loop never matches, and the job
@@ -431,10 +444,49 @@ torch.compile, if the stacks show it was still making progress." >&2
 fi
 
 # --- run ---------------------------------------------------------------------
+# Heap. Job 4044683 died with "OutOfMemoryError: Java heap space" after 23.6 h
+# and 158 counterexamples, while it was capped at -Xmx16g under --mem=128G:
+# Slurm reported 66.7 GiB for the whole step, so vLLM's host side is ~50 GiB and
+# roughly 45 GiB of the allocation was never usable by the learner. 64g keeps
+# ~14 GiB of slack over the two together.
+JAVA_HEAP="${JAVA_HEAP:-64g}"
+
+# GC logging, always on. It is a few MB over 24 h and it is the only thing that
+# separates the two explanations for that OOM: a heap that was merely too small
+# levels off after each full GC, a leak walks the post-collection floor upwards
+# run-long. That job also held 77.1 % CPU across 8 cores while the GPUs idled
+# two thirds of the wall clock, and spent its last 17 minutes issuing no model
+# requests at all, so some of what currently reads as "local Java time" may be
+# collection rather than reasoning. This is how we find out.
+GC_LOG="${GC_LOG:-logs/gc-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.log}"
+mkdir -p "$(dirname "$GC_LOG")"
+
+JAVA_OPTS=(-Xmx"$JAVA_HEAP"
+           "-Xlog:gc*,gc+heap=debug:file=${GC_LOG}:time,uptime:filecount=0")
+
+# Heap dump on OOM: opt-in, because the dump is written at up to the full heap
+# size and 64 GiB of it would land on scratch in one go. Turn it on for a run
+# whose only purpose is to catch the leak, not for one meant to make progress.
+if [[ "${JAVA_HEAP_DUMP:-0}" == "1" ]]; then
+  HEAP_DUMP_DIR="${HEAP_DUMP_DIR:-${SCRATCH:-/tmp}}"
+  mkdir -p "$HEAP_DUMP_DIR"
+  JAVA_OPTS+=(-XX:+HeapDumpOnOutOfMemoryError
+              -XX:HeapDumpPath="$HEAP_DUMP_DIR")
+  echo "Heap dump on OOM: $HEAP_DUMP_DIR (up to $JAVA_HEAP)"
+fi
+
+# The 8 cores are shared with the model server. G1 sizes its parallel workers
+# from the core count, so a heap this size can put every core into a collection
+# pause and stall the process feeding the GPUs. ELK's own worker pool is left
+# alone -- it reads availableProcessors(), which this does not change.
+JAVA_OPTS+=(-XX:ParallelGCThreads="${PARALLEL_GC_THREADS:-4}")
+
+echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG"
+
 # Plain java, not `mvn exec:java`: exec-maven-plugin is not declared in pom.xml,
 # so Maven would try to fetch it and fail on a compute node with no network.
 echo "Starting learner at $(date)"
-java -Xmx16g -cp "target/classes:$(cat cp.txt)" \
+java "${JAVA_OPTS[@]}" -cp "target/classes:$(cat cp.txt)" \
   org.experiments.LaunchLLMLearnerAInduced "$CONFIG" "$EPSILON" "$DELTA"
 
 echo "Finished at $(date)"

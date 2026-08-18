@@ -366,6 +366,7 @@ public class LaunchLLMLearner extends LaunchLearner {
 
             // Persist what has been learned so far. A job killed at walltime
             // otherwise loses every counterexample found up to that point.
+            providedSamples = (long) pac.getNumberOfProvidedSamples();
             checkpointHypothesis(numberOfCounterExamples);
         }
         totalCE += (double) numberOfCounterExamples / (double) totalPacSamples;

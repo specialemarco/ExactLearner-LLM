@@ -42,6 +42,15 @@ public abstract class LaunchLearner {
     protected OWLClass lastName = null;
     protected Set<OWLAxiom> axiomsT = new HashSet<>();
 
+    /** Opt-in resume; see loadHypothesisOntology() and the RunState class. */
+    protected static final String RESUME_ENV = "EXACTLEARNER_RESUME";
+
+    /** State recovered by loadHypothesisOntology(); empty on a fresh run. */
+    protected RunState resumedState = RunState.empty();
+
+    /** Live PAC counter at checkpoint time, set by the loop that owns the Pac. */
+    protected long providedSamples = 0L;
+
     protected final static OWLOntologyManager myManager = OWLManager.createOWLOntologyManager();
     final static OWLObjectRenderer myRenderer = new ManchesterOWLSyntaxOWLObjectRendererImpl();
     protected final static String fileSeparator = System.getProperty("file.separator");
@@ -257,14 +266,125 @@ public abstract class LaunchLearner {
         myManager.saveOntology(groundTruthOntology, manSyntaxFormat, IRI.create(newFile.toURI()));
     }
 
+    /**
+     * DRAFT -- opt-in via EXACTLEARNER_RESUME, off by default, and not yet run
+     * on the cluster. Unset, this method is byte-identical to the original.
+     * See NEXT-SESSION.md for the questions this raises for the 18th.
+     *
+     * Set, a job continues from the hypothesis the previous one checkpointed
+     * instead of starting from empty. Job 4044683 reached 158 counterexamples
+     * in 23.6 h and threw all of it away at the walltime; without this, every
+     * future job spends its first 24 h re-deriving those same 158 before it can
+     * find anything new, and the run can never finish however many jobs it gets.
+     */
     protected void loadHypothesisOntology() throws OWLOntologyCreationException, IOException {
         hypoFile = new File(ontologyFolderH);
+        // Cleared first: run() calls this once per ontology/model pair, and a
+        // pair with nothing to resume from must not inherit the previous one's
+        // sample counters.
+        resumedState = RunState.empty();
+
+        if (resumeRequested() && hypoFile.isFile() && hypoFile.length() > 0) {
+            hypothesisOntology = myManager.loadOntologyFromOntologyDocument(hypoFile);
+            resumedState = RunState.read(runStateFile());
+            System.out.println("RESUMING from " + hypoFile.getPath()
+                    + " (" + hypothesisOntology.getLogicalAxiomCount() + " logical axioms, "
+                    + resumedState + ")");
+            return;
+        }
+
         if (hypoFile.exists()) {
             hypoFile.delete();
         }
         hypoFile.createNewFile();
 
         hypothesisOntology = myManager.loadOntologyFromOntologyDocument(hypoFile);
+    }
+
+    /** Env flag for the above. Same spelling convention as the batching flags. */
+    protected static boolean resumeRequested() {
+        return "true".equals(System.getenv(RESUME_ENV));
+    }
+
+    /**
+     * State a resumed run needs beyond the hypothesis itself.
+     *
+     * The hypothesis is most of it, but not all: the PAC counter is monotone
+     * for the whole run and never reset per equivalence query, and the A-induced
+     * sampler's Random is a stream whose position matters. Restoring the first
+     * and replaying the second is what makes a resumed run continue the original
+     * rather than start a correlated new one.
+     */
+    protected static final class RunState {
+        final int counterExamples;
+        final long providedSamples;
+        final long samplerDraws;
+
+        RunState(int counterExamples, long providedSamples, long samplerDraws) {
+            this.counterExamples = counterExamples;
+            this.providedSamples = providedSamples;
+            this.samplerDraws = samplerDraws;
+        }
+
+        static RunState empty() {
+            return new RunState(0, 0L, 0L);
+        }
+
+        static RunState read(File file) {
+            if (file == null || !file.isFile()) {
+                return empty();
+            }
+            try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+                Properties props = new Properties();
+                props.load(in);
+                return new RunState(
+                        Integer.parseInt(props.getProperty("counterExamples", "0")),
+                        Long.parseLong(props.getProperty("providedSamples", "0")),
+                        Long.parseLong(props.getProperty("samplerDraws", "0")));
+            } catch (Exception e) {
+                // A hypothesis with no readable state file still resumes, it
+                // just restarts the sample stream. Say so rather than failing:
+                // the hypothesis is the expensive half.
+                System.out.println("Run state unreadable (" + e + "), resuming hypothesis only");
+                return empty();
+            }
+        }
+
+        void write(File file) throws IOException {
+            if (file == null) {
+                return;
+            }
+            Properties props = new Properties();
+            props.setProperty("counterExamples", Integer.toString(counterExamples));
+            props.setProperty("providedSamples", Long.toString(providedSamples));
+            props.setProperty("samplerDraws", Long.toString(samplerDraws));
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
+                props.store(out, "ExactLearner run state, written at each checkpoint");
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "counterexamples=" + counterExamples
+                    + " providedSamples=" + providedSamples
+                    + " samplerDraws=" + samplerDraws;
+        }
+    }
+
+    /**
+     * Supplies the live sampler position at checkpoint time. The base class has
+     * no sampler, so it reports zero; LaunchLLMLearnerAInduced overrides it.
+     */
+    protected long samplerDraws() {
+        return 0L;
+    }
+
+    private File runStateFile() {
+        if (hypoFile == null) {
+            return null;
+        }
+        String base = hypoFile.getName().replaceFirst("\\.owl$", "");
+        return new File(hypoFile.getParentFile(), base + "-run-state.properties");
     }
 
     protected void setUpOntologyFolders(String format, String system, String model, String ontology) {
@@ -355,9 +475,18 @@ public abstract class LaunchLearner {
                 myManager.saveOntology(hypothesisOntology, manSyntaxFormat, IRI.create(trajectory.toURI()));
             }
 
+            // Written after the hypothesis, never before: a state file ahead of
+            // the hypothesis it describes would make a resumed run skip samples
+            // for counterexamples the hypothesis does not actually contain.
+            // Behind is harmless -- those samples get examined again, find
+            // nothing, and cost only local reasoner time.
+            RunState state = new RunState(counterExampleNumber, providedSamples, samplerDraws());
+            state.write(runStateFile());
+
             System.out.println("Checkpointed hypothesis after counterexample "
                     + counterExampleNumber + " -> " + hypoFile.getPath()
-                    + " (" + hypothesisOntology.getLogicalAxiomCount() + " logical axioms)");
+                    + " (" + hypothesisOntology.getLogicalAxiomCount() + " logical axioms, "
+                    + state + ")");
         } catch (Throwable t) {
             System.out.println("Hypothesis checkpoint after counterexample "
                     + counterExampleNumber + " failed, continuing: " + t);

@@ -104,6 +104,18 @@ public class Pac {
         providedSamples++;
     }
 
+    // NEW METHOD (resume): restores the counter to where an interrupted run
+    // left it. providedSamples is monotone for the whole run -- nothing resets
+    // it per equivalence query -- so it is the entire PAC-side state a resumed
+    // job has to carry over. Deliberately never decreases: a state file that
+    // somehow lags the hypothesis must not hand budget back and let the same
+    // samples be examined twice.
+    public void restoreProvidedSamples(long samples) {
+        if (samples > providedSamples) {
+            providedSamples = samples;
+        }
+    }
+
     public double computeInstanceSpaceSize() {
         var cn = this.classes.size();
         var rn = this.objectProperties.size();

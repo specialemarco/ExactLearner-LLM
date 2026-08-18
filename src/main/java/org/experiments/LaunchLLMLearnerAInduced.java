@@ -69,6 +69,15 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // what it cost in candidates rather than only that it happened.
     private long samplesAtLastCounterExample = 0;
 
+    /**
+     * Position of the sampler's random stream, recorded in every checkpoint so
+     * a resumed run can replay to it. See LaunchLearner.RunState.
+     */
+    @Override
+    protected long samplerDraws() {
+        return aboxSampler == null ? 0L : aboxSampler.getDraws();
+    }
+
     // If true, Ana's precomputation() phase is skipped entirely and the run
     // measures the A-induced loop's contribution on its own. Precomputation
     // tests every ordered pair of class names before the loop starts, so it
@@ -149,6 +158,27 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         System.out.println("SKIP PRECOMPUTATION: pure A-induced loop");
         System.out.println("  PAC sample budget (numberOfSamples) = " + totalPacSamples);
 
+        // DRAFT (resume): pick the run up where the last job checkpointed it.
+        // hypothesisSize comes from the TARGET ontology, so the budget above is
+        // the same number on a resumed run as on a fresh one -- what changes is
+        // how much of it is already spent. A no-op unless EXACTLEARNER_RESUME
+        // was set and loadHypothesisOntology() found something to resume from.
+        if (resumedState.counterExamples > 0) {
+            numberOfCounterExamples = resumedState.counterExamples;
+            pac.restoreProvidedSamples(resumedState.providedSamples);
+            if (aboxSampler == null) {
+                initAboxSampler();
+            }
+            if (aboxSampler != null) {
+                aboxSampler.fastForwardTo(resumedState.samplerDraws);
+            }
+            samplesAtLastCounterExample = (long) pac.getNumberOfProvidedSamples();
+            counterExampleCount = numberOfCounterExamples;
+            System.out.println("  resumed at counterexample " + numberOfCounterExamples
+                    + ", " + (long) pac.getNumberOfProvidedSamples() + "/" + totalPacSamples
+                    + " of the budget already spent");
+        }
+
         while (true) {
             myMetrics.setEquivCount(myMetrics.getEquivCount() + 1);
             counterExample = getCounterExample(pac);
@@ -166,6 +196,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
             // See LaunchLearner.checkpointHypothesis: without this a walltime
             // kill discards every counterexample this loop has found.
+            providedSamples = (long) pac.getNumberOfProvidedSamples();
             checkpointHypothesis(numberOfCounterExamples);
         }
 
