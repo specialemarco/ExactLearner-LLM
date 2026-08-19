@@ -136,3 +136,4 @@ data_paclo
 logs/
 cp.txt
 .ipynb_checkpoints/
+scripts/experiment.env

@@ -16,6 +16,9 @@
 #   mvn -DskipTests install
 #   mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
 # =============================================================================
+# Default account. sbatch reads these directives BEFORE the script runs, so the
+# personal config below cannot change them -- submit via scripts/submit.sh, which
+# passes your SBATCH_ARGS on the command line, where they take precedence.
 #SBATCH --account=ec30
 #SBATCH --job-name=exactlearner
 #SBATCH --partition=accel
@@ -33,8 +36,31 @@
 
 set -euo pipefail
 
-# ----- EDIT THIS ------------------------------------------------------------
-MODEL_PATH="/cluster/work/projects/ec30/emilpo/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-32B/snapshots/711ad2ea6aa40cfca18895e8aca02ab92df1a746"
+# ----- personal configuration -----------------------------------------------
+# Anything user- or site-specific -- where your weights live, which project
+# account you bill, which module tree you use -- belongs in an untracked file,
+# not in this script, so that the script itself is identical for everyone:
+#
+#   cp scripts/experiment.env.example scripts/experiment.env
+#   $EDITOR scripts/experiment.env
+#
+# Point elsewhere with EXACTLEARNER_ENV=/path/to/file. The file is sourced
+# BEFORE the defaults below, and every default is written ${VAR:-...}, so a
+# value set there wins over the default but still loses to one exported on the
+# sbatch line. Missing file is fine as long as MODEL_PATH arrives some other way.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXACTLEARNER_ENV="${EXACTLEARNER_ENV:-$SCRIPT_DIR/experiment.env}"
+if [[ -f "$EXACTLEARNER_ENV" ]]; then
+  # Personal files reference unset variables freely; -u would abort on that.
+  set +u; . "$EXACTLEARNER_ENV"; set -u
+  echo "Personal config: $EXACTLEARNER_ENV"
+else
+  echo "Personal config: none at $EXACTLEARNER_ENV (cp scripts/experiment.env.example to create one)"
+fi
+
+# Directory holding the model weights. No default -- it is different for every
+# user, and guessing wrong wastes an allocation. Checked in preflight below.
+MODEL_PATH="${MODEL_PATH:-}"
 
 # Reasoning budget per query. DeepSeek-R1 emits a <think> block before the
 # answer, so the num_predict: 2 the Java client sends is ignored. Do NOT lower
@@ -59,11 +85,13 @@ HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-30}"
 
 # Project-local EasyBuild tree, newer than the cluster-wide one (which tops out
 # at PyTorch 2.1.2 / foss-2023a).
-EXTRA_MODULEPATH="/fp/projects01/ec30/software/easybuild/modules/all/"
+# Default is the ec30 tree; members of another project must point this at their
+# own (or set it empty to use only the cluster-wide modules).
+EXTRA_MODULEPATH="${EXTRA_MODULEPATH-/fp/projects01/ec30/software/easybuild/modules/all/}"
 # All foss-2024a / Python 3.12.3, so they share one site-packages generation.
 # Do NOT mix in the cluster-wide PyTorch/2.1.2-foss-2023a (Python 3.11) -- a
 # different Python tree, mutually invisible.
-PYTHON_MODULES=(
+declare -p PYTHON_MODULES >/dev/null 2>&1 || PYTHON_MODULES=(
   "nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3"
   "nlpl-accelerate/1.9.0-foss-2024a-Python-3.12.3"
   "Transformers/4.57.1-gfbf-2024a"
@@ -123,7 +151,7 @@ if [[ "$USER_SITE" != "1" ]]; then
   export PYTHONNOUSERSITE=1
 fi
 
-module use -a "$EXTRA_MODULEPATH"
+[[ -n "$EXTRA_MODULEPATH" ]] && module use -a "$EXTRA_MODULEPATH"
 for m in "${PYTHON_MODULES[@]}"; do
   module load "$m"
 done
@@ -192,6 +220,8 @@ fi
 [[ -f cp.txt ]]        || { echo "ERROR: cp.txt missing. On a login node run:
   mvn dependency:build-classpath -Dmdep.outputFile=cp.txt" >&2; exit 1; }
 [[ -d target/classes ]]|| { echo "ERROR: target/classes missing. Run: mvn -o -DskipTests compile" >&2; exit 1; }
+[[ -n "$MODEL_PATH" ]] || { echo "ERROR: MODEL_PATH is not set. Copy scripts/experiment.env.example
+       to scripts/experiment.env and set MODEL_PATH there (or export it)." >&2; exit 1; }
 [[ -d "$MODEL_PATH" ]] || { echo "ERROR: MODEL_PATH is not a directory: $MODEL_PATH" >&2; exit 1; }
 
 # Verify the Python environment before the model load, so a missing package
