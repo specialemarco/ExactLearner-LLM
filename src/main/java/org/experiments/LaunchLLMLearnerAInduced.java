@@ -84,7 +84,11 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // absorbs the "easy" atomic subsumptions; turning it off is what isolates
     // how much the A-induced sampler finds by itself. Set via
     // LaunchLLMLearnerAInducedNoPre, not by editing this default.
-    private boolean skipPrecomputation = false;
+    //
+    // The field itself now lives on LaunchLLMLearner (protected), which reads it
+    // in its own runLearner() and parses it from args[3]. Redeclaring it here
+    // would SHADOW the inherited one: run() below would write the subclass copy
+    // while the parent kept reading its own, permanently false.
 
     // Batched candidate evaluation. Resolved lazily and turned off permanently
     // for the run if anything about the batch path is unavailable, so a broken
@@ -222,6 +226,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         String configurationFile = args[0];
         if (args.length > 1) epsilon = Double.parseDouble(args[1]);
         if (args.length > 2) delta = Double.parseDouble(args[2]);
+        if (args.length > 3) skipPrecomputation = Boolean.parseBoolean(args[3]);
+        System.out.println("skipPrecomputation = " + skipPrecomputation);
 
         org.experiments.logger.SmartLogger.checkCachedFiles();
         loadConfiguration(configurationFile);
@@ -302,11 +308,37 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         if (aboxSampler == null) {
             initAboxSampler();
             if (aboxSampler == null) {
-                System.out.println("A-induced setup not available for this ontology — falling back to uniform PAC");
+                System.out.println("Setup AInduced non disponibile per questa ontologia — fallback a PAC uniforme");
                 return super.getCounterExample(pac);
             }
         }
 
+
+        // ------------------------------------------------------------------
+        // NOT ADOPTED FROM debug-verify-v2 -- open decision, see below.
+        //
+        // That branch replaces the global budget used here with a PER-ROUND
+        // budget: searchForCounterExample() counts its own attempts up to
+        // pac.getNumberOfSamples(), so every equivalence query gets a fresh
+        // full Occam bound, and on exhaustion it rebuilds an ELK reasoner over
+        // hypothesisOntology, calls update_sampler(reasoner, false) to refresh
+        // the premise-side types against the GROWN hypothesis, and retries once
+        // with the same budget.
+        //
+        // The refresh is worth having on its own -- the sampler here is built
+        // once against the initial ontology and never updated, so as the
+        // hypothesis grows it keeps proposing candidates the hypothesis already
+        // entails. But the refresh only has teeth under per-round budgets: with
+        // the global budget below, a round that returns null has by definition
+        // spent the budget, so a retry would exit immediately.
+        //
+        // The two therefore cannot be separated, and switching to per-round
+        // budgets changes the stopping condition for every experiment (and
+        // breaks the resume checkpoint, which assumes providedSamples is a
+        // monotone global counter). Left as-is pending the stopping-condition
+        // discussion with Baris. update_sampler(reasoner, false) is already
+        // merged and available in ABoxInducedSubsumptionSampler.
+        // ------------------------------------------------------------------
         int batchSize = batchedLoopSize();
 
         while (pac.getNumberOfProvidedSamples() < pac.getNumberOfSamples()) {

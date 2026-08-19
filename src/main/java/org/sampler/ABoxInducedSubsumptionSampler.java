@@ -101,15 +101,38 @@ public class ABoxInducedSubsumptionSampler {
         this.factory = factory;
         this.random = new Random(seed);
         this.numberOfInstances = reasoner.getRootOntology().getIndividualsInSignature().size();
-        update_sampler(reasoner);
+        // Initial setup refreshes both premise (lhs) and conclusion (rhs)
+        // weights -- mirrors paclo's constructor call update_sampler(reasoner, true).
+        update_sampler(reasoner, true);
     }
 
+    /** Refreshes both premise and conclusion weights. */
     public void update_sampler(OWLReasoner reasoner) {
+        update_sampler(reasoner, true);
+    }
+
+    /**
+     * Ported from paclo's commit "Fixing the distribution of the right handside"
+     * (WeightedABoxInducedSubsumptionSampler / formerly WeightedSubsumptionSampler).
+     * The updateConclusion flag lets callers refresh only the premise-side
+     * instance types on retry (after a failed sampling round), leaving the
+     * conclusion (rhs) weights -- instanceCounts, used for rarity-based
+     * weighting in sampleConclusion() -- stable. paclo's own retry call in
+     * LearningFrameworkSubsumption.getCounterExample() passes false here.
+     *
+     * NOTE: instanceCounts is deliberately NOT cleared when updateConclusion is
+     * false, so it keeps the counts from the last refresh that did update it.
+     * Every base-set concept is written on the constructor's pass, so every key
+     * sampleConclusion() looks up is always present.
+     */
+    public void update_sampler(OWLReasoner reasoner, boolean updateConclusion) {
         instanceTypes = new LinkedHashMap<>();
 
         for (OWLClassExpression ce : orderedBaseSet) {
             Set<OWLNamedIndividual> instances = reasoner.getInstances(ce).getFlattened();
-            instanceCounts.put(ce, instances.size());
+            if (updateConclusion) {
+                instanceCounts.put(ce, instances.size());
+            }
             // getFlattened() returns a hash-ordered set; sorting it fixes the
             // insertion order of instanceTypes, which becomes the index order
             // of instanceNames/instanceWeights below.

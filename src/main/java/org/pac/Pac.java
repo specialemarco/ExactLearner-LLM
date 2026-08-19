@@ -29,6 +29,12 @@ public class Pac {
         double x = computeInstanceSpaceSize();
         this.numberOfSamples = Math.round((hypothesisSize*Math.log(x) - Math.log(delta)) / epsilon);
         this.numberOfAxioms = x;
+        System.out.println("PAC-SIZE-DEBUG: classes.size()=" + classes.size()
+            + " objectProperties.size()=" + objectProperties.size()
+            + " hypothesisSize=" + hypothesisSize
+            + " epsilon=" + epsilon + " delta=" + delta
+            + " x(instanceSpaceSize)=" + x
+            + " numberOfSamples=" + this.numberOfSamples);
         this.seed = seed;
         this.factory = OWLManager.getOWLDataFactory();
 
@@ -114,6 +120,24 @@ public class Pac {
         if (samples > providedSamples) {
             providedSamples = samples;
         }
+    }
+
+    /**
+     * Ported from paclo's LearningFrameworkSubsumption.callsToSamplingOracle().
+     * Per-round sampling budget from Eq. 1 of Obiedkov & Sertkaya (2025):
+     * q_i(epsilon,delta) = ceil(log_{1-epsilon}(delta/(i*(i+1))))
+     * Grows with i (the round/equivalence-query index), unlike the flat
+     * Occam-bound numberOfSamples computed once in the constructor above.
+     *
+     * CURRENTLY UNREFERENCED. The A-induced loop was switched to this budget on
+     * branch paclo-stopping-condition-experiment and switched back to the flat
+     * Occam bound on debug-verify-v2, because the growing budget starts far too
+     * small (q_1 = 14) to find a counterexample at the observed hit rate. Kept
+     * here as the ported reference implementation of Eq. 1 for the stopping-
+     * condition work; delete it if that line of work is abandoned.
+     */
+    public int callsToSamplingOracle(int i) {
+        return (int) Math.ceil(Math.log(delta / (i * (i + 1))) / Math.log(1 - epsilon));
     }
 
     public double computeInstanceSpaceSize() {
