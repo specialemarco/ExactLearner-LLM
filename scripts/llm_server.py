@@ -343,6 +343,14 @@ THINK_CLOSE = "</think>"
 # Tokens allowed for the answer after the reasoning block has been force-closed.
 FORCE_ANSWER_TOKENS = 8
 
+# Whether the chat template starts generation inside a reasoning block.
+# DeepSeek-R1-Distill's template ends with "<think>", so its output only becomes
+# an answer after </think>. Mistral has no such block: its whole output is the
+# answer, and treating a missing </think> as "ran out of budget" would spend a
+# second generation pass on every query and read the answer off text the model
+# never meant as one. Set once at startup, from the template itself.
+_reasoning_prompt = False
+
 
 def generate_batch(texts: list, max_new_tokens: int):
     """Returns [(decoded_text, n_generated_tokens), ...]."""
@@ -392,7 +400,11 @@ def reason_and_answer_batch(system: str, prompts: list, budget: int) -> list:
     out = [None] * len(results)
     forced_idx, forced_texts = [], []
     for i, (raw, n) in enumerate(results):
-        if THINK_CLOSE in raw:
+        # "<think>" in raw covers a reasoning model whose template does not
+        # pre-open the block; without either signal the output is the answer.
+        if not (_reasoning_prompt or "<think>" in raw):
+            out[i] = _result(raw, raw, n, False, n >= budget)
+        elif THINK_CLOSE in raw:
             out[i] = _result(raw, raw.split(THINK_CLOSE)[-1], n, False,
                              n >= budget)
         else:
@@ -624,6 +636,7 @@ def main():
                  "or set EXACTLEARNER_MODEL_PATH.")
 
     global _max_new_tokens, _trace_file, _tokenizer, _status_file, _ready
+    global _reasoning_prompt
     _max_new_tokens = args.max_new_tokens
     _trace_file = args.trace_file
     _status_file = args.status_file
@@ -653,6 +666,9 @@ def main():
                                                local_files_only=is_local)
     if _tokenizer.pad_token_id is None:
         _tokenizer.pad_token = _tokenizer.eos_token
+
+    _reasoning_prompt = "<think>" in build_inputs("", "probe")
+    print(f"Chat template opens a reasoning block: {_reasoning_prompt}", flush=True)
 
     tp = args.tensor_parallel_size
     if tp is None:
