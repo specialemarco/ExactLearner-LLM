@@ -2,31 +2,22 @@
 # =============================================================================
 # ExactLearner-LLM on Slurm: model server + learner in a single job.
 #
-#   sbatch scripts/run_experiment.sh <config.yml> [epsilon] [delta]
+#   scripts/submit.sh <config.yml> [epsilon] [delta]   # applies experiment.env
+#   sbatch scripts/run_experiment.sh <config.yml> ...  # script defaults only
 #
-# Example:
-#   sbatch scripts/run_experiment.sh \
-#     src/main/java/org/configurations/experiments/mistral-owl2bench-c1-nlp-advanced.yml
-#
-# Submit from the repository ROOT. Several code paths resolve relative to the
-# working directory (CacheManager reads src/main/java/org/experiments/logger/
-# updates; results go to results/ontologies and statistics/).
-#
-# One-time setup on a LOGIN node before this will work:
+# Submit from the repository ROOT -- several code paths resolve relative to CWD.
+# One-time setup on a LOGIN node:
 #   mvn -DskipTests install
 #   mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
 # =============================================================================
-# Default account. sbatch reads these directives BEFORE the script runs, so the
-# personal config below cannot change them -- submit via scripts/submit.sh, which
-# passes your SBATCH_ARGS on the command line, where they take precedence.
+# sbatch reads these before the script runs, so experiment.env cannot change
+# them; submit.sh passes SBATCH_ARGS on the command line, which takes priority.
 #SBATCH --account=ec30
 #SBATCH --job-name=exactlearner
 #SBATCH --partition=accel
-# --nodes=1 and the a100: prefix are both load-bearing, and neither is default.
-# A plain "--gpus=4" is an allocation-wide total that SLURM may split 2+2 across
-# nodes, which makes vLLM's mp executor fall back to Ray and hang. The accel
-# partition is heterogeneous: its H100 nodes have no kernel image for this vLLM
-# module and die at the first kernel launch.
+# Both load-bearing, neither default: a bare --gpus=4 may split 2+2 across nodes
+# (vLLM falls back to Ray and hangs), and accel's H100 nodes have no kernel image
+# for this vLLM module.
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=8
@@ -36,36 +27,26 @@
 
 set -euo pipefail
 
-# ----- personal configuration -----------------------------------------------
-# Anything user- or site-specific -- where your weights live, which project
-# account you bill, which module tree you use -- belongs in an untracked file,
-# not in this script, so that the script itself is identical for everyone:
-#
-#   cp scripts/experiment.env.example scripts/experiment.env
-#   $EDITOR scripts/experiment.env
-#
-# Point elsewhere with EXACTLEARNER_ENV=/path/to/file. The file is sourced
-# BEFORE the defaults below, and every default is written ${VAR:-...}, so a
-# value set there wins over the default but still loses to one exported on the
-# sbatch line. Missing file is fine as long as MODEL_PATH arrives some other way.
+# ----- personal configuration (untracked) ------------------------------------
+# cp scripts/experiment.env.example scripts/experiment.env, then edit that.
+# Sourced before the defaults below so it beats them; a variable exported on the
+# sbatch line still beats it. Relocate with EXACTLEARNER_ENV=/path/to/file.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXACTLEARNER_ENV="${EXACTLEARNER_ENV:-$SCRIPT_DIR/experiment.env}"
 if [[ -f "$EXACTLEARNER_ENV" ]]; then
-  # Personal files reference unset variables freely; -u would abort on that.
-  set +u; . "$EXACTLEARNER_ENV"; set -u
+  set +u; . "$EXACTLEARNER_ENV"; set -u   # -u would abort on unset references
   echo "Personal config: $EXACTLEARNER_ENV"
 else
   echo "Personal config: none at $EXACTLEARNER_ENV (cp scripts/experiment.env.example to create one)"
 fi
 
-# Directory holding the model weights. No default -- it is different for every
-# user, and guessing wrong wastes an allocation. Checked in preflight below.
+# Model weights. No default: differs per user, and a wrong guess wastes an
+# allocation. Checked in preflight.
 MODEL_PATH="${MODEL_PATH:-}"
 
-# Reasoning budget per query. DeepSeek-R1 emits a <think> block before the
-# answer, so the num_predict: 2 the Java client sends is ignored. Do NOT lower
-# this to buy speed: at 512 the measured p95 was 493, and a query tipping over
-# the cap silently flipped True -> False. Watch at_cap, not just truncated.
+# DeepSeek-R1 emits <think> before answering, so the client's num_predict:2 is
+# ignored. Do NOT lower to buy speed: at 512 the p95 was 493 and queries hitting
+# the cap silently flipped True -> False. Watch at_cap, not truncated.
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-1024}"
 
 # Full reasoning traces as JSONL. Set empty to disable.
@@ -75,22 +56,18 @@ TRACE_FILE="logs/traces-${SLURM_JOB_ID:-local}.jsonl"
 # filesystem because a login shell cannot reach the compute node's HTTP port.
 STATUS_FILE="logs/server-status-${SLURM_JOB_ID:-local}.json"
 
-# Load budget only. Cold vLLM startup on a 32B across 4 ranks can exceed half an
-# hour; ~/.cache/vllm makes later starts much faster. A dead server is caught
-# immediately regardless, since /health answers from the first second.
+# Load budget only; a dead server is caught immediately either way. Cold 32B
+# startup across 4 ranks can exceed 30 min (~/.cache/vllm speeds up later ones).
 SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-5400}"
 
 # Server progress-line interval, in seconds.
 HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-30}"
 
-# Project-local EasyBuild tree, newer than the cluster-wide one (which tops out
-# at PyTorch 2.1.2 / foss-2023a).
-# Default is the ec30 tree; members of another project must point this at their
-# own (or set it empty to use only the cluster-wide modules).
+# Project-local EasyBuild tree, newer than the cluster-wide one (PyTorch 2.1.2 /
+# foss-2023a). Defaults to ec30's; set your own, or empty for cluster-wide only.
 EXTRA_MODULEPATH="${EXTRA_MODULEPATH-/fp/projects01/ec30/software/easybuild/modules/all/}"
-# All foss-2024a / Python 3.12.3, so they share one site-packages generation.
-# Do NOT mix in the cluster-wide PyTorch/2.1.2-foss-2023a (Python 3.11) -- a
-# different Python tree, mutually invisible.
+# All foss-2024a / Python 3.12.3: one site-packages generation. Do NOT mix in
+# the cluster-wide PyTorch/2.1.2-foss-2023a (Python 3.11) -- mutually invisible.
 declare -p PYTHON_MODULES >/dev/null 2>&1 || PYTHON_MODULES=(
   "nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3"
   "nlpl-accelerate/1.9.0-foss-2024a-Python-3.12.3"
@@ -98,18 +75,15 @@ declare -p PYTHON_MODULES >/dev/null 2>&1 || PYTHON_MODULES=(
   "nlpl-vllm/0.8.2-foss-2024a-Python-3.12.3"
 )
 
-# vLLM shards attention heads across GPUs, so this must divide the head count
-# -- a power of two. Keep it equal to --gpus above.
+# Must divide the attention head count (power of two) and equal --gpus above.
 TENSOR_PARALLEL="${TENSOR_PARALLEL:-4}"
 
-# Caps vLLM's KV cache reservation. Prompts here are ~50 tokens plus the
-# reasoning budget; reserving the model's full context would waste most of the
-# GPU memory.
+# Caps the KV cache reservation. Prompts are ~50 tokens plus the reasoning
+# budget, so the model's full context would waste most of the GPU memory.
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
 
-# Everything comes from modules, so ~/.local is deliberately excluded -- it
-# still holds an accelerate 0.29.3 built for Python 3.11. Set to 1 only if you
-# add a --user package this stack needs.
+# ~/.local excluded deliberately: it holds an accelerate 0.29.3 built for
+# Python 3.11. Set to 1 only if you add a --user package this stack needs.
 USER_SITE="${USER_SITE:-0}"
 # ----------------------------------------------------------------------------
 
@@ -119,10 +93,9 @@ CONFIG="${1:?usage: sbatch scripts/run_experiment.sh <config.yml> [epsilon] [del
 EPSILON="${2:-0.2}"
 DELTA="${3:-0.1}"
 
-# `module` is an Lmod shell FUNCTION, not a binary. It reaches a batch job only
-# by being exported from the submitting shell, so anything that stops a shell
-# from sourcing its startup files takes it away -- for instance a ~/.bashrc that
-# is a directory rather than a file. Sourcing Lmod's init here avoids all that.
+# `module` is an Lmod shell FUNCTION, exported from the submitting shell, so
+# anything stopping that shell sourcing its startup files (e.g. a ~/.bashrc that
+# is a directory) takes it away. Sourcing Lmod's init here avoids that.
 ensure_module() {
   [[ "$(type -t module || true)" == "function" ]] && return 0
   local f
@@ -130,9 +103,7 @@ ensure_module() {
            /usr/share/lmod/lmod/init/bash /opt/apps/lmod/lmod/init/bash \
            /cluster/software/lmod/lmod/init/bash /usr/share/Modules/init/bash; do
     if [[ -r "$f" ]]; then
-      # These scripts predate `set -u` and reference unset variables freely, so
-      # the strict flags have to come off for the duration of the source.
-      set +eu; . "$f"; set -eu
+      set +eu; . "$f"; set -eu   # these init scripts predate `set -u`
       [[ "$(type -t module || true)" == "function" ]] && {
         echo "Loaded module command from $f"; return 0; }
     fi
@@ -156,11 +127,9 @@ for m in "${PYTHON_MODULES[@]}"; do
   module load "$m"
 done
 
-# `module purge` can leave PATH with nothing but EasyBuild directories -- no
-# /usr/bin at all -- when the submitting shell never got a proper environment.
-# The resulting failures are scattered and misleading: nvidia-smi vanishes and
-# the heartbeat silently loses its GPU column, tee and ps disappear. Appending
-# is safe: module directories keep priority.
+# `module purge` can leave PATH with only EasyBuild dirs and no /usr/bin, which
+# fails in scattered ways (nvidia-smi, tee, ps all vanish). Appending is safe:
+# module directories keep priority.
 for d in /usr/bin /bin /usr/sbin /sbin; do
   [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$PATH:$d"
 done
@@ -173,9 +142,7 @@ done
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p logs results/ontologies statistics
 
-# --- preflight: fail now, not after the model has loaded ---------------------
-# Each of these otherwise surfaces as a failure deep inside vLLM, minutes or
-# hours later.
+# --- preflight: fail now, not hours later inside vLLM ------------------------
 
 if [[ -n "${SLURM_JOB_ID:-}" ]]; then
   n_nodes="${SLURM_JOB_NUM_NODES:-1}"
@@ -195,8 +162,8 @@ if [[ "$n_gpus" -lt "$TENSOR_PARALLEL" ]]; then
   exit 1
 fi
 
-# Wrong GPU generation: weights load fine, then the first kernel launch dies
-# with "no kernel image is available for execution on the device".
+# Wrong GPU generation: weights load, then the first kernel launch dies with
+# "no kernel image is available for execution on the device".
 bad_gpu=$(nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2>/dev/null \
           | grep -v '8\.0' | head -1 || true)
 if [[ -n "$bad_gpu" ]]; then
@@ -206,8 +173,7 @@ if [[ -n "$bad_gpu" ]]; then
   echo "         loading. Submit with --gpus-per-node=a100:4." >&2
 fi
 
-# Orphaned workers from a previous run hold memory and spin at 100%, which both
-# slows this run and can starve the KV cache allocation.
+# Orphaned workers hold memory and spin at 100%, starving the KV cache.
 busy=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | wc -l)
 if [[ "$busy" -gt 0 ]]; then
   echo "WARNING: $busy process(es) already using these GPUs. If this job did not" >&2
@@ -224,13 +190,10 @@ fi
        to scripts/experiment.env and set MODEL_PATH there (or export it)." >&2; exit 1; }
 [[ -d "$MODEL_PATH" ]] || { echo "ERROR: MODEL_PATH is not a directory: $MODEL_PATH" >&2; exit 1; }
 
-# Verify the Python environment before the model load, so a missing package
-# costs seconds rather than surfacing minutes in.
+# Check the Python environment before the model load: seconds, not minutes.
 python3 - <<'PYCHECK' || { echo "ERROR: Python environment incomplete" >&2; exit 1; }
 import sys
-# The HTTP layer is stdlib (http.server), so these are the only third-party
-# requirements: vllm for the engine, transformers for the tokenizer and its
-# chat template, torch underneath both.
+# HTTP is stdlib; these are the only third-party requirements.
 missing = []
 for mod in ("torch", "transformers", "vllm"):
     try:
@@ -247,17 +210,16 @@ print(f"python {sys.version.split()[0]} | torch {torch.__version__} | "
       f"transformers {transformers.__version__} | vllm {vllm.__version__}")
 print(f"CUDA available: {torch.cuda.is_available()} | GPUs: {torch.cuda.device_count()}")
 
-# A CPU-only torch would not crash -- it would just run perhaps 100x slower,
-# turning an already-long job into an impossible one. Refuse to start.
+# CPU-only torch would not crash, just run ~100x slower. Refuse to start.
 if not torch.cuda.is_available():
     print("\nERROR: torch reports no CUDA. This module's PyTorch may be a "
           "CPU-only build, or the job has no GPU allocated.", file=sys.stderr)
     sys.exit(1)
 PYCHECK
 
-# The ontology named in the config must sit beside initialOntology.owl and
-# baseSet. If either is missing the learner does NOT fail -- it silently falls
-# back to uniform PAC sampling and you get a different experiment.
+# The ontology must sit beside initialOntology.owl and baseSet. If either is
+# missing the learner silently falls back to uniform PAC sampling -- a different
+# experiment, with no error.
 ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"')
 ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
 for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
@@ -270,72 +232,54 @@ echo "Data dir: $ONTOLOGY_DIR"
 # --- model server ------------------------------------------------------------
 export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
 
-# Batch the 17,030 independent precomputation queries instead of issuing them
-# one at a time. Measured 6.9x on 4xA100 with 8 CPU cores (2.08 s/query against
-# 14.40), which takes precomputation from ~69 h to ~10 h. Only the transport
-# changes: the same questions are asked, keyed identically in the cache, and
-# the learner itself is untouched. Set to 0 to disable.
+# Batches the 17,030 independent precomputation queries: measured 6.9x on
+# 4xA100/8 cores, taking precomputation from ~69 h to ~10 h. Transport only --
+# same questions, same cache keys. 0 disables.
 export EXACTLEARNER_BATCH_SIZE="${EXACTLEARNER_BATCH_SIZE:-16}"
 
-# Batch the learner's own sweeps. These default ON here rather than being passed
-# on the sbatch line, because job 4038936 burned a full 24 h walltime running the
-# sequential path: neither flag was in the environment, installDecomposePrefetcher
-# returned at its first guard, and the only symptom was a MISSING log line. Both
-# forms below still honour an override, so `EXACTLEARNER_BATCH_DECOMPOSE=false
-# sbatch ...` reproduces the pre-batching runs exactly.
+# The learner's own sweeps. Default ON here, not on the sbatch line: a job once
+# burned 24 h on the sequential path because neither flag was set and the only
+# symptom was a MISSING log line. Overrides still work.
 #
-#   DECOMPOSE  - decompose()'s signature scans. Unconditionally independent, so
-#                this only changes when answers are fetched.
-#   UNSATURATE - extends that to unsaturateLeft/saturateRight, which is where the
-#                bottleneck actually sits now. Only *conditionally* independent;
-#                watch "speculation rounds=/restarts=" on the counterexample
-#                lines. restarts approaching rounds means the speculation is
-#                being thrown away and this should go back to false.
+#   DECOMPOSE  - decompose()'s signature scans; unconditionally independent, so
+#                only *when* answers are fetched changes.
+#   UNSATURATE - also unsaturateLeft/saturateRight, where the bottleneck now
+#                sits. Only conditionally independent: watch "speculation
+#                rounds=/restarts=" -- restarts nearing rounds means the
+#                speculation is being discarded, so set this false.
 export EXACTLEARNER_BATCH_DECOMPOSE="${EXACTLEARNER_BATCH_DECOMPOSE:-true}"
 export EXACTLEARNER_BATCH_UNSATURATE="${EXACTLEARNER_BATCH_UNSATURATE:-true}"
 
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE"
 
-# DRAFT, and default OFF for that reason -- unlike the batching flags above,
-# this one has never run on the cluster and it changes what a run *is*, not only
-# how fast it gets there. Set, a job continues from the hypothesis and sample
-# position the previous one checkpointed, instead of starting from an empty
-# hypothesis; unset, loadHypothesisOntology() truncates as it always has.
-#
-# Every job so far has thrown its whole hypothesis away at the 24 h walltime,
-# so consecutive jobs repeat each other rather than accumulating. Discuss with
-# Baris before this becomes the default: it is the difference between "the run
-# died at the walltime" and "the run is 158 counterexamples in".
+# DRAFT, default OFF: never run on the cluster, and it changes what a run *is*,
+# not just its speed. Set, a job resumes from the previous one's checkpointed
+# hypothesis and sample position; unset, loadHypothesisOntology() truncates.
+# Every job so far has discarded its hypothesis at the walltime, so consecutive
+# jobs repeat rather than accumulate. Discuss with Baris before defaulting it on.
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 echo "Resume: $EXACTLEARNER_RESUME"
 
-# Educloud sets http_proxy, and curl honours it for EVERY host including
-# localhost -- so a probe of our own server is bounced off the Squid proxy with
-# an HTML "Access Denied" page, the readiness loop never matches, and the job
-# aborts after the full timeout while a loaded model sits idle beside it. The
-# curl calls below also pass --noproxy explicitly, since the variable's spelling
-# and casing are not consistently honoured. Java ignores both and talks to
-# localhost directly, so the learner itself is unaffected.
+# Educloud sets http_proxy and curl honours it even for localhost, so probing
+# our own server returns a Squid "Access Denied" page, the readiness loop never
+# matches, and the job times out beside a loaded model. The curl calls also pass
+# --noproxy, since the variable's casing is not consistently honoured. Java is
+# unaffected.
 export no_proxy="localhost,127.0.0.1,::1,${no_proxy:-}"
 export NO_PROXY="$no_proxy"
 
 SERVER_ARGS=(--tensor-parallel-size "$TENSOR_PARALLEL"
              --max-model-len "$MAX_MODEL_LEN")
-# Default ON for this cluster: the GPUs are A100-PCIE with no NVLink, so the
-# custom all-reduce kernel buys little, while the P2P capability probe that
-# precedes it can spin forever between NCCL init and weight loading. Set
-# DISABLE_CUSTOM_ALL_REDUCE=0 to get the kernel back.
+# Default ON here: A100-PCIE with no NVLink, so the custom all-reduce kernel
+# buys little while its P2P probe can spin forever. 0 restores the kernel.
 [[ "${DISABLE_CUSTOM_ALL_REDUCE:-1}" == "1" ]] &&
   SERVER_ARGS+=(--disable-custom-all-reduce)
 [[ "${ENFORCE_EAGER:-0}" == "1" ]] && SERVER_ARGS+=(--enforce-eager)
 
-# The server must NOT run with the repo root as its working directory. vLLM
-# spawns subprocesses with `python3 -m ...`, which puts the CWD first on
-# sys.path, so a repo directory can shadow a stdlib module of the same name --
-# statistics/ did exactly that until its __init__.py was removed, making
-# torch._inductor fail to import and vLLM misreport it as "Model architectures
-# ['Qwen2ForCausalLM'] failed to be inspected". Kept as cheap insurance against
-# that reappearing. The Java process still runs from the repo root.
+# The server must NOT run from the repo root: vLLM's `python3 -m` subprocesses
+# put CWD first on sys.path, so a repo directory can shadow a stdlib module --
+# statistics/ did, surfacing as "Model architectures ['Qwen2ForCausalLM'] failed
+# to be inspected". Cheap insurance. The Java process still runs from the root.
 REPO_DIR="$PWD"
 SERVER_CWD="${SERVER_CWD:-${SCRATCH:-/tmp}/exactlearner-server-${SLURM_JOB_ID:-$$}}"
 mkdir -p "$SERVER_CWD"
@@ -358,25 +302,21 @@ echo "  squeue -u \$USER"
 [[ -n "$STATUS_ABS" ]] && echo "  cat $STATUS_ABS   # rewritten every heartbeat; stale file = dead process"
 echo
 
-# vLLM's tensor-parallel workers must not be forked from a process that already
-# holds a CUDA context. llm_server.py sets this too; exporting it here covers
-# manual invocations of the server as well.
+# TP workers must not fork from a process holding a CUDA context. llm_server.py
+# sets this too; here it also covers manual invocations of the server.
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 
-# REQUIRED on this node: PCIe peer-to-peer does not work, and nothing detects
-# that. cudaDeviceCanAccessPeer returns true, NCCL reports "Init COMPLETE" in
-# 0.3s, and then the first all-reduce spins at 100% GPU utilization forever --
-# no error, no timeout. Measured, not assumed: NCCL_P2P_LEVEL=PHB (P2P only
-# within a PCI host bridge) ALSO hangs, so P2P is broken between every pair on
-# this node and only disabling it outright works. Setting this to 0 reintroduces
-# a silent, unrecoverable hang.
+# REQUIRED: PCIe P2P is broken here and nothing detects it -- canAccessPeer
+# returns true, NCCL reports "Init COMPLETE", then the first all-reduce spins at
+# 100% forever with no error or timeout. Measured: NCCL_P2P_LEVEL=PHB also hangs,
+# so only disabling outright works. Setting this to 0 reintroduces a silent,
+# unrecoverable hang.
 export NCCL_P2P_DISABLE="${NCCL_P2P_DISABLE:-1}"
 
-# setsid puts the server in its own process group, so the trap can take down
-# vLLM's spawned tensor-parallel workers with it. Killing the parent alone
-# leaves orphaned workers holding GPU memory, which makes the next job in the
-# allocation fail to allocate for no visible reason. exec keeps $! pointing at
-# the python process itself rather than at a wrapper.
+# setsid gives the server its own process group so the trap can take its TP
+# workers down with it -- killing the parent alone leaves orphans holding GPU
+# memory and the next job fails to allocate for no visible reason. exec keeps $!
+# on the python process rather than a wrapper.
 LAUNCH=(python3 "$REPO_DIR/scripts/llm_server.py"
         --model "$MODEL_PATH"
         --port "$PORT"
@@ -392,26 +332,22 @@ else
 fi
 SERVER_PID=$!
 
-# $! is the python PID in both branches: a background subshell in a
-# non-interactive script is not a process-group leader (job control is off), so
-# setsid() succeeds and execs in place rather than forking a wrapper.
+# $! is the python PID either way: a background subshell here is not a process
+# group leader, so setsid execs in place rather than forking a wrapper.
 cleanup_server() {
-  # Negative PID targets the process group, which setsid made equal to the
-  # server's PID -- that reaches vLLM's workers. Falls back to the bare PID
-  # when setsid was unavailable, in which case there is no separate group.
+  # Negative PID targets the process group (== server PID, via setsid), reaching
+  # vLLM's workers. Falls back to the bare PID when setsid was unavailable.
   kill -TERM -"$SERVER_PID" 2>/dev/null ||
     kill -TERM "$SERVER_PID" 2>/dev/null || true
 }
-# TERM and INT as well as EXIT: Slurm sends SIGTERM at walltime, and bash does
-# not run an EXIT trap for an untrapped fatal signal -- which would leave vLLM
-# workers holding all four GPUs after the job record says it finished.
+# TERM/INT as well as EXIT: Slurm sends SIGTERM at walltime and bash runs no EXIT
+# trap for an untrapped fatal signal, leaving workers holding all four GPUs.
 trap cleanup_server EXIT TERM INT
 
-# --- wait until it actually answers, rather than sleeping and hoping ---------
-# Three distinguishable outcomes:
-#   * process gone             -> fail immediately, do not wait out the budget
-#   * loading, phase advancing -> keep waiting, and say what it is doing
-#   * budget exhausted         -> dump thread stacks before killing it
+# --- wait until it answers, rather than sleeping and hoping ------------------
+#   process gone             -> fail now, do not wait out the budget
+#   loading, phase advancing -> keep waiting, and say what it is doing
+#   budget exhausted         -> dump thread stacks before killing it
 READY=0
 DEADLINE=$(( $(date +%s) + SERVER_READY_TIMEOUT ))
 START_WAIT=$(date +%s)
@@ -424,14 +360,13 @@ while [[ $(date +%s) -lt $DEADLINE ]]; do
     echo "ERROR: server process died during startup. Its traceback is above; \
 look for the last 'phase:' line to see how far it got." >&2; exit 1; }
 
-  # /health is bound before the model loads and never takes the generation
-  # lock, so it answers within milliseconds at every stage.
+  # /health binds before the model loads and never takes the generation lock,
+  # so it answers in milliseconds at every stage.
   HEALTH=$(curl -s -m 10 --noproxy '*' "http://localhost:${PORT}/health" 2>/dev/null || true)
 
   if [[ "$HEALTH" == *'"ready":true'* ]]; then
-    # Health says loaded; now prove the full path end to end, exactly as the
-    # Java client will drive it. This is the check that catches a model that
-    # loads fine but whose answers do not parse.
+    # Prove the full path end to end, as the Java client drives it: catches a
+    # model that loads fine but whose answers do not parse.
     RESPONSE=$(curl -s -m 300 --noproxy '*' -X POST "http://localhost:${PORT}/api/generate" \
                  -H 'Content-Type: application/json' -d "$PROBE" 2>/dev/null || true)
     if [[ "$RESPONSE" == *'"response":"'* ]]; then
@@ -446,15 +381,13 @@ look for the last 'phase:' line to see how far it got." >&2; exit 1; }
   NOW=$(date +%s)
   if [[ -n "$HEALTH" ]]; then
     PHASE=$(sed -n 's/.*"phase"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"$HEALTH")
-    # Print on every phase change, and otherwise every 5 minutes, so the log
-    # stays informative without becoming a wall of text on a 24h job.
+    # Every phase change, else every 5 min: informative without a wall of text.
     if [[ "$PHASE" != "$LAST_PHASE" || $(( NOW - LAST_REPORT )) -ge 300 ]]; then
       echo "  [$(( NOW - START_WAIT ))s] server phase: ${PHASE:-unknown}"
       LAST_PHASE="$PHASE"; LAST_REPORT=$NOW
     fi
   elif [[ $(( NOW - LAST_REPORT )) -ge 300 ]]; then
-    # Alive (kill -0 passed) but not yet listening: normal for the first
-    # seconds, suspicious after that.
+    # Alive but not listening: normal for a few seconds, suspicious after.
     echo "  [$(( NOW - START_WAIT ))s] server up but /health not answering yet"
     LAST_REPORT=$NOW
   fi
@@ -464,8 +397,8 @@ done
 if [[ $READY -ne 1 ]]; then
   echo "ERROR: server did not become ready within ${SERVER_READY_TIMEOUT}s \
 (last phase: ${LAST_PHASE:-unknown}). Dumping thread stacks before exit." >&2
-  # SIGUSR1 is wired to faulthandler in llm_server.py: this prints where every
-  # thread actually is, which is the difference between "slow" and "deadlocked".
+  # SIGUSR1 -> faulthandler in llm_server.py: shows where every thread is,
+  # which distinguishes "slow" from "deadlocked".
   kill -USR1 "$SERVER_PID" 2>/dev/null || true
   sleep 5
   echo "Raise SERVER_READY_TIMEOUT, or pass --enforce-eager to skip \
@@ -474,29 +407,21 @@ torch.compile, if the stacks show it was still making progress." >&2
 fi
 
 # --- run ---------------------------------------------------------------------
-# Heap. Job 4044683 died with "OutOfMemoryError: Java heap space" after 23.6 h
-# and 158 counterexamples, while it was capped at -Xmx16g under --mem=128G:
-# Slurm reported 66.7 GiB for the whole step, so vLLM's host side is ~50 GiB and
-# roughly 45 GiB of the allocation was never usable by the learner. 64g keeps
-# ~14 GiB of slack over the two together.
+# A run once OOMed at -Xmx16g under --mem=128G after 23.6 h: vLLM's host side is
+# ~50 GiB, so ~45 GiB of the allocation went unused. 64g leaves ~14 GiB slack.
 JAVA_HEAP="${JAVA_HEAP:-64g}"
 
-# GC logging, always on. It is a few MB over 24 h and it is the only thing that
-# separates the two explanations for that OOM: a heap that was merely too small
-# levels off after each full GC, a leak walks the post-collection floor upwards
-# run-long. That job also held 77.1 % CPU across 8 cores while the GPUs idled
-# two thirds of the wall clock, and spent its last 17 minutes issuing no model
-# requests at all, so some of what currently reads as "local Java time" may be
-# collection rather than reasoning. This is how we find out.
+# GC logging, always on: a few MB over 24 h, and the only way to tell the two
+# OOM explanations apart -- a merely-small heap levels off after each full GC,
+# a leak walks the post-collection floor upwards over the run.
 GC_LOG="${GC_LOG:-logs/gc-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.log}"
 mkdir -p "$(dirname "$GC_LOG")"
 
 JAVA_OPTS=(-Xmx"$JAVA_HEAP"
            "-Xlog:gc*,gc+heap=debug:file=${GC_LOG}:time,uptime:filecount=0")
 
-# Heap dump on OOM: opt-in, because the dump is written at up to the full heap
-# size and 64 GiB of it would land on scratch in one go. Turn it on for a run
-# whose only purpose is to catch the leak, not for one meant to make progress.
+# Opt-in: the dump can be the full heap (64 GiB) landing on scratch at once.
+# For a run meant to catch the leak, not one meant to make progress.
 if [[ "${JAVA_HEAP_DUMP:-0}" == "1" ]]; then
   HEAP_DUMP_DIR="${HEAP_DUMP_DIR:-${SCRATCH:-/tmp}}"
   mkdir -p "$HEAP_DUMP_DIR"
@@ -505,22 +430,15 @@ if [[ "${JAVA_HEAP_DUMP:-0}" == "1" ]]; then
   echo "Heap dump on OOM: $HEAP_DUMP_DIR (up to $JAVA_HEAP)"
 fi
 
-# Flight Recorder, on by default (JFR=0 disables). Job 4044683 ran at 232.9
-# tok/s lifetime -- at or above the batch-16 benchmark -- while its GPUs sat
-# idle ~72% of the wall clock, so the run is bound by something on the Java side
-# that has never once been profiled. The GC log above answers "is it garbage
-# collection"; this answers "and if not, then what", by naming the hot method
-# instead of leaving us to infer it from reading code.
+# Flight Recorder, on by default (JFR=0 disables). Runs hit benchmark tok/s with
+# GPUs idle ~72% of the wall clock, so they are bound by something Java-side that
+# has never been profiled; the GC log says whether it is collection, this says
+# what else. disk=true plus an explicit repository is deliberate: walltime SIGKILL
+# means dumponexit never fires, but completed chunks are already on disk.
 #
-# disk=true plus an explicit repository is deliberate: four runs in a row have
-# died at the walltime, and SIGKILL means dumponexit never fires. The repository
-# keeps completed chunks on disk as the run goes, so a killed job still leaves
-# readable data even though no .jfr file was ever written. On a clean exit the
-# chunks move into the .jfr and the repository empties itself.
-#
-# Read it with:   jfr summary logs/jfr-<job>.jfr
-#                 jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
-# or open the file in JDK Mission Control for the flame graph.
+#   jfr summary logs/jfr-<job>.jfr
+#   jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
+# or open it in JDK Mission Control for the flame graph.
 if [[ "${JFR:-1}" == "1" ]]; then
   JFR_FILE="${JFR_FILE:-logs/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
   JFR_REPO="${JFR_REPO:-logs/jfr-repo-${SLURM_JOB_ID:-$$}}"
@@ -532,16 +450,15 @@ else
   echo "JFR: off"
 fi
 
-# The 8 cores are shared with the model server. G1 sizes its parallel workers
-# from the core count, so a heap this size can put every core into a collection
-# pause and stall the process feeding the GPUs. ELK's own worker pool is left
-# alone -- it reads availableProcessors(), which this does not change.
+# The 8 cores are shared with the model server, and G1 sizes its workers from the
+# core count, so a heap this size can stall every core in a collection pause.
+# ELK's pool is unaffected: it reads availableProcessors().
 JAVA_OPTS+=(-XX:ParallelGCThreads="${PARALLEL_GC_THREADS:-4}")
 
 echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG"
 
-# Plain java, not `mvn exec:java`: exec-maven-plugin is not declared in pom.xml,
-# so Maven would try to fetch it and fail on a compute node with no network.
+# Plain java, not `mvn exec:java`: exec-maven-plugin is not in pom.xml, so Maven
+# would try to fetch it and fail on a compute node with no network.
 echo "Starting learner at $(date)"
 java "${JAVA_OPTS[@]}" -cp "target/classes:$(cat cp.txt)" \
   org.experiments.LaunchLLMLearnerAInduced "$CONFIG" "$EPSILON" "$DELTA"
