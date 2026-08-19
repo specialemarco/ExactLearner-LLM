@@ -144,27 +144,13 @@ n_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | wc -l)
 [[ "$n_gpus" -ge "$TENSOR_PARALLEL" ]] ||
   die "tensor-parallel size is $TENSOR_PARALLEL but only $n_gpus GPU(s) visible. vLLM would fall back to Ray and wait forever on a cluster that was never started."
 
-# Check the Python environment before the model load: seconds, not minutes.
-python3 - <<'PYCHECK' || die "Python environment incomplete"
-import sys
-# HTTP is stdlib; these are the only third-party requirements.
-missing = []
-for mod in ("torch", "transformers", "vllm"):
-    try:
-        __import__(mod)
-    except ImportError as e:
-        missing.append(f"{mod} ({e})")
-if missing:
-    sys.exit("Missing Python packages:\n  " + "\n  ".join(missing) +
-             "\nLoad the matching module on a LOGIN node, or pip install --user.")
-import torch, transformers, vllm
-print(f"python {sys.version.split()[0]} | torch {torch.__version__} | "
-      f"transformers {transformers.__version__} | vllm {vllm.__version__}")
-print(f"CUDA available: {torch.cuda.is_available()} | GPUs: {torch.cuda.device_count()}")
-# CPU-only torch would not crash, just run ~100x slower. Refuse to start.
-if not torch.cuda.is_available():
-    sys.exit("torch reports no CUDA: a CPU-only PyTorch build, or no GPU allocated.")
-PYCHECK
+# Versions go in the log for provenance. A missing package or a CPU-only torch
+# fails here rather than as a server traceback a few seconds later.
+python3 -c '
+import sys, torch, transformers, vllm
+print(f"python {sys.version.split()[0]} | torch {torch.__version__} | transformers {transformers.__version__} | vllm {vllm.__version__}")
+assert torch.cuda.is_available(), "torch reports no CUDA: a CPU-only build, or no GPU allocated"
+' || die "Python environment unusable -- see above"
 
 # --- model server ------------------------------------------------------------
 export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
