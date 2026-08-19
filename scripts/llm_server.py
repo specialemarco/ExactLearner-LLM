@@ -343,6 +343,11 @@ THINK_CLOSE = "</think>"
 # Tokens allowed for the answer after the reasoning block has been force-closed.
 FORCE_ANSWER_TOKENS = 8
 
+# Ceiling for the one retry an at-cap single query gets. A cap is a tuning
+# mistake, and the cost of the mistake is a wrong answer cached forever, so the
+# retry buys correctness at the price of latency on the few queries that ramble.
+RETRY_CAP = int(os.environ.get("EXACTLEARNER_RETRY_CAP", "512"))
+
 # Whether the chat template starts generation inside a reasoning block.
 # DeepSeek-R1-Distill's template ends with "<think>", so its output only becomes
 # an answer after </think>. Mistral has no such block: its whole output is the
@@ -463,6 +468,20 @@ def api_generate(data: dict) -> dict:
     try:
         with _lock:
             result = reason_and_answer(system, prompt, _max_new_tokens)
+            # An at-cap answer was cut mid-sentence, so it is scored from
+            # whatever text fit -- or falls back to False when no True/False
+            # appears at all -- and the caller caches it permanently under this
+            # model's key. BatchPrewarmer refuses to cache these and re-asks
+            # them here, so this is where they have to be resolved rather than
+            # deferred: one retry with a larger budget, which for a model that
+            # normally answers in two tokens costs nothing on the answers that
+            # did not need it.
+            if result["at_cap"] and RETRY_CAP > _max_new_tokens:
+                retried = reason_and_answer(system, prompt, RETRY_CAP)
+                print(f"AT CAP at {_max_new_tokens} tokens, retried at "
+                      f"{RETRY_CAP}: at_cap now {retried['at_cap']}",
+                      file=sys.stderr, flush=True)
+                result = retried
             _request_count += 1
             answer = record(result)
             count = _request_count
@@ -485,9 +504,9 @@ def api_generate(data: dict) -> dict:
             }, ensure_ascii=False) + "\n")
 
     if result["at_cap"]:
-        print(f"[{count}] AT CAP: hit --max-new-tokens ({_max_new_tokens}); "
-              f"answer {answer!r} is unreliable. Raise the budget.",
-              file=sys.stderr, flush=True)
+        print(f"[{count}] AT CAP: hit {RETRY_CAP} tokens even after retry; "
+              f"answer {answer!r} is unreliable and IS cached. Raise "
+              f"MAX_NEW_TOKENS in the model file.", file=sys.stderr, flush=True)
 
     return {
         "model": data.get("model", ""),
