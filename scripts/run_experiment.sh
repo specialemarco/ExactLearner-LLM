@@ -6,9 +6,18 @@
 #   sbatch scripts/run_experiment.sh <config.yml> ...  # script defaults only
 #
 # Submit from the repository ROOT -- several code paths resolve relative to CWD.
-# One-time setup on a LOGIN node:
+#
+# One-time setup on a LOGIN node (module purge first: a stale module from an
+# earlier session can put a different Java in front of the one Maven needs):
+#   module purge; module load Java/21.0.8 Maven/3.6.3
 #   mvn -DskipTests install
 #   mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
+# Confirm it really compiled -- Maven can report success having done nothing:
+# `Compiling N source files` must appear, with N matching
+# `find src/main/java -name '*.java' | wc -l`.
+#
+# scripts/experiment.env and cp.txt are BOTH gitignored, so a git pull does not
+# bring them: create them on each machine you run from.
 # =============================================================================
 # sbatch reads these before the script runs, so experiment.env cannot change
 # them; submit.sh passes SBATCH_ARGS on the command line, which takes priority.
@@ -104,7 +113,7 @@ ensure_module() {
 ensure_module
 
 module purge
-module load Java/21.0.8
+module load Java/21.0.8 
 
 if [[ "$USER_SITE" != "1" ]]; then
   export PYTHONNOUSERSITE=1
