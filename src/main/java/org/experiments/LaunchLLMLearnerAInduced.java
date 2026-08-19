@@ -4,23 +4,15 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.pac.Pac;
 import org.sampler.ABoxInducedSubsumptionSampler;
+import org.utility.PacloDataset;
 import org.semanticweb.owlapi.apibinding.OWLManager;
-import org.semanticweb.owlapi.expression.OWLEntityChecker;
-import org.semanticweb.owlapi.manchestersyntax.parser.ManchesterOWLSyntaxParserImpl;
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
-import org.semanticweb.owlapi.reasoner.structural.StructuralReasonerFactory;
-import org.semanticweb.owlapi.util.mansyntax.ManchesterOWLSyntaxParser;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.evaluation.Evaluation;
 import org.exactlearner.engine.LLMEngine;
@@ -515,165 +507,28 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      * Lazily builds the A-induced sampler for the current target ontology.
      * Called once per run, on the first invocation of getCounterExample().
      *
-     * Expects two files to exist alongside the target ontology (targetFile,
-     * i.e. expertOntology.owl for OWL2Bench): "initialOntology.owl" and
-     * "baseSet". If either is missing, this method returns without setting
-     * aboxSampler, and the caller (getCounterExample) falls back to uniform
-     * PAC sampling.
-     *
-     * CRITICAL FIX — ABox injection:
-     * initialOntology.owl, as shipped, has 3677 individuals in its
-     * signature but ZERO ClassAssertion axioms — its ABox is empty on
-     * disk. Without injecting the real ABox, the sampler would find 0 of
-     * 3677 individuals with any recognized type, making sampling
-     * completely degenerate. Baris's own PACloOracle.java performs this
-     * same injection at runtime (copying the ABox from the expert/ground-
-     * truth ontology into the initial ontology before building the
-     * reasoner), and this method replicates that behaviour exactly:
-     *   initialOntology.add(groundTruthOntology.getABoxAxioms(...))
-     * After this fix: 3668 of 3677 individuals receive at least one
-     * recognized type from the baseSet (verified empirically).
-     *
-     * Also note precomputeInferences() only requests CLASS_HIERARCHY and
-     * CLASS_ASSERTIONS — a plain structural reasoner would not be enough
-     * here, since it only repeats facts asserted literally in the file; ELK
-     * is used specifically because it performs the classification needed
-     * to derive new type assignments beyond what is explicitly asserted.
+     * PacloDataset.loadBeside() reads initialOntology.owl and baseSet from
+     * the dataset folder (see that class for the ABox injection this
+     * depends on) and returns null when they are absent -- e.g. when the
+     * launcher is pointed at one of Ana's small ontologies -- in which case
+     * getCounterExample() falls back to uniform PAC sampling.
      */
     private void initAboxSampler() throws Exception {
-        File targetDir = targetFile.getParentFile();
-        File initialOntologyFile = new File(targetDir, "initialOntology.owl");
-        File baseSetFile = new File(targetDir, "baseSet");
-
-        if (!initialOntologyFile.exists() || !baseSetFile.exists()) {
+        PacloDataset dataset = PacloDataset.loadBeside(targetFile, groundTruthOntology);
+        if (dataset == null) {
             return;
         }
 
-        OWLOntologyManager initManager = OWLManager.createOWLOntologyManager();
-        OWLOntology initialOntology = initManager.loadOntologyFromOntologyDocument(initialOntologyFile);
-
-        // Faithful to PACloOracle.java: the real ABox is injected at runtime,
-        // taken from groundTruthOntology (our expertOntology.owl).
-        initialOntology.add(groundTruthOntology.getABoxAxioms(org.semanticweb.owlapi.model.parameters.Imports.INCLUDED));
-
-        org.semanticweb.elk.owlapi.ElkReasonerFactory rf = new org.semanticweb.elk.owlapi.ElkReasonerFactory();
-        OWLReasoner initialOntologyReasoner = rf.createReasoner(initialOntology);
-        initialOntologyReasoner.precomputeInferences(
-            org.semanticweb.owlapi.reasoner.InferenceType.CLASS_HIERARCHY,
-            org.semanticweb.owlapi.reasoner.InferenceType.CLASS_ASSERTIONS);
-
-        Set<OWLClassExpression> baseSet = readBaseSet(baseSetFile, initialOntology);
-
-        OWLDataFactory df = OWLManager.getOWLDataFactory();
         long seed = samplerSeed();
-        aboxSampler = new ABoxInducedSubsumptionSampler(baseSet, initialOntologyReasoner, df, seed);
+        aboxSampler = new ABoxInducedSubsumptionSampler(
+                dataset.baseSet(), dataset.initialReasoner(), OWLManager.getOWLDataFactory(), seed);
         System.out.println("A-induced sampler seed: " + seed
                 + " (set " + SAMPLER_SEED_ENV + " to vary it across repeats)");
 
-        this.aInducedBaseSet = baseSet;
-        this.aInducedInitialReasoner = initialOntologyReasoner;
-
-        System.out.println("AInduced sampler ready. BaseSet: " + baseSet.size() +
-                " | Individuals in initialOntology: " + initialOntology.getIndividualsInSignature().size());
-
-        // DEBUG diagnostic: counts how many individuals ended up with at
-        // least one recognized baseSet type after the ABox injection above.
-        // Added during debugging of the injection fix described above, to
-        // confirm the fix was actually working (before the fix this printed
-        // 0; after, ~99.7% of individuals — 3668/3677 — were typed).
-        int withTypes = 0;
-        for (org.semanticweb.owlapi.model.OWLNamedIndividual ind : initialOntology.getIndividualsInSignature()) {
-            for (OWLClassExpression ce : baseSet) {
-                if (initialOntologyReasoner.getInstances(ce).containsEntity(ind)) {
-                    withTypes++;
-                    break;
-                }
-            }
-        }
-        System.out.println("DEBUG: individuals with at least one baseSet type: " + withTypes + " out of " + initialOntology.getIndividualsInSignature().size());
-    }
-
-    /**
-     * Parses the external "baseSet" file into a set of OWLClassExpression
-     * objects. This is a faithful line-by-line port of Baris's
-     * Utils.readBaseSet from paclo, adapted to live inside this class.
-     *
-     * The file format allows three kinds of non-comment lines:
-     *   - a plain concept IRI, e.g. <http://benchmark/OWL2Bench#Faculty>
-     *   - an existential restriction in Manchester syntax, e.g.
-     *     (<http://benchmark/OWL2Bench#advises> some owl:Thing)
-     *   - the literal string "owl:Nothing" (bottom concept, special-cased
-     *     because the Manchester parser does not accept it directly as an
-     *     expression on its own in this context)
-     * Lines that are empty or start with "#" are treated as comments and
-     * skipped.
-     *
-     * A custom OWLEntityChecker is required because baseSet lines may
-     * reference entities by their short name (fragment after "#") rather
-     * than a full IRI; the checker resolves short names back to the actual
-     * OWLEntity objects declared in the reference ontology's signature.
-     *
-     * The checker must also know owl:Thing explicitly. The C2 baseSet
-     * (class_names_exists_thing) writes its fillers as the full IRI
-     * <http://www.w3.org/2002/07/owl#Thing>, and the Manchester parser
-     * hands exactly that bracketed string to the entity checker. Built-in
-     * entities are not part of referenceOntology.signature(), so the
-     * fragment-only map above resolves nothing for it and the parser
-     * aborts with "Encountered <...owl#Thing> ... Expected Class name".
-     * Registering owl:Thing/owl:Nothing under both their bracketed-IRI
-     * and short forms fixes C2; C1 and C3 are unaffected (their fillers
-     * are ordinary named classes that the parser resolves from the
-     * default ontology).
-     */
-    private Set<OWLClassExpression> readBaseSet(File f, OWLOntology referenceOntology) throws Exception {
-        OWLOntologyManager om = OWLManager.createOWLOntologyManager();
-        OWLDataFactory df = om.getOWLDataFactory();
-
-        Set<OWLClassExpression> baseSet = new HashSet<>();
-        ManchesterOWLSyntaxParser parser = new ManchesterOWLSyntaxParserImpl(om.getOntologyConfigurator(), df);
-        parser.setDefaultOntology(referenceOntology);
-
-        final Map<String, OWLEntity> map = new HashMap<>();
-        referenceOntology.signature().forEach(x -> map.put(x.getIRI().getFragment(), x));
-        for (OWLClass builtin : new OWLClass[]{df.getOWLThing(), df.getOWLNothing()}) {
-            map.put(builtin.getIRI().getFragment(), builtin);            // Thing / Nothing
-            map.put("owl:" + builtin.getIRI().getFragment(), builtin);   // owl:Thing / owl:Nothing
-            map.put("<" + builtin.getIRI() + ">", builtin);              // <http://...owl#Thing>
-        }
-        parser.setOWLEntityChecker(new OWLEntityChecker() {
-            private <T> T v(String name, Class<T> t) {
-                OWLEntity e = map.get(name);
-                if (t.isInstance(e)) return t.cast(e);
-                return null;
-            }
-            @Override public OWLObjectProperty getOWLObjectProperty(String name) { return v(name, OWLObjectProperty.class); }
-            @Override public OWLNamedIndividual getOWLIndividual(String name) { return v(name, OWLNamedIndividual.class); }
-            @Override public OWLDatatype getOWLDatatype(String name) { return v(name, OWLDatatype.class); }
-            @Override public OWLDataProperty getOWLDataProperty(String name) { return v(name, OWLDataProperty.class); }
-            @Override public OWLClass getOWLClass(String name) { return v(name, OWLClass.class); }
-            @Override public OWLAnnotationProperty getOWLAnnotationProperty(String name) { return v(name, OWLAnnotationProperty.class); }
-        });
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
-            String line = reader.readLine();
-            while (line != null) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) {
-                    line = reader.readLine();
-                    continue;
-                }
-                OWLClassExpression clsExpr;
-                if (line.equals("owl:Nothing")) {
-                    clsExpr = df.getOWLNothing();
-                } else {
-                    parser.setStringToParse(line);
-                    clsExpr = parser.parseClassExpression();
-                }
-                baseSet.add(clsExpr);
-                line = reader.readLine();
-            }
-        }
-        return baseSet;
+        // Held so evaluateWithBaris() reuses the same baseSet and reasoner
+        // instead of rebuilding them once the run has finished.
+        this.aInducedBaseSet = dataset.baseSet();
+        this.aInducedInitialReasoner = dataset.initialReasoner();
     }
 
     /**

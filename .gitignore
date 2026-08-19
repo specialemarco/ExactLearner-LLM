@@ -131,7 +131,8 @@ nb-configuration.xml
 ##############################
 src/main/resources/openai-key.json
 
-data_paclo
+# PACLO datasets: not ours to publish, same layout on every machine
+/data_paclo/
 *.md
 logs/
 cp.txt

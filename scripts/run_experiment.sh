@@ -108,12 +108,12 @@ mkdir -p logs results/ontologies statistics
 
 # The ontology must sit beside initialOntology.owl and baseSet. If either is
 # missing the learner silently falls back to uniform PAC sampling -- a different
-# experiment, with no error. Paths are relative to the repository root, which is
-# why this script insists on being submitted from there.
+# experiment, with no error. Datasets live in data_paclo/ (gitignored), read
+# relative to the repository root, which is why submitting from there matters.
 ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"')
 ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
 for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
-  [[ -e "$required" ]] || die "missing (or broken symlink): $required"
+  [[ -e "$required" ]] || die "missing (or broken symlink): $required. Copy the dataset folder into data_paclo/ -- it is deliberately not in the repository."
 done
 echo "Config: $CONFIG | ontology: $ONTOLOGY | data dir: $ONTOLOGY_DIR"
 

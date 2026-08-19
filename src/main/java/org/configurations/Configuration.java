@@ -1,5 +1,8 @@
 package org.configurations;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import org.utility.PacloDataset;
 
 public class Configuration {
 
@@ -33,7 +36,10 @@ public class Configuration {
     }
 
     public void setOntologies(List<String> ontologies) {
-        this.ontologies = ontologies;
+        // Single choke point for every config: datasets are read from
+        // data_paclo/, so a path into someone else's scratch space is
+        // rewritten to the local copy. See PacloDataset.resolve.
+        this.ontologies = ontologies.stream().map(PacloDataset::resolve).collect(Collectors.toList());
     }
 
     public String getSystem() {

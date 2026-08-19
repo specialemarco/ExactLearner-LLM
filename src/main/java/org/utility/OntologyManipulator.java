@@ -27,6 +27,11 @@ import java.util.stream.Stream;
 
 public class OntologyManipulator {
     public static int computeOntologySize(String ontologyFileName) {
+        if (!new File(ontologyFileName).exists()) {
+            throw new IllegalArgumentException("Ontology not found: " + ontologyFileName
+                    + " -- PACLO datasets live in " + PacloDataset.DATA_DIR
+                    + "/<dataset>/, which is gitignored: copy the folder in by hand.");
+        }
         OWLOntologyManager manager = OWLManager.createOWLOntologyManager();
         OWLOntology ontology = null;
         try {
