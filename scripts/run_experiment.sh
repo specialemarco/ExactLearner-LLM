@@ -82,12 +82,8 @@ if [[ "$USER_SITE" != "1" ]]; then
   export PYTHONNOUSERSITE=1
 fi
 
-# Project-local EasyBuild tree, newer than the cluster-wide one (PyTorch 2.1.2 /
-# foss-2023a). Change this if your project has its own.
-module use -a /fp/projects01/ec30/software/easybuild/modules/all/
 
-# All foss-2024a / Python 3.12.3: one site-packages generation. Do NOT mix in
-# the cluster-wide PyTorch/2.1.2-foss-2023a (Python 3.11) -- mutually invisible.
+module use -a /fp/projects01/ec30/software/easybuild/modules/all/
 module load nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3
 module load nlpl-accelerate/1.9.0-foss-2024a-Python-3.12.3
 module load Transformers/4.57.1-gfbf-2024a
@@ -100,12 +96,8 @@ for d in /usr/bin /bin /usr/sbin /sbin; do
   [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$PATH:$d"
 done
 export PATH
-# Only curl. It comes from /usr/bin, which is what the PATH repair above exists
-# to restore, and its absence is expensive but silent: the readiness loop never
-# matches and the job burns the whole SERVER_READY_TIMEOUT beside a fully loaded
-# model. java and python3 were checked here too until Lmod was measured
-# returning 1 for an unknown module -- so `set -e` already aborts on a failed
-# module load, long before this line. nvidia-smi is checked with the GPU block.
+# Missing curl is silent and expensive: the readiness loop never matches and the
+# job burns the full SERVER_READY_TIMEOUT beside a loaded model.
 command -v curl >/dev/null 2>&1 ||
   die "'curl' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc)."
 
