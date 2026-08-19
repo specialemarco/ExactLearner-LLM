@@ -1,7 +1,7 @@
 models:
-  - "mistral"
+  - "deepseek-r1-32b"
 ontologies:
-  - "/fp/projects01/ec12/ec-marcos/data/owl2bench-1-el-class_names_exists_partial/expertOntology.owl"
+  - "data_paclo/owl2bench-1-el-class_names_exists_partial/expertOntology.owl"
 system: >
   You need to classify the following statements as True or False. The statement will be provided in either Manchester OWL syntax or natural language. Strictly follow these guidelines:
     1. answer with only True or False;
