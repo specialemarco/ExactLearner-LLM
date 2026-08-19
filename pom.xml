@@ -141,7 +141,10 @@
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
-            <version>RELEASE</version>
+            <!-- Pinned. Was RELEASE, which forces Maven to re-fetch
+                 maven-metadata.xml from central on every build, so the build
+                 can never run offline (-o) off a warm ~/.m2. -->
+            <version>26.1.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -158,7 +161,9 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>RELEASE</version>
+            <!-- Pinned, as above. RELEASE had already drifted across 6.0.2,
+                 6.1.2 and 6.1.3 in one local repository. -->
+            <version>6.1.3</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
