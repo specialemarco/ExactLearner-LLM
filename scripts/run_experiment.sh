@@ -12,7 +12,8 @@
 #   module purge; module load Java/21.0.8 Maven/3.6.3
 #   mvn -o -DskipTests compile
 #   mvn -o dependency:build-classpath -Dmdep.outputFile=cp.txt
-# (drop -o the first time on a new machine, to populate ~/.m2.)
+# Drop -o for one run whenever ~/.m2 cannot satisfy something: a new machine,
+# or a dependency version that changed in pom.xml since you last built here.
 #
 # `compile`, not `install`: the run below uses target/classes and cp.txt, and
 # nothing in the repo uses the jar. install additionally builds the jar, shades
