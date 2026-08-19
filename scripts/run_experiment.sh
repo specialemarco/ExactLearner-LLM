@@ -27,6 +27,9 @@
 
 set -euo pipefail
 
+die()  { printf 'ERROR: %s\n'   "$*" >&2; exit 1; }
+warn() { printf 'WARNING: %s\n' "$*" >&2; }
+
 # ----- personal configuration (untracked) ------------------------------------
 # cp scripts/experiment.env.example scripts/experiment.env, then edit that.
 # Sourced before the defaults below so it beats them; a variable exported on the
@@ -96,10 +99,7 @@ ensure_module() {
         echo "Loaded module command from $f"; return 0; }
     fi
   done
-  echo "ERROR: the 'module' command is unavailable and no Lmod init script was
-found in the usual places. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc) --
-if it is a directory, bash skips it and Lmod is never initialised." >&2
-  return 1
+  die "the 'module' command is unavailable and no Lmod init script was found in the usual places. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc) -- if it is a directory, bash skips it and Lmod is never initialised."
 }
 ensure_module
 
@@ -128,18 +128,19 @@ for d in /usr/bin /bin /usr/sbin /sbin; do
   [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$PATH:$d"
 done
 export PATH
+# Fatal, not advisory: a missing curl makes the readiness loop below never match,
+# so the job burns the whole SERVER_READY_TIMEOUT beside a fully loaded model,
+# and a missing java fails only after that. java and python3 also stand in for a
+# check the module system does not give us -- Lmod can return 0 on a failed load.
 for tool in nvidia-smi curl java python3; do
   command -v "$tool" >/dev/null 2>&1 ||
-    echo "WARNING: '$tool' is not on PATH. Check that ~/.bashrc is a FILE." >&2
+    die "'$tool' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc), and that the module loads above succeeded."
 done
 
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p logs results/ontologies statistics
 
 # --- preflight: fail now, not hours later inside vLLM ------------------------
-die()  { printf 'ERROR: %s\n'   "$*" >&2; exit 1; }
-warn() { printf 'WARNING: %s\n' "$*" >&2; }
-
 [[ "${SLURM_JOB_NUM_NODES:-1}" == "1" ]] ||
   die "allocation spans ${SLURM_JOB_NUM_NODES} nodes. vLLM's mp executor sees only the local node, so TP=$TENSOR_PARALLEL would exceed the visible GPU count, fall back to Ray, and hang. Use --nodes=1."
 
@@ -323,7 +324,7 @@ DEADLINE=$(( $(date +%s) + SERVER_READY_TIMEOUT ))
 START_WAIT=$(date +%s)
 LAST_PHASE=""
 LAST_REPORT=0
-PROBE='{"model":"mistral","system":"Answer with only True or False.","options":{"num_predict":2},"stream":false,"prompt":"Is a dog an animal?"}'
+PROBE='{"system":"Answer with only True or False.","options":{"num_predict":2},"stream":false,"prompt":"Is a dog an animal?"}'
 
 while [[ $(date +%s) -lt $DEADLINE ]]; do
   kill -0 "$SERVER_PID" 2>/dev/null || {
