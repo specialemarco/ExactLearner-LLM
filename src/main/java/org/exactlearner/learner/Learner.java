@@ -773,21 +773,41 @@ public class Learner implements BaseLearner {
     public void precomputation() {
         int i = myEngineForT.getClassesInSignature().size();
         myMetrics.setMembCount(myMetrics.getMembCount() + i * (i - 1));
+        // How much of the final hypothesis precomputation is responsible for.
+        // Without this the exhaustive O(n^2) pass is invisible in the log and
+        // its contribution cannot be separated from the sampling loop's.
+        // Counted per pair, not per addHypothesis() call: a pair entailed by
+        // BOTH H and T calls addHypothesis twice, so incrementing on each
+        // branch would overstate the total.
+        int addedFromH = 0;
+        int addedFromT = 0;
+        int addedPairs = 0;
         for (OWLClass cl1 : myEngineForT.getClassesInSignature()) {
             for (OWLClass cl2 : myEngineForT.getClassesInSignature()) {
                 if (cl1.equals(cl2)) {
                     continue;
                 }
                 OWLSubClassOfAxiom addedAxiom = myEngineForT.getSubClassAxiom(cl1, cl2);
+                boolean added = false;
                 if (myEngineForH.entailed(addedAxiom)) {
                     addHypothesis(addedAxiom);
+                    addedFromH++;
+                    added = true;
                 }
                 if (myEngineForT.entailed(addedAxiom)) {
                     relation.addEdge(cl1, cl2);
                     addHypothesis(addedAxiom);
+                    addedFromT++;
+                    added = true;
+                }
+                if (added) {
+                    addedPairs++;
                 }
             }
         }
+        System.out.println("PRECOMPUTATION: " + addedPairs + " of " + (i * (i - 1))
+                + " ordered class pairs contributed an axiom (" + i + " classes); "
+                + "entailed by H: " + addedFromH + ", entailed by T: " + addedFromT);
     }
 
     private OWLAxiom minimizeAxiom(OWLAxiom checkedAxiom) {
