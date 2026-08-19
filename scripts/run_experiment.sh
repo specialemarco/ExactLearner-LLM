@@ -149,12 +149,28 @@ export EXACTLEARNER_BATCH_SIZE="${EXACTLEARNER_BATCH_SIZE:-16}"              # 0
 export EXACTLEARNER_BATCH_DECOMPOSE="${EXACTLEARNER_BATCH_DECOMPOSE:-true}"  # decompose() signature scans
 export EXACTLEARNER_BATCH_UNSATURATE="${EXACTLEARNER_BATCH_UNSATURATE:-true}"
 
+# ELK query-state unlocking, default ON. ELK registers a QueryState per
+# isEntailed() and its own evictor can never reclaim one, because the guard is
+# isLocked() and ElkReasoner.isEntailed() locks without unlocking. So the evictor
+# rescans a growing candidate set on every query: JFR on job 4059565 put 86% of
+# the learner's Java CPU in that scan and ~50 GB of live heap in the retained
+# states. Unlocking after the answer is read lets ELK's own RecencyEvictor work.
+# Measured locally over 20k queries via org.experiments.TestEntailmentQueryEvictor:
+# per-query cost flat instead of climbing 5x, 2.85x less total time, heap flat.
+# Correctness is unaffected -- an evicted query is only recomputed if re-asked,
+# and decompose()'s queries are novel by construction. Set false to compare.
+# Reaches ELK 0.6.0 internals by reflection and self-disables if they move; the
+# "ELK query-state unlocking ON/OFF" line on stdout is the proof it took.
+export EXACTLEARNER_ELK_UNLOCK="${EXACTLEARNER_ELK_UNLOCK:-true}"
+export EXACTLEARNER_ELK_UNLOCK_INTERVAL="${EXACTLEARNER_ELK_UNLOCK_INTERVAL:-2000}"
+
 # DRAFT, default OFF: never run on the cluster, and it changes what a run *is*,
 # not just its speed. Set, a job resumes from the previous one's checkpointed
 # hypothesis and sample position. Discuss with Baris before defaulting it on.
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
+echo "ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"
 
 # Educloud sets http_proxy and curl honours it even for localhost, so probing
 # our own server returns a Squid "Access Denied" page, the readiness loop never
