@@ -137,55 +137,38 @@ cd "${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p logs results/ontologies statistics
 
 # --- preflight: fail now, not hours later inside vLLM ------------------------
+die()  { printf 'ERROR: %s\n'   "$*" >&2; exit 1; }
+warn() { printf 'WARNING: %s\n' "$*" >&2; }
 
-if [[ -n "${SLURM_JOB_ID:-}" ]]; then
-  n_nodes="${SLURM_JOB_NUM_NODES:-1}"
-  if [[ "$n_nodes" != "1" ]]; then
-    echo "ERROR: allocation spans $n_nodes nodes. vLLM's mp executor sees only" >&2
-    echo "       the local node, so TP=$TENSOR_PARALLEL would exceed the visible" >&2
-    echo "       GPU count, fall back to Ray, and hang. Use --nodes=1." >&2
-    exit 1
-  fi
-fi
+[[ "${SLURM_JOB_NUM_NODES:-1}" == "1" ]] ||
+  die "allocation spans ${SLURM_JOB_NUM_NODES} nodes. vLLM's mp executor sees only the local node, so TP=$TENSOR_PARALLEL would exceed the visible GPU count, fall back to Ray, and hang. Use --nodes=1."
 
 n_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | wc -l)
-if [[ "$n_gpus" -lt "$TENSOR_PARALLEL" ]]; then
-  echo "ERROR: tensor-parallel size is $TENSOR_PARALLEL but only $n_gpus GPU(s) visible." >&2
-  echo "       vLLM would fall back to Ray and wait forever on a cluster that" >&2
-  echo "       was never started." >&2
-  exit 1
-fi
+[[ "$n_gpus" -ge "$TENSOR_PARALLEL" ]] ||
+  die "tensor-parallel size is $TENSOR_PARALLEL but only $n_gpus GPU(s) visible. vLLM would fall back to Ray and wait forever on a cluster that was never started."
 
 # Wrong GPU generation: weights load, then the first kernel launch dies with
 # "no kernel image is available for execution on the device".
 bad_gpu=$(nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2>/dev/null \
           | grep -v '8\.0' | head -1 || true)
-if [[ -n "$bad_gpu" ]]; then
-  echo "WARNING: this node's GPUs are not the A100 (compute capability 8.0)" >&2
-  echo "         the nlpl-vllm module was built for: $bad_gpu" >&2
-  echo "         Expect 'no kernel image is available' once weights finish" >&2
-  echo "         loading. Submit with --gpus-per-node=a100:4." >&2
-fi
+[[ -z "$bad_gpu" ]] ||
+  warn "GPUs are not the A100 (compute capability 8.0) the nlpl-vllm module was built for: $bad_gpu. Expect 'no kernel image is available' once weights load. Submit with --gpus-per-node=a100:4."
 
 # Orphaned workers hold memory and spin at 100%, starving the KV cache.
 busy=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | wc -l)
-if [[ "$busy" -gt 0 ]]; then
-  echo "WARNING: $busy process(es) already using these GPUs. If this job did not" >&2
-  echo "         start them they are orphans from an earlier run -- throughput" >&2
-  echo "         and KV cache size will both suffer." >&2
+[[ "$busy" -eq 0 ]] || {
+  warn "$busy process(es) already using these GPUs. If this job did not start them they are orphans from an earlier run -- throughput and KV cache size will both suffer."
   nvidia-smi --query-compute-apps=pid,used_memory --format=csv >&2 || true
-fi
+}
 
-[[ -f "$CONFIG" ]]     || { echo "ERROR: no such config: $CONFIG" >&2; exit 1; }
-[[ -f cp.txt ]]        || { echo "ERROR: cp.txt missing. On a login node run:
-  mvn dependency:build-classpath -Dmdep.outputFile=cp.txt" >&2; exit 1; }
-[[ -d target/classes ]]|| { echo "ERROR: target/classes missing. Run: mvn -o -DskipTests compile" >&2; exit 1; }
-[[ -n "$MODEL_PATH" ]] || { echo "ERROR: MODEL_PATH is not set. Copy scripts/experiment.env.example
-       to scripts/experiment.env and set MODEL_PATH there (or export it)." >&2; exit 1; }
-[[ -d "$MODEL_PATH" ]] || { echo "ERROR: MODEL_PATH is not a directory: $MODEL_PATH" >&2; exit 1; }
+[[ -f "$CONFIG" ]]      || die "no such config: $CONFIG"
+[[ -f cp.txt ]]         || die "cp.txt missing. On a login node run: mvn dependency:build-classpath -Dmdep.outputFile=cp.txt"
+[[ -d target/classes ]] || die "target/classes missing. Run: mvn -o -DskipTests compile"
+[[ -n "$MODEL_PATH" ]]  || die "MODEL_PATH is not set. Copy scripts/experiment.env.example to scripts/experiment.env and set it there (or export it)."
+[[ -d "$MODEL_PATH" ]]  || die "MODEL_PATH is not a directory: $MODEL_PATH"
 
 # Check the Python environment before the model load: seconds, not minutes.
-python3 - <<'PYCHECK' || { echo "ERROR: Python environment incomplete" >&2; exit 1; }
+python3 - <<'PYCHECK' || die "Python environment incomplete"
 import sys
 # HTTP is stdlib; these are the only third-party requirements.
 missing = []
@@ -195,20 +178,15 @@ for mod in ("torch", "transformers", "vllm"):
     except ImportError as e:
         missing.append(f"{mod} ({e})")
 if missing:
-    print("Missing Python packages:", *missing, sep="\n  ", file=sys.stderr)
-    print("\nLoad the matching module on a LOGIN node, or pip install --user.",
-          file=sys.stderr)
-    sys.exit(1)
+    sys.exit("Missing Python packages:\n  " + "\n  ".join(missing) +
+             "\nLoad the matching module on a LOGIN node, or pip install --user.")
 import torch, transformers, vllm
 print(f"python {sys.version.split()[0]} | torch {torch.__version__} | "
       f"transformers {transformers.__version__} | vllm {vllm.__version__}")
 print(f"CUDA available: {torch.cuda.is_available()} | GPUs: {torch.cuda.device_count()}")
-
 # CPU-only torch would not crash, just run ~100x slower. Refuse to start.
 if not torch.cuda.is_available():
-    print("\nERROR: torch reports no CUDA. This module's PyTorch may be a "
-          "CPU-only build, or the job has no GPU allocated.", file=sys.stderr)
-    sys.exit(1)
+    sys.exit("torch reports no CUDA: a CPU-only PyTorch build, or no GPU allocated.")
 PYCHECK
 
 # The ontology must sit beside initialOntology.owl and baseSet. If either is
@@ -217,11 +195,9 @@ PYCHECK
 ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"')
 ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
 for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
-  [[ -e "$required" ]] || { echo "ERROR: missing (or broken symlink): $required" >&2; exit 1; }
+  [[ -e "$required" ]] || die "missing (or broken symlink): $required"
 done
-echo "Config:   $CONFIG"
-echo "Ontology: $ONTOLOGY"
-echo "Data dir: $ONTOLOGY_DIR"
+echo "Config: $CONFIG | ontology: $ONTOLOGY | data dir: $ONTOLOGY_DIR"
 
 # --- model server ------------------------------------------------------------
 export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
