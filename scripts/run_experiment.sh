@@ -155,7 +155,19 @@ for tool in curl java python3; do
     die "'$tool' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc), and that the module loads above succeeded."
 done
 
-cd "${SLURM_SUBMIT_DIR:-$PWD}"
+# SLURM_SUBMIT_DIR is only meaningful inside a job. An Open OnDemand shell
+# inherits a stale one -- the dashboard app's own directory, which is not even
+# readable -- so honouring it outside a job cds somewhere unrelated. Under
+# sbatch it is correct and is what makes `sbatch` work from anywhere.
+if [[ -n "${SLURM_JOB_ID:-}" && -d "${SLURM_SUBMIT_DIR:-}" ]]; then
+  cd "$SLURM_SUBMIT_DIR"
+fi
+
+# Everything below -- cp.txt, target/classes, the data_paclo paths in the config,
+# results/ and statistics/ -- resolves relative to the repository root.
+[[ -f pom.xml && -d src/main/java/org/experiments ]] ||
+  die "this is not the ExactLearner-LLM repository root (pwd: $PWD). cd there and submit from it; paths in the config and the classpath are resolved relative to it."
+
 mkdir -p logs results/ontologies statistics
 
 # --- preflight: fail now, not hours later inside vLLM ------------------------
