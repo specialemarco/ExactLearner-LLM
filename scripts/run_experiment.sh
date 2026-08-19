@@ -40,6 +40,21 @@ else
   echo "Personal config: none at $EXACTLEARNER_ENV (cp scripts/experiment.env.example to create one)"
 fi
 
+# Sourced second, so a model's own settings beat personal preference. Set by
+# scripts/submit.sh; a bare `sbatch run_experiment.sh` just skips it and falls
+# back to MODEL_PATH and the defaults below.
+if [[ -n "${EXACTLEARNER_MODEL_ENV:-}" && -f "$EXACTLEARNER_MODEL_ENV" ]]; then
+  set +u; . "$EXACTLEARNER_MODEL_ENV"; set -u
+  echo "Model config:    $EXACTLEARNER_MODEL_ENV"
+fi
+# Unconditional, not a fallback: a MODEL_PATH left in someone's personal config
+# would otherwise outlive the model file and pair the wrong weights with a
+# config the name check already passed.
+if [[ -n "${MODEL_DIR:-}" ]]; then
+  [[ -n "${MODEL_ROOT:-}" ]] || die "$EXACTLEARNER_MODEL_ENV sets MODEL_DIR but MODEL_ROOT is unset. Put it in $EXACTLEARNER_ENV."
+  MODEL_PATH="$MODEL_ROOT/$MODEL_DIR"
+fi
+
 # All overridable from experiment.env or the sbatch line. Two are not free to
 # retune: MAX_NEW_TOKENS, because a query that hits the cap silently flips
 # True -> False (at a 512 cap the measured p95 was 493 -- watch at_cap, not
