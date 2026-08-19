@@ -144,16 +144,14 @@ for d in /usr/bin /bin /usr/sbin /sbin; do
   [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$PATH:$d"
 done
 export PATH
-# curl, java and python3 are needed on any machine that runs this. nvidia-smi is
-# checked with the GPU block below, so a dry run on a login node still gets
-# through everything above it. Fatal, not advisory: a missing curl makes the
-# readiness loop never match, so the job burns the whole SERVER_READY_TIMEOUT
-# beside a fully loaded model. java and python3 also stand in for a check the
-# module system does not give us -- Lmod can return 0 on a failed load.
-for tool in curl java python3; do
-  command -v "$tool" >/dev/null 2>&1 ||
-    die "'$tool' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc), and that the module loads above succeeded."
-done
+# Only curl. It comes from /usr/bin, which is what the PATH repair above exists
+# to restore, and its absence is expensive but silent: the readiness loop never
+# matches and the job burns the whole SERVER_READY_TIMEOUT beside a fully loaded
+# model. java and python3 were checked here too until Lmod was measured
+# returning 1 for an unknown module -- so `set -e` already aborts on a failed
+# module load, long before this line. nvidia-smi is checked with the GPU block.
+command -v curl >/dev/null 2>&1 ||
+  die "'curl' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc)."
 
 # SLURM_SUBMIT_DIR is only meaningful inside a job. An Open OnDemand shell
 # inherits a stale one -- the dashboard app's own directory, which is not even
