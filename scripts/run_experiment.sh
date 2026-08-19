@@ -63,9 +63,6 @@ SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-5400}"
 # Server progress-line interval, in seconds.
 HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-30}"
 
-# Project-local EasyBuild tree, newer than the cluster-wide one (PyTorch 2.1.2 /
-# foss-2023a). Defaults to ec30's; set your own, or empty for cluster-wide only.
-EXTRA_MODULEPATH="${EXTRA_MODULEPATH-/fp/projects01/ec30/software/easybuild/modules/all/}"
 # Must divide the attention head count (power of two) and equal --gpus above.
 TENSOR_PARALLEL="${TENSOR_PARALLEL:-4}"
 
@@ -113,7 +110,9 @@ if [[ "$USER_SITE" != "1" ]]; then
   export PYTHONNOUSERSITE=1
 fi
 
-[[ -n "$EXTRA_MODULEPATH" ]] && module use -a "$EXTRA_MODULEPATH"
+# Project-local EasyBuild tree, newer than the cluster-wide one (PyTorch 2.1.2 /
+# foss-2023a). Change this if your project has its own.
+module use -a /fp/projects01/ec30/software/easybuild/modules/all/
 
 # All foss-2024a / Python 3.12.3: one site-packages generation. Do NOT mix in
 # the cluster-wide PyTorch/2.1.2-foss-2023a (Python 3.11) -- mutually invisible.
