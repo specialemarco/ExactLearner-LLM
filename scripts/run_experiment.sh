@@ -144,11 +144,13 @@ for d in /usr/bin /bin /usr/sbin /sbin; do
   [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$PATH:$d"
 done
 export PATH
-# Fatal, not advisory: a missing curl makes the readiness loop below never match,
-# so the job burns the whole SERVER_READY_TIMEOUT beside a fully loaded model,
-# and a missing java fails only after that. java and python3 also stand in for a
-# check the module system does not give us -- Lmod can return 0 on a failed load.
-for tool in nvidia-smi curl java python3; do
+# curl, java and python3 are needed on any machine that runs this. nvidia-smi is
+# checked with the GPU block below, so a dry run on a login node still gets
+# through everything above it. Fatal, not advisory: a missing curl makes the
+# readiness loop never match, so the job burns the whole SERVER_READY_TIMEOUT
+# beside a fully loaded model. java and python3 also stand in for a check the
+# module system does not give us -- Lmod can return 0 on a failed load.
+for tool in curl java python3; do
   command -v "$tool" >/dev/null 2>&1 ||
     die "'$tool' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc), and that the module loads above succeeded."
 done
@@ -157,6 +159,32 @@ cd "${SLURM_SUBMIT_DIR:-$PWD}"
 mkdir -p logs results/ontologies statistics
 
 # --- preflight: fail now, not hours later inside vLLM ------------------------
+# Ordered cheapest and most portable first, so that
+#   bash scripts/run_experiment.sh <config>
+# on a login node validates paths, config and data before stopping at the first
+# check that genuinely needs the GPUs.
+
+[[ -f "$CONFIG" ]]      || die "no such config: $CONFIG"
+[[ -f cp.txt ]]         || die "cp.txt missing. On a login node run: mvn -o dependency:build-classpath -Dmdep.outputFile=cp.txt"
+[[ -d target/classes ]] || die "target/classes missing. Run: mvn -o -DskipTests compile"
+[[ -n "$MODEL_PATH" ]]  || die "MODEL_PATH is not set. Copy scripts/experiment.env.example to scripts/experiment.env and set it there (or export it)."
+[[ -d "$MODEL_PATH" ]]  || die "MODEL_PATH is not a directory: $MODEL_PATH"
+
+# The ontology must sit beside initialOntology.owl and baseSet. If either is
+# missing the learner silently falls back to uniform PAC sampling -- a different
+# experiment, with no error. Paths are relative to the repository root, which is
+# why this script insists on being submitted from there.
+ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"')
+ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
+for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
+  [[ -e "$required" ]] || die "missing (or broken symlink): $required"
+done
+echo "Config: $CONFIG | ontology: $ONTOLOGY | data dir: $ONTOLOGY_DIR"
+
+# --- from here down, everything needs the GPUs -------------------------------
+command -v nvidia-smi >/dev/null 2>&1 ||
+  die "'nvidia-smi' is not on PATH. Expected on a login node: everything above this line has passed, so submit the job for the rest."
+
 [[ "${SLURM_JOB_NUM_NODES:-1}" == "1" ]] ||
   die "allocation spans ${SLURM_JOB_NUM_NODES} nodes. vLLM's mp executor sees only the local node, so TP=$TENSOR_PARALLEL would exceed the visible GPU count, fall back to Ray, and hang. Use --nodes=1."
 
@@ -177,12 +205,6 @@ busy=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | w
   warn "$busy process(es) already using these GPUs. If this job did not start them they are orphans from an earlier run -- throughput and KV cache size will both suffer."
   nvidia-smi --query-compute-apps=pid,used_memory --format=csv >&2 || true
 }
-
-[[ -f "$CONFIG" ]]      || die "no such config: $CONFIG"
-[[ -f cp.txt ]]         || die "cp.txt missing. On a login node run: mvn dependency:build-classpath -Dmdep.outputFile=cp.txt"
-[[ -d target/classes ]] || die "target/classes missing. Run: mvn -o -DskipTests compile"
-[[ -n "$MODEL_PATH" ]]  || die "MODEL_PATH is not set. Copy scripts/experiment.env.example to scripts/experiment.env and set it there (or export it)."
-[[ -d "$MODEL_PATH" ]]  || die "MODEL_PATH is not a directory: $MODEL_PATH"
 
 # Check the Python environment before the model load: seconds, not minutes.
 python3 - <<'PYCHECK' || die "Python environment incomplete"
@@ -205,16 +227,6 @@ print(f"CUDA available: {torch.cuda.is_available()} | GPUs: {torch.cuda.device_c
 if not torch.cuda.is_available():
     sys.exit("torch reports no CUDA: a CPU-only PyTorch build, or no GPU allocated.")
 PYCHECK
-
-# The ontology must sit beside initialOntology.owl and baseSet. If either is
-# missing the learner silently falls back to uniform PAC sampling -- a different
-# experiment, with no error.
-ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"')
-ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
-for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
-  [[ -e "$required" ]] || die "missing (or broken symlink): $required"
-done
-echo "Config: $CONFIG | ontology: $ONTOLOGY | data dir: $ONTOLOGY_DIR"
 
 # --- model server ------------------------------------------------------------
 export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
