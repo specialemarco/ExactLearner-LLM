@@ -40,34 +40,18 @@ else
   echo "Personal config: none at $EXACTLEARNER_ENV (cp scripts/experiment.env.example to create one)"
 fi
 
-# Model weights. No default: differs per user, and a wrong guess wastes an
-# allocation. Checked in preflight.
-MODEL_PATH="${MODEL_PATH:-}"
-
-# DeepSeek-R1 emits <think> before answering, so the client's num_predict:2 is
-# ignored. Do NOT lower to buy speed: at 512 the p95 was 493 and queries hitting
-# the cap silently flipped True -> False. Watch at_cap, not truncated.
-MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-1024}"
-
-# Load budget only; a dead server is caught immediately either way. Cold 32B
-# startup across 4 ranks can exceed 30 min (~/.cache/vllm speeds up later ones).
-SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-5400}"
-
-# Server progress-line interval, in seconds.
+# All overridable from experiment.env or the sbatch line. Two are not free to
+# retune: MAX_NEW_TOKENS, because a query that hits the cap silently flips
+# True -> False (at a 512 cap the measured p95 was 493 -- watch at_cap, not
+# truncated), and TENSOR_PARALLEL, which must equal the GPU count and divide the
+# attention head count.
+MODEL_PATH="${MODEL_PATH:-}"                          # no default; checked in preflight
+MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-1024}"              # DeepSeek-R1's <think> ignores num_predict
+SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-5400}"  # cold 32B load can exceed 30 min
 HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-30}"
-
-# Must divide the attention head count (power of two) and equal --gpus above.
 TENSOR_PARALLEL="${TENSOR_PARALLEL:-4}"
-
-# Caps the KV cache reservation. Prompts are ~50 tokens plus the reasoning
-# budget, so the model's full context would waste most of the GPU memory.
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
-
-# ~/.local excluded deliberately: it holds an accelerate 0.29.3 built for
-# Python 3.11. Set to 1 only if you add a --user package this stack needs.
-USER_SITE="${USER_SITE:-0}"
-# ----------------------------------------------------------------------------
-
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"                # KV cache cap; prompts are ~50 tokens
+USER_SITE="${USER_SITE:-0}"                           # 1 re-enables ~/.local (holds a py3.11 accelerate)
 PORT="${PORT:-11434}"
 
 CONFIG="${1:?usage: sbatch scripts/run_experiment.sh <config.yml> [epsilon] [delta]}"
@@ -78,9 +62,9 @@ DELTA="${3:-0.1}"
 module purge
 module load Java/21.0.8 
 
-if [[ "$USER_SITE" != "1" ]]; then
-  export PYTHONNOUSERSITE=1
-fi
+# Ignore ~/.local: a stray `pip install --user` there silently outranks the
+# module-provided torch/transformers/vllm, for every run, invisibly.
+[[ "$USER_SITE" == "1" ]] || export PYTHONNOUSERSITE=1
 
 
 module use -a /fp/projects01/ec30/software/easybuild/modules/all/
@@ -155,33 +139,22 @@ assert torch.cuda.is_available(), "torch reports no CUDA: a CPU-only build, or n
 # --- model server ------------------------------------------------------------
 export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
 
-# Batches the 17,030 independent precomputation queries: measured 6.9x on
-# 4xA100/8 cores, taking precomputation from ~69 h to ~10 h. Transport only --
-# same questions, same cache keys. 0 disables.
-export EXACTLEARNER_BATCH_SIZE="${EXACTLEARNER_BATCH_SIZE:-16}"
-
-# The learner's own sweeps. Default ON here, not on the sbatch line: a job once
-# burned 24 h on the sequential path because neither flag was set and the only
-# symptom was a MISSING log line. Overrides still work.
-#
-#   DECOMPOSE  - decompose()'s signature scans; unconditionally independent, so
-#                only *when* answers are fetched changes.
-#   UNSATURATE - also unsaturateLeft/saturateRight, where the bottleneck now
-#                sits. Only conditionally independent: watch "speculation
-#                rounds=/restarts=" -- restarts nearing rounds means the
-#                speculation is being discarded, so set this false.
-export EXACTLEARNER_BATCH_DECOMPOSE="${EXACTLEARNER_BATCH_DECOMPOSE:-true}"
+# Batching, all default ON here rather than on the sbatch line: a job once burned
+# 24 h on the sequential path because the flags were unset and the only symptom
+# was a MISSING log line. Transport only -- same questions, same cache keys.
+# BATCH_UNSATURATE is the one to watch: it batches unsaturateLeft/saturateRight,
+# which are only conditionally independent, so if "speculation rounds=/restarts="
+# shows restarts nearing rounds the speculation is being thrown away, set false.
+export EXACTLEARNER_BATCH_SIZE="${EXACTLEARNER_BATCH_SIZE:-16}"              # 0 disables; 6.9x measured
+export EXACTLEARNER_BATCH_DECOMPOSE="${EXACTLEARNER_BATCH_DECOMPOSE:-true}"  # decompose() signature scans
 export EXACTLEARNER_BATCH_UNSATURATE="${EXACTLEARNER_BATCH_UNSATURATE:-true}"
-
-echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE"
 
 # DRAFT, default OFF: never run on the cluster, and it changes what a run *is*,
 # not just its speed. Set, a job resumes from the previous one's checkpointed
-# hypothesis and sample position; unset, loadHypothesisOntology() truncates.
-# Every job so far has discarded its hypothesis at the walltime, so consecutive
-# jobs repeat rather than accumulate. Discuss with Baris before defaulting it on.
+# hypothesis and sample position. Discuss with Baris before defaulting it on.
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
-echo "Resume: $EXACTLEARNER_RESUME"
+
+echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
 
 # Educloud sets http_proxy and curl honours it even for localhost, so probing
 # our own server returns a Squid "Access Denied" page, the readiness loop never
@@ -272,113 +245,89 @@ trap cleanup_server EXIT TERM INT
 #   loading, phase advancing -> keep waiting, and say what it is doing
 #   budget exhausted         -> dump thread stacks before killing it
 READY=0
-DEADLINE=$(( $(date +%s) + SERVER_READY_TIMEOUT ))
-START_WAIT=$(date +%s)
-LAST_PHASE=""
-LAST_REPORT=0
+START=$(date +%s)
+DEADLINE=$(( START + SERVER_READY_TIMEOUT ))
+LAST_PHASE=""; LAST_REPORT=0
 PROBE='{"system":"Answer with only True or False.","options":{"num_predict":2},"stream":false,"prompt":"Is a dog an animal?"}'
 
 while [[ $(date +%s) -lt $DEADLINE ]]; do
-  kill -0 "$SERVER_PID" 2>/dev/null || {
-    echo "ERROR: server process died during startup. Its traceback is above; \
-look for the last 'phase:' line to see how far it got." >&2; exit 1; }
+  kill -0 "$SERVER_PID" 2>/dev/null ||
+    die "server died during startup; its traceback is above (last phase: ${LAST_PHASE:-unknown})"
 
-  # /health binds before the model loads and never takes the generation lock,
-  # so it answers in milliseconds at every stage.
+  # /health binds before the model loads and never takes the generation lock, so
+  # it answers in milliseconds at every stage, reporting a phase.
   HEALTH=$(curl -s -m 10 --noproxy '*' "http://localhost:${PORT}/health" 2>/dev/null || true)
 
   if [[ "$HEALTH" == *'"ready":true'* ]]; then
-    # Prove the full path end to end, as the Java client drives it: catches a
-    # model that loads fine but whose answers do not parse.
+    # Loaded is not the same as usable: drive the full path exactly as the Java
+    # client will, to catch a model whose answers do not parse.
     RESPONSE=$(curl -s -m 300 --noproxy '*' -X POST "http://localhost:${PORT}/api/generate" \
                  -H 'Content-Type: application/json' -d "$PROBE" 2>/dev/null || true)
-    if [[ "$RESPONSE" == *'"response":"'* ]]; then
-      echo "Server ready after $(( $(date +%s) - START_WAIT ))s. Probe: $RESPONSE"
-      READY=1
-      break
-    fi
-    echo "ERROR: server reports ready but the probe did not parse: $RESPONSE" >&2
-    exit 1
+    [[ "$RESPONSE" == *'"response":"'* ]] ||
+      die "server reports ready but the probe did not parse: $RESPONSE"
+    echo "Server ready after $(( $(date +%s) - START ))s. Probe: $RESPONSE"
+    READY=1; break
   fi
 
+  # One line per phase change, otherwise every 5 min. An empty HEALTH means the
+  # process is up but not listening yet, which is normal only for a few seconds.
+  PHASE=$(sed -n 's/.*"phase"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"$HEALTH")
   NOW=$(date +%s)
-  if [[ -n "$HEALTH" ]]; then
-    PHASE=$(sed -n 's/.*"phase"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"$HEALTH")
-    # Every phase change, else every 5 min: informative without a wall of text.
-    if [[ "$PHASE" != "$LAST_PHASE" || $(( NOW - LAST_REPORT )) -ge 300 ]]; then
-      echo "  [$(( NOW - START_WAIT ))s] server phase: ${PHASE:-unknown}"
-      LAST_PHASE="$PHASE"; LAST_REPORT=$NOW
-    fi
-  elif [[ $(( NOW - LAST_REPORT )) -ge 300 ]]; then
-    # Alive but not listening: normal for a few seconds, suspicious after.
-    echo "  [$(( NOW - START_WAIT ))s] server up but /health not answering yet"
-    LAST_REPORT=$NOW
+  if [[ "$PHASE" != "$LAST_PHASE" || $(( NOW - LAST_REPORT )) -ge 300 ]]; then
+    echo "  [$(( NOW - START ))s] server phase: ${PHASE:-not answering yet}"
+    LAST_PHASE="$PHASE"; LAST_REPORT=$NOW
   fi
   sleep 15
 done
 
-if [[ $READY -ne 1 ]]; then
-  echo "ERROR: server did not become ready within ${SERVER_READY_TIMEOUT}s \
-(last phase: ${LAST_PHASE:-unknown}). Dumping thread stacks before exit." >&2
-  # SIGUSR1 -> faulthandler in llm_server.py: shows where every thread is,
-  # which distinguishes "slow" from "deadlocked".
+# SIGUSR1 is wired to faulthandler in llm_server.py: the stacks separate "slow"
+# from "deadlocked", and the NCCL P2P hang is otherwise completely silent.
+[[ "$READY" == 1 ]] || {
   kill -USR1 "$SERVER_PID" 2>/dev/null || true
   sleep 5
-  echo "Raise SERVER_READY_TIMEOUT, or pass --enforce-eager to skip \
-torch.compile, if the stacks show it was still making progress." >&2
-  exit 1
-fi
+  die "server not ready within ${SERVER_READY_TIMEOUT}s (last phase: ${LAST_PHASE:-unknown}). Stacks above: if they show progress, raise SERVER_READY_TIMEOUT or set ENFORCE_EAGER=1 to skip torch.compile."
+}
 
 # --- run ---------------------------------------------------------------------
-# A run once OOMed at -Xmx16g under --mem=128G after 23.6 h: vLLM's host side is
-# ~50 GiB, so ~45 GiB of the allocation went unused. 64g leaves ~14 GiB slack.
+# Heap and instrumentation. 64g because a run OOMed at -Xmx16g under --mem=128G
+# after 23.6 h -- vLLM's host side is ~50 GiB, so most of the allocation was
+# unusable by the learner. GC log and JFR are both always-on diagnostics for the
+# open question of where the run's time goes: GPUs sit idle ~72% of the wall
+# clock at benchmark tok/s, so something Java-side is the bound. The GC log says
+# whether it is collection (a small heap levels off after each full GC, a leak
+# walks the floor upwards); JFR names the method if it is not. disk=true plus an
+# explicit repository is deliberate -- walltime SIGKILL means dumponexit never
+# fires, but completed chunks are already on disk.
+#   jfr summary logs/jfr-<job>.jfr
+#   jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
 JAVA_HEAP="${JAVA_HEAP:-64g}"
-
-# GC logging, always on: a few MB over 24 h, and the only way to tell the two
-# OOM explanations apart -- a merely-small heap levels off after each full GC,
-# a leak walks the post-collection floor upwards over the run.
 GC_LOG="${GC_LOG:-logs/gc-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.log}"
+JFR_FILE="${JFR_FILE:-logs/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
+JFR_REPO="${JFR_REPO:-logs/jfr-repo-${SLURM_JOB_ID:-$$}}"
 mkdir -p "$(dirname "$GC_LOG")"
 
+# ParallelGCThreads: the 8 cores are shared with the model server and G1 sizes
+# its workers from the core count, so a 64g heap can stall every core in a pause.
 JAVA_OPTS=(-Xmx"$JAVA_HEAP"
-           "-Xlog:gc*,gc+heap=debug:file=${GC_LOG}:time,uptime:filecount=0")
+           "-Xlog:gc*,gc+heap=debug:file=${GC_LOG}:time,uptime:filecount=0"
+           -XX:ParallelGCThreads="${PARALLEL_GC_THREADS:-4}")
 
-# Opt-in: the dump can be the full heap (64 GiB) landing on scratch at once.
-# For a run meant to catch the leak, not one meant to make progress.
+# Opt-in: the dump can be the full heap landing on scratch at once, so this is
+# for a run meant to catch the leak, not one meant to make progress.
 if [[ "${JAVA_HEAP_DUMP:-0}" == "1" ]]; then
   HEAP_DUMP_DIR="${HEAP_DUMP_DIR:-${SCRATCH:-/tmp}}"
   mkdir -p "$HEAP_DUMP_DIR"
-  JAVA_OPTS+=(-XX:+HeapDumpOnOutOfMemoryError
-              -XX:HeapDumpPath="$HEAP_DUMP_DIR")
+  JAVA_OPTS+=(-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath="$HEAP_DUMP_DIR")
   echo "Heap dump on OOM: $HEAP_DUMP_DIR (up to $JAVA_HEAP)"
 fi
 
-# Flight Recorder, on by default (JFR=0 disables). Runs hit benchmark tok/s with
-# GPUs idle ~72% of the wall clock, so they are bound by something Java-side that
-# has never been profiled; the GC log says whether it is collection, this says
-# what else. disk=true plus an explicit repository is deliberate: walltime SIGKILL
-# means dumponexit never fires, but completed chunks are already on disk.
-#
-#   jfr summary logs/jfr-<job>.jfr
-#   jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
-# or open it in JDK Mission Control for the flame graph.
 if [[ "${JFR:-1}" == "1" ]]; then
-  JFR_FILE="${JFR_FILE:-logs/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
-  JFR_REPO="${JFR_REPO:-logs/jfr-repo-${SLURM_JOB_ID:-$$}}"
   mkdir -p "$(dirname "$JFR_FILE")" "$JFR_REPO"
   JAVA_OPTS+=("-XX:StartFlightRecording=settings=profile,disk=true,dumponexit=true,maxsize=${JFR_MAXSIZE:-2g},filename=${JFR_FILE}"
               "-XX:FlightRecorderOptions=repository=${JFR_REPO}")
-  echo "JFR: $JFR_FILE (repository $JFR_REPO, maxsize ${JFR_MAXSIZE:-2g})"
-else
-  echo "JFR: off"
 fi
 
-# The 8 cores are shared with the model server, and G1 sizes its workers from the
-# core count, so a heap this size can stall every core in a collection pause.
-# ELK's pool is unaffected: it reads availableProcessors().
-JAVA_OPTS+=(-XX:ParallelGCThreads="${PARALLEL_GC_THREADS:-4}")
-
-echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG"
+echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG jfr=${JFR:-1}"
 
 # Plain java, not `mvn exec:java`: exec-maven-plugin is not in pom.xml, so Maven
 # would try to fetch it and fail on a compute node with no network.
