@@ -68,13 +68,6 @@ MODEL_PATH="${MODEL_PATH:-}"
 # the cap silently flipped True -> False. Watch at_cap, not truncated.
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-1024}"
 
-# Full reasoning traces as JSONL. Set empty to disable.
-TRACE_FILE="logs/traces-${SLURM_JOB_ID:-local}.jsonl"
-
-# Machine-readable server state, rewritten every heartbeat. Lives on the shared
-# filesystem because a login shell cannot reach the compute node's HTTP port.
-STATUS_FILE="logs/server-status-${SLURM_JOB_ID:-local}.json"
-
 # Load budget only; a dead server is caught immediately either way. Cold 32B
 # startup across 4 ranks can exceed 30 min (~/.cache/vllm speeds up later ones).
 SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-5400}"
@@ -100,24 +93,6 @@ CONFIG="${1:?usage: sbatch scripts/run_experiment.sh <config.yml> [epsilon] [del
 EPSILON="${2:-0.2}"
 DELTA="${3:-0.1}"
 
-# `module` is an Lmod shell FUNCTION, exported from the submitting shell, so
-# anything stopping that shell sourcing its startup files (e.g. a ~/.bashrc that
-# is a directory) takes it away. Sourcing Lmod's init here avoids that.
-ensure_module() {
-  [[ "$(type -t module || true)" == "function" ]] && return 0
-  local f
-  for f in /etc/profile.d/lmod.sh /etc/profile.d/z00_lmod.sh \
-           /usr/share/lmod/lmod/init/bash /opt/apps/lmod/lmod/init/bash \
-           /cluster/software/lmod/lmod/init/bash /usr/share/Modules/init/bash; do
-    if [[ -r "$f" ]]; then
-      set +eu; . "$f"; set -eu   # these init scripts predate `set -u`
-      [[ "$(type -t module || true)" == "function" ]] && {
-        echo "Loaded module command from $f"; return 0; }
-    fi
-  done
-  die "the 'module' command is unavailable and no Lmod init script was found in the usual places. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc) -- if it is a directory, bash skips it and Lmod is never initialised."
-}
-ensure_module
 
 module purge
 module load Java/21.0.8 
@@ -202,20 +177,6 @@ n_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | wc -l)
 [[ "$n_gpus" -ge "$TENSOR_PARALLEL" ]] ||
   die "tensor-parallel size is $TENSOR_PARALLEL but only $n_gpus GPU(s) visible. vLLM would fall back to Ray and wait forever on a cluster that was never started."
 
-# Wrong GPU generation: weights load, then the first kernel launch dies with
-# "no kernel image is available for execution on the device".
-bad_gpu=$(nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2>/dev/null \
-          | grep -v '8\.0' | head -1 || true)
-[[ -z "$bad_gpu" ]] ||
-  warn "GPUs are not the A100 (compute capability 8.0) the nlpl-vllm module was built for: $bad_gpu. Expect 'no kernel image is available' once weights load. Submit with --gpus-per-node=a100:4."
-
-# Orphaned workers hold memory and spin at 100%, starving the KV cache.
-busy=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | wc -l)
-[[ "$busy" -eq 0 ]] || {
-  warn "$busy process(es) already using these GPUs. If this job did not start them they are orphans from an earlier run -- throughput and KV cache size will both suffer."
-  nvidia-smi --query-compute-apps=pid,used_memory --format=csv >&2 || true
-}
-
 # Check the Python environment before the model load: seconds, not minutes.
 python3 - <<'PYCHECK' || die "Python environment incomplete"
 import sys
@@ -293,22 +254,22 @@ REPO_DIR="$PWD"
 SERVER_CWD="${SERVER_CWD:-${SCRATCH:-/tmp}/exactlearner-server-${SLURM_JOB_ID:-$$}}"
 mkdir -p "$SERVER_CWD"
 
-# Paths handed to the server must be absolute, since its CWD is elsewhere.
-TRACE_ABS=""
-if [[ -n "$TRACE_FILE" ]]; then
-  [[ "$TRACE_FILE" = /* ]] && TRACE_ABS="$TRACE_FILE" || TRACE_ABS="$REPO_DIR/$TRACE_FILE"
-fi
-STATUS_ABS=""
-if [[ -n "$STATUS_FILE" ]]; then
-  [[ "$STATUS_FILE" = /* ]] && STATUS_ABS="$STATUS_FILE" || STATUS_ABS="$REPO_DIR/$STATUS_FILE"
-fi
+# Absolute, because the server's CWD is SERVER_CWD rather than the repo root:
+# TRACE_FILE is the full reasoning traces as JSONL, STATUS_FILE the machine
+# readable server state rewritten every heartbeat (on the shared filesystem,
+# since a login shell cannot reach the compute node's HTTP port). Override with
+# an absolute path, or empty to disable either.
+# ${VAR-...} not ${VAR:-...}: only an UNSET variable takes the default, so
+# setting either to the empty string disables it.
+TRACE_FILE="${TRACE_FILE-$REPO_DIR/logs/traces-${SLURM_JOB_ID:-local}.jsonl}"
+STATUS_FILE="${STATUS_FILE-$REPO_DIR/logs/server-status-${SLURM_JOB_ID:-local}.json}"
 
 echo "Server CWD: $SERVER_CWD"
-[[ -n "$STATUS_ABS" ]] && echo "Status:     $STATUS_ABS"
+[[ -n "$STATUS_FILE" ]] && echo "Status:     $STATUS_FILE"
 echo
 echo "To watch this job from a login shell:"
 echo "  squeue -u \$USER"
-[[ -n "$STATUS_ABS" ]] && echo "  cat $STATUS_ABS   # rewritten every heartbeat; stale file = dead process"
+[[ -n "$STATUS_FILE" ]] && echo "  cat $STATUS_FILE   # rewritten every heartbeat; stale file = dead process"
 echo
 
 # TP workers must not fork from a process holding a CUDA context. llm_server.py
@@ -332,8 +293,8 @@ LAUNCH=(python3 "$REPO_DIR/scripts/llm_server.py"
         --max-new-tokens "$MAX_NEW_TOKENS"
         --heartbeat-seconds "$HEARTBEAT_SECONDS"
         "${SERVER_ARGS[@]}")
-[[ -n "$TRACE_ABS"  ]] && LAUNCH+=(--trace-file  "$TRACE_ABS")
-[[ -n "$STATUS_ABS" ]] && LAUNCH+=(--status-file "$STATUS_ABS")
+[[ -n "$TRACE_FILE"  ]] && LAUNCH+=(--trace-file  "$TRACE_FILE")
+[[ -n "$STATUS_FILE" ]] && LAUNCH+=(--status-file "$STATUS_FILE")
 if command -v setsid >/dev/null 2>&1; then
   ( cd "$SERVER_CWD" && exec setsid "${LAUNCH[@]}" ) &
 else
