@@ -289,6 +289,38 @@ def validate_local_model(model_path: str) -> None:
         sys.exit(f"ERROR: no tokenizer files in {model_path}")
 
 
+def hf_config_overrides(model_path: str) -> dict:
+    """
+    Fields transformers declares as None and vLLM then does arithmetic on.
+
+    vLLM reads these with getattr(config, name, <sensible default>), so an
+    attribute that exists and is None defeats the default: the engine dies in
+    llama.py with "unsupported operand type(s) for *: ... and 'NoneType'"
+    before a single weight is loaded. transformers 4.57 declares both on the
+    config class, so with vLLM 0.8.2 this fires for Mistral on every machine.
+
+    Supplied as overrides rather than written into config.json, because the
+    weights are not ours to edit and a re-download would undo it anyway. Only
+    fields that are actually None are touched, so a model that states its own
+    head_dim (Gemma, where it is not hidden_size/num_heads) keeps it.
+    """
+    from transformers import AutoConfig
+
+    cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+    overrides = {}
+
+    if getattr(cfg, "head_dim", None) is None:
+        hidden = getattr(cfg, "hidden_size", None)
+        heads = getattr(cfg, "num_attention_heads", None)
+        if hidden and heads:
+            overrides["head_dim"] = hidden // heads
+
+    if getattr(cfg, "partial_rotary_factor", None) is None:
+        overrides["partial_rotary_factor"] = 1.0   # full rotary
+
+    return overrides
+
+
 def load_vllm(model_path: str, dtype: str, tensor_parallel: int,
               max_model_len: int, gpu_util: float, enforce_eager: bool = False,
               disable_custom_all_reduce: bool = False):
@@ -302,7 +334,7 @@ def load_vllm(model_path: str, dtype: str, tensor_parallel: int,
 
     from vllm import LLM
 
-    _llm = LLM(
+    kwargs = dict(
         model=model_path,
         tensor_parallel_size=tensor_parallel,
         dtype=dtype,
@@ -312,6 +344,25 @@ def load_vllm(model_path: str, dtype: str, tensor_parallel: int,
         enforce_eager=enforce_eager,
         disable_custom_all_reduce=disable_custom_all_reduce,
     )
+
+    overrides = hf_config_overrides(model_path)
+    if overrides:
+        print(f"Model config overrides: {overrides}", flush=True)
+        kwargs["hf_overrides"] = overrides
+
+    try:
+        _llm = LLM(**kwargs)
+    except TypeError as exc:
+        if "hf_overrides" not in str(exc):
+            raise
+        # Older vLLM without the override hook. Say exactly what to do rather
+        # than let it die further down with a TypeError about NoneType.
+        print(f"WARNING: this vLLM does not accept hf_overrides ({exc}). If it "
+              f"now fails in llama.py, add these to {model_path}/config.json by "
+              f"hand: {overrides}", file=sys.stderr, flush=True)
+        kwargs.pop("hf_overrides")
+        _llm = LLM(**kwargs)
+
     _device = f"vllm:tp{tensor_parallel}"
 
 

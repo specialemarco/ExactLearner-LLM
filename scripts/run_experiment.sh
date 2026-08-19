@@ -1,16 +1,18 @@
 #!/bin/bash
 # ExactLearner-LLM on Slurm: model server + learner in one job.
 #
-#   scripts/submit.sh <config.yml> [epsilon] [delta]
+#   scripts/submit.sh <model> <config.yml> [epsilon] [delta]
+#
+# <model> names a file in scripts/models/. Account and GPUs come from that
+# script's sbatch line, because sbatch reads the directives below first.
 #
 # Run from the repository root. Once per machine:
 #   cp scripts/experiment.env.example scripts/experiment.env   # then edit it
 #   module purge; module load Java/21.0.8 Maven/3.6.3
 #   mvn -o -DskipTests compile
 #   mvn -o dependency:build-classpath -Dmdep.outputFile=cp.txt
-# experiment.env and cp.txt are gitignored; git pull will not bring them.
-#
-# Overridden by SBATCH_ARGS in experiment.env, via scripts/submit.sh.
+# experiment.env, cp.txt and data_paclo/ are gitignored; a pull will not bring
+# them.
 #SBATCH --account=ec30
 #SBATCH --job-name=exactlearner
 #SBATCH --partition=accel
@@ -82,7 +84,9 @@ module load Java/21.0.8
 [[ "$USER_SITE" == "1" ]] || export PYTHONNOUSERSITE=1
 
 
-module use -a /fp/projects01/ec30/software/easybuild/modules/all/
+# A project-private module tree: readable only to members of that project.
+# Override MODULE_TREE in your personal config if you are in a different one.
+module use -a "${MODULE_TREE:-/fp/projects01/ec30/software/easybuild/modules/all/}"
 module load nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3
 module load nlpl-accelerate/1.9.0-foss-2024a-Python-3.12.3
 module load Transformers/4.57.1-gfbf-2024a
