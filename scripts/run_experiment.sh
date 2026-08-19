@@ -89,17 +89,11 @@ module load nlpl-accelerate/1.9.0-foss-2024a-Python-3.12.3
 module load Transformers/4.57.1-gfbf-2024a
 module load nlpl-vllm/0.8.2-foss-2024a-Python-3.12.3
 
-# `module purge` can leave PATH with only EasyBuild dirs and no /usr/bin, which
-# fails in scattered ways (nvidia-smi, tee, ps all vanish). Appending is safe:
-# module directories keep priority.
-for d in /usr/bin /bin /usr/sbin /sbin; do
-  [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$PATH:$d"
-done
-export PATH
 # Missing curl is silent and expensive: the readiness loop never matches and the
-# job burns the full SERVER_READY_TIMEOUT beside a loaded model.
+# job burns the full SERVER_READY_TIMEOUT beside a loaded model. Also the only
+# thing standing between a PATH with no /usr/bin and a scattered failure later.
 command -v curl >/dev/null 2>&1 ||
-  die "'curl' is not on PATH after module load. Check that ~/.bashrc is a FILE (ls -ld ~/.bashrc)."
+  die "'curl' is not on PATH after module load. Usually PATH has lost /usr/bin, because a ~/.bashrc that is a DIRECTORY is skipped by bash (ls -ld ~/.bashrc)."
 
 # SLURM_SUBMIT_DIR is only meaningful inside a job. An Open OnDemand shell
 # inherits a stale one -- the dashboard app's own directory, which is not even
