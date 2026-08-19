@@ -114,12 +114,13 @@ public class OntologyManipulator {
 
     public static Set<OWLAxiom> filterUnusedAxioms(Set<OWLAxiom> axioms) {
         return axioms.stream().filter(axiom -> axiom.isOfType(AxiomType.SUBCLASS_OF)
-                        || axiom.isOfType(AxiomType.EQUIVALENT_CLASSES)
-                        || axiom.isOfType(AxiomType.SUB_OBJECT_PROPERTY)
-                        || axiom.isOfType(AxiomType.EQUIVALENT_OBJECT_PROPERTIES)
-                        || axiom.isOfType(AxiomType.OBJECT_PROPERTY_DOMAIN)
-                        || axiom.isOfType(AxiomType.DISJOINT_CLASSES)
-                        || axiom.isOfType(AxiomType.getAxiomType("ObjectOneOf")))
+                        || axiom.isOfType(AxiomType.EQUIVALENT_CLASSES))
+                        // The following axioms cannot be learned by the current implementation of the ExactLearner, so we filter them out
+                        //|| axiom.isOfType(AxiomType.SUB_OBJECT_PROPERTY)
+                        //|| axiom.isOfType(AxiomType.EQUIVALENT_OBJECT_PROPERTIES)
+                        //|| axiom.isOfType(AxiomType.OBJECT_PROPERTY_DOMAIN)
+                        //|| axiom.isOfType(AxiomType.DISJOINT_CLASSES)
+                        //|| axiom.isOfType(AxiomType.getAxiomType("ObjectOneOf")))
                 .collect(Collectors.toSet());
     }
 
