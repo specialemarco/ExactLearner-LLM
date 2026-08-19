@@ -1,39 +1,21 @@
 #!/bin/bash
-# =============================================================================
-# ExactLearner-LLM on Slurm: model server + learner in a single job.
+# ExactLearner-LLM on Slurm: model server + learner in one job.
 #
-#   scripts/submit.sh <config.yml> [epsilon] [delta]   # applies experiment.env
-#   sbatch scripts/run_experiment.sh <config.yml> ...  # script defaults only
+#   scripts/submit.sh <config.yml> [epsilon] [delta]
 #
-# Submit from the repository ROOT -- several code paths resolve relative to CWD.
-#
-# One-time setup on a LOGIN node (module purge first: a stale module from an
-# earlier session can put a different Java in front of the one Maven needs):
+# Run from the repository root. Once per machine:
+#   cp scripts/experiment.env.example scripts/experiment.env   # then edit it
 #   module purge; module load Java/21.0.8 Maven/3.6.3
 #   mvn -o -DskipTests compile
 #   mvn -o dependency:build-classpath -Dmdep.outputFile=cp.txt
-# Drop -o for one run whenever ~/.m2 cannot satisfy something: a new machine,
-# or a dependency version that changed in pom.xml since you last built here.
+# experiment.env and cp.txt are gitignored; git pull will not bring them.
 #
-# `compile`, not `install`: the run below uses target/classes and cp.txt, and
-# nothing in the repo uses the jar. install additionally builds the jar, shades
-# an uber-jar out of ~130 dependencies, and installs both -- roughly 40 s of
-# work per build, discarded, plus a screenful of shade overlap warnings.
-# Confirm it really compiled -- Maven can report success having done nothing:
-# `Compiling N source files` must appear, with N matching
-# `find src/main/java -name '*.java' | wc -l`.
-#
-# scripts/experiment.env and cp.txt are BOTH gitignored, so a git pull does not
-# bring them: create them on each machine you run from.
-# =============================================================================
-# sbatch reads these before the script runs, so experiment.env cannot change
-# them; submit.sh passes SBATCH_ARGS on the command line, which takes priority.
+# Overridden by SBATCH_ARGS in experiment.env, via scripts/submit.sh.
 #SBATCH --account=ec30
 #SBATCH --job-name=exactlearner
 #SBATCH --partition=accel
-# Both load-bearing, neither default: a bare --gpus=4 may split 2+2 across nodes
-# (vLLM falls back to Ray and hangs), and accel's H100 nodes have no kernel image
-# for this vLLM module.
+# --nodes=1 and the a100: prefix are load-bearing: a bare --gpus=4 can split
+# across nodes and hang vLLM, and accel's H100s have no kernel image for it.
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=8
@@ -47,9 +29,8 @@ die()  { printf 'ERROR: %s\n'   "$*" >&2; exit 1; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
 
 # ----- personal configuration (untracked) ------------------------------------
-# cp scripts/experiment.env.example scripts/experiment.env, then edit that.
-# Sourced before the defaults below so it beats them; a variable exported on the
-# sbatch line still beats it. Relocate with EXACTLEARNER_ENV=/path/to/file.
+# Sourced before the defaults below, so it beats them; an sbatch-line export
+# beats it in turn. Relocate with EXACTLEARNER_ENV=/path/to/file.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXACTLEARNER_ENV="${EXACTLEARNER_ENV:-$SCRIPT_DIR/experiment.env}"
 if [[ -f "$EXACTLEARNER_ENV" ]]; then
