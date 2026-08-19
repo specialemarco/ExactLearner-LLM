@@ -10,8 +10,14 @@
 # One-time setup on a LOGIN node (module purge first: a stale module from an
 # earlier session can put a different Java in front of the one Maven needs):
 #   module purge; module load Java/21.0.8 Maven/3.6.3
-#   mvn -DskipTests install
-#   mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
+#   mvn -o -DskipTests compile
+#   mvn -o dependency:build-classpath -Dmdep.outputFile=cp.txt
+# (drop -o the first time on a new machine, to populate ~/.m2.)
+#
+# `compile`, not `install`: the run below uses target/classes and cp.txt, and
+# nothing in the repo uses the jar. install additionally builds the jar, shades
+# an uber-jar out of ~130 dependencies, and installs both -- roughly 40 s of
+# work per build, discarded, plus a screenful of shade overlap warnings.
 # Confirm it really compiled -- Maven can report success having done nothing:
 # `Compiling N source files` must appear, with N matching
 # `find src/main/java -name '*.java' | wc -l`.
