@@ -128,7 +128,8 @@ public class Evaluation {
             Set<OWLNamedIndividual> superClassIndividuals = expertReasoner.getInstances(superClass, false).getFlattened();
             Set<OWLNamedIndividual> intersection = new HashSet<>(subClassIndividuals);
             intersection.retainAll(superClassIndividuals);
-            float confidence = intersection.size() > 0 ? (float) intersection.size() / subClassIndividuals.size() : 1;
+            float confidence = subClassIndividuals.isEmpty() ? 1
+                    : (float) intersection.size() / subClassIndividuals.size();
             System.out.println("Confidence = " + intersection.size() + "/" + subClassIndividuals.size() + " = " + confidence);
         }
         System.out.println("*********\n");
