@@ -231,22 +231,10 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                 // batched and sequential runs spend the budget identically and
                 // stay comparable; the discarded answers stay cached anyway.
                 pac.incrementProvidedSamples();
-                if (pac.getNumberOfProvidedSamples() <= 10) {
-                    System.out.println("DEBUG sampled: " + selectedAxiom.getSubClass() + " SubClassOf " + selectedAxiom.getSuperClass());
-                }
                 boolean entH = elQueryEngineForH.entailed(selectedAxiom);
                 boolean entT = llmQueryEngineForT.entailed(selectedAxiom);
-                if (pac.getNumberOfProvidedSamples() <= 10) {
-                    System.out.println("DEBUG entH=" + entH + " entT=" + entT);
-                }
                 if (!entH && entT) {
                     counterExampleCount++;
-                    // The DEBUG prints above stop after sample 10, so job
-                    // 4022395 found 120 counterexamples without recording how
-                    // many candidates any of them cost. That makes the A-induced
-                    // hit rate -- and whether it falls as the hypothesis grows,
-                    // which is what convergence would look like -- unmeasurable
-                    // from the log. One line per counterexample fixes it.
                     long samples = (long) pac.getNumberOfProvidedSamples();
                     // The speculation figures are cumulative and go on this line
                     // because a timed-out job never reaches an end-of-run

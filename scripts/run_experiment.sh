@@ -365,15 +365,13 @@ done
 # --- run ---------------------------------------------------------------------
 # Heap and instrumentation. 64g because a run OOMed at -Xmx16g under --mem=128G
 # after 23.6 h -- vLLM's host side is ~50 GiB, so most of the allocation was
-# unusable by the learner. GC log and JFR are both always-on diagnostics for the
-# open question of where the run's time goes: GPUs sit idle ~72% of the wall
-# clock at benchmark tok/s, so something Java-side is the bound. The GC log says
-# whether it is collection (a small heap levels off after each full GC, a leak
-# walks the floor upwards); JFR names the method if it is not. disk=true plus an
-# explicit repository is deliberate -- walltime SIGKILL means dumponexit never
-# fires, but completed chunks are already on disk.
-#   jfr summary logs/jfr-<job>.jfr
-#   jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
+# unusable by the learner.
+#
+# JFR and the verbose GC log were always-on while "where does the run's time go"
+# was open. It is not any more: JFR put 86% of Java CPU in the ELK evictor scan
+# (fixed by the unlocking above) and the rest in decompose(), and the GC log put
+# collection at ~1.6% of wall clock, ruling it out. Both are opt-in now -- see
+# JFR=1 below and GC_LOG_DETAIL for the verbose form.
 JAVA_HEAP="${JAVA_HEAP:-64g}"
 GC_LOG="${GC_LOG:-logs/gc-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.log}"
 JFR_FILE="${JFR_FILE:-logs/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
@@ -382,8 +380,20 @@ mkdir -p "$(dirname "$GC_LOG")"
 
 # ParallelGCThreads: the 8 cores are shared with the model server and G1 sizes
 # its workers from the core count, so a 64g heap can stall every core in a pause.
+#
+# The GC log stays on, because it is what would show the -Xmx16g OOM coming back
+# and it costs a line per collection. What went is gc+heap=debug and
+# filecount=0: a per-GC heap breakdown into one file that grows all run. One
+# line per GC, rotated, is enough to see the floor walk upwards. GC_LOG_DETAIL=1
+# restores the old verbose form for a run meant to look at the heap.
+if [[ "${GC_LOG_DETAIL:-0}" == "1" ]]; then
+  GC_LOG_OPT="-Xlog:gc*,gc+heap=debug:file=${GC_LOG}:time,uptime:filecount=0"
+else
+  GC_LOG_OPT="-Xlog:gc:file=${GC_LOG}:time,uptime:filecount=5,filesize=20m"
+fi
+
 JAVA_OPTS=(-Xmx"$JAVA_HEAP"
-           "-Xlog:gc*,gc+heap=debug:file=${GC_LOG}:time,uptime:filecount=0"
+           "$GC_LOG_OPT"
            -XX:ParallelGCThreads="${PARALLEL_GC_THREADS:-4}")
 
 # Opt-in: the dump can be the full heap landing on scratch at once, so this is
@@ -395,13 +405,21 @@ if [[ "${JAVA_HEAP_DUMP:-0}" == "1" ]]; then
   echo "Heap dump on OOM: $HEAP_DUMP_DIR (up to $JAVA_HEAP)"
 fi
 
-if [[ "${JFR:-1}" == "1" ]]; then
+# Opt-in since 2026-08-27: settings=profile samples continuously and leaves up to
+# JFR_MAXSIZE of .jfr plus a jfr-repo-<jobid>/ directory per job, and nothing
+# reads them now that decompose() is the known bottleneck. JFR=1 for a run whose
+# point is to profile:
+#   jfr summary logs/jfr-<job>.jfr
+#   jfr print --events ExecutionSample logs/jfr-<job>.jfr | head -100
+# disk=true plus an explicit repository is deliberate -- walltime SIGKILL means
+# dumponexit never fires, but completed chunks are already on disk.
+if [[ "${JFR:-0}" == "1" ]]; then
   mkdir -p "$(dirname "$JFR_FILE")" "$JFR_REPO"
   JAVA_OPTS+=("-XX:StartFlightRecording=settings=profile,disk=true,dumponexit=true,maxsize=${JFR_MAXSIZE:-2g},filename=${JFR_FILE}"
               "-XX:FlightRecorderOptions=repository=${JFR_REPO}")
 fi
 
-echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG jfr=${JFR:-1}"
+echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG detail=${GC_LOG_DETAIL:-0} jfr=${JFR:-0}"
 
 # Plain java, not `mvn exec:java`: exec-maven-plugin is not in pom.xml, so Maven
 # would try to fetch it and fail on a compute node with no network.
