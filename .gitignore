@@ -30,16 +30,17 @@ src/main/resources/ontologies/new
 analysis/old
 analysis/*.txt
 results/*.txt
+results/
 
 !analysis/none
 !analysis/split
 !analysis/desaturate
 !analysis/simplify
 
-!results/ontologies/none
-!results/ontologies/simplify
-!results/ontologies/split
-!results/ontologies/desaturate
+results/ontologies/none
+results/ontologies/simplify
+results/ontologies/split
+results/ontologies/desaturate
 
 ##############################
 ## Java

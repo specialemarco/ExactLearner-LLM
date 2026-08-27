@@ -1,0 +1,2140 @@
+Prefix: owl: <http://www.w3.org/2002/07/owl#>
+Prefix: rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+Prefix: rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+Prefix: xml: <http://www.w3.org/XML/1998/namespace>
+Prefix: xsd: <http://www.w3.org/2001/XMLSchema#>
+Prefix: : <urn:absoluteiri:defaultvalue#>
+
+
+
+Ontology: 
+
+ObjectProperty: <http://benchmark/OWL2Bench#dislikes>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#enrollFor>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#enrollIn>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasAlumnus>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasCollaborationWith>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasCollege>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasCollegeDiscipline>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasDegreeFrom>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasDepartment>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasDoctoralDegreeFrom>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasHead>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasLecturer>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasMajor>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasMasterDegreeFrom>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasProfessor>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasSameHomeTownWith>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasStudent>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasUndergraduateDegreeFrom>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#hasWork>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isAdvisedBy>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isAffiliateOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isAffiliatedOrganizationOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isAssistantProfessorOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isAssociateProfessorOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isCrazyAbout>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isFullProfessorOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isHeadOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isLecturerOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isMemberOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isOtherStaffOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isPostDocOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isProfessorOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isStudentOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isSystemStaffOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isTaughtBy>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isTeachingAssistantOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#isVisitingProfessorOf>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#knows>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#likes>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#loves>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#offerCourse>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#takesCourse>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#teachesCourse>
+
+    
+ObjectProperty: <http://benchmark/OWL2Bench#worksFor>
+
+    
+Class: <http://benchmark/OWL2Bench#AeronauticalEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Anthropology>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Architecture>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#ComputerEngineering>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Article>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#AsianArts>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Book>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#FineArts>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#AssistantProfessor>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Faculty>,
+        <http://benchmark/OWL2Bench#Professor>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#AssociateProfessor>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Faculty>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#Music>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Professor>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Astronomy>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#MedievalArts>,
+        <http://benchmark/OWL2Bench#Science>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Badminton>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#BasketBall>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Biology>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#BiomedicalEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Book>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#MedievalArts>,
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Chair>
+
+    SubClassOf: 
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ChemicalEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Chemistry>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Science>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#CivilEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#College>,
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ClericalStaff>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#CoEdCollege>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#College>,
+        <http://benchmark/OWL2Bench#Organization>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasDepartment> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#MaterialsScience>
+             and <http://benchmark/OWL2Bench#Physics>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#isStudentOf> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#College>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Organization>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasAlumnus> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#ComputerScience>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Professor>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Specification>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#TechnicalReport>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#CollegeDiscipline>
+
+    SubClassOf: 
+        owl:Thing,
+        (<http://benchmark/OWL2Bench#hasHead> some 
+            (<http://benchmark/OWL2Bench#Astronomy>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#ComputerEngineering>
+             and <http://benchmark/OWL2Bench#ComputerScience>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Director>
+             and <http://benchmark/OWL2Bench#ElectiveCourse>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#FineArts>
+             and <http://benchmark/OWL2Bench#Football>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#LatinArts>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#MedievalArts>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#MusicsClass>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#PeopleWithHobby>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Physics>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ProjectManagement>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#ResearchProject>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Specification>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#TeachingCourse>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#UGStudent>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing))
+         and (<http://benchmark/OWL2Bench#isTaughtBy> some 
+            (<http://benchmark/OWL2Bench#Anthropology>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#OtherStaff>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#University>
+             and owl:Thing)),
+        <http://benchmark/OWL2Bench#hasLecturer> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#Geosciences>
+             and <http://benchmark/OWL2Bench#HumanResourceManagement>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#MarineScience>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Professor>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#isAffiliateOf> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#OtherStaff>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#isMemberOf> some 
+            (<http://benchmark/OWL2Bench#CivilEngineering>
+             and <http://benchmark/OWL2Bench#ClericalStaff>
+             and <http://benchmark/OWL2Bench#College>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#ElectricalEngineering>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Geosciences>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MarineScience>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#ModernArts>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#PeopleWithHobby>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#SalesManagement>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#SportsFan>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#T20CricketFan>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#isTaughtBy> some 
+            (<http://benchmark/OWL2Bench#Anthropology>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#OtherStaff>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#ComputerEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ComputerScience>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Science>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ConferencePaper>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Article>,
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Course>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Cricket>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Dean>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Department>
+
+    SubClassOf: 
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasAlumnus> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#DesignManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Management>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#School>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Director>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Football>,
+        <http://benchmark/OWL2Bench#LatinArts>,
+        <http://benchmark/OWL2Bench#MusicsClass>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#School>,
+        <http://benchmark/OWL2Bench#Software>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Drama>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#ElectiveCourse>,
+        <http://benchmark/OWL2Bench#FineArts>,
+        <http://benchmark/OWL2Bench#MedievalArts>,
+        <http://benchmark/OWL2Bench#Movie>,
+        <http://benchmark/OWL2Bench#PerformingArts>,
+        <http://benchmark/OWL2Bench#PhDProgram>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#TheatreAndDance>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Economics>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasDegreeFrom> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#Reading>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#TechnicalReport>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#ElectiveCourse>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#TeachingCourse>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ElectricalEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Employee>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#isAffiliatedOrganizationOf> some 
+            (<http://benchmark/OWL2Bench#Book>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#ElectiveCourse>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#FineArts>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#MedievalArts>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ProjectManagement>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#ResearchProject>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#TeachingCourse>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#Engineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#English>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#ModernLanguages>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Faculty>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#FinancialAndAccountingManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Management>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#FineArts>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Football>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#FullProfessor>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Professor>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Game>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#MediaArtsAndSciences>,
+        <http://benchmark/OWL2Bench#Organization>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#ResearchGroup>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Geosciences>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#History>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Program>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#HumanResourceManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Humanities>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Program>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasDegreeFrom> some 
+            (<http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Sports>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Program>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#IndustryEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Institute>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Organization>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#knows> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#ComputerScience>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#History>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Specification>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#Interest>
+
+    SubClassOf: 
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#JournalArticle>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Article>,
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#LatinArts>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Football>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#MusicsClass>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#School>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#TeachingCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Lecturer>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Professor>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Linguistics>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Man>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#SelfAwarePerson>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Management>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Manual>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Article>,
+        <http://benchmark/OWL2Bench#Book>,
+        <http://benchmark/OWL2Bench#MedievalArts>,
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MarineScience>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Geosciences>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MarketingManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Management>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Faculty>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MaterialsScience>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Physics>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Mathematics>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MechanicalEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#PGStudent>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#ResearchGroup>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MedievalArts>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#ElectiveCourse>,
+        <http://benchmark/OWL2Bench#FineArts>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Management>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#ProjectManagement>,
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#ResearchProject>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#TeachingCourse>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ModernArts>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Organization>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ModernLanguages>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Interest>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Movie>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#MediaArtsAndSciences>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#ResearchGroup>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Music>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#MusicsClass>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#TeachingCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#OperationsManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Management>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Organization>
+
+    SubClassOf: 
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#OtherStaff>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasWork> some 
+            (<http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Publication>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#isAffiliateOf> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Director>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Football>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#LatinArts>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#Mathematics>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#MusicsClass>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#SupplyChainManagement>
+             and <http://benchmark/OWL2Bench#SystemStaff>
+             and <http://benchmark/OWL2Bench#TeachingCourse>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#PGProgram>
+
+    SubClassOf: 
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PGStudent>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Student>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Painting>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#FineArts>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#LatinArts>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PeopleWithHobby>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PerformingArts>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Person>
+
+    SubClassOf: 
+        owl:Thing,
+        <http://benchmark/OWL2Bench#Organization>
+         and (<http://benchmark/OWL2Bench#likes> some owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#PetroleumlEngineering>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Engineering>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PhDProgram>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PhDStudent>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#PGStudent>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Student>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasCollege> some 
+            (<http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Student>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#Philosophy>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Physics>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Science>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PostDoc>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Professor>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Program>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Software>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#isProfessorOf> some 
+            (<http://benchmark/OWL2Bench#Chair>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#OtherStaff>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#PhDProgram>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ResearchAssistant>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#offerCourse> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ProjectManagement>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#ResearchProject>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#SupportingStaff>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#ProjectManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Management>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Psychology>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>,
+        <http://benchmark/OWL2Bench#Science>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#PublicRelationsManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#PGProgram>,
+        <http://benchmark/OWL2Bench#TeachingCourse>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Publication>
+
+    SubClassOf: 
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Reading>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Interest>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Religions>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ResearchAssistant>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#OtherStaff>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ResearchGroup>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Organization>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#ResearchProject>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#ProjectManagement>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#RiskManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Management>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#SalesManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Management>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        <http://benchmark/OWL2Bench#UGCourse>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#School>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Organization>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Science>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#SelfAwarePerson>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Soccer>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Software>
+
+    SubClassOf: 
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasCollegeDiscipline> some 
+            (<http://benchmark/OWL2Bench#Interest>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#hasWork> some 
+            (<http://benchmark/OWL2Bench#CoEdCollege>
+             and <http://benchmark/OWL2Bench#College>
+             and <http://benchmark/OWL2Bench#Organization>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#Specification>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#ComputerScience>,
+        <http://benchmark/OWL2Bench#MaterialScienceEngineering>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Sports>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Department>,
+        <http://benchmark/OWL2Bench#Interest>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#SportsFan>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#SportsLover>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#PeopleWithHobby>,
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Statistics>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#TeachingCourse>,
+        <http://benchmark/OWL2Bench#UGProgram>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Student>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#isStudentOf> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#SupplyChainManagement>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Management>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#SupportingStaff>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasCollaborationWith> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#SupportingStaff>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#Swimming>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#SystemStaff>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#T20CricketFan>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#PeopleWithHobby>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#SportsFan>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#TeachingAssistant>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Employee>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#TeachingCourse>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Course>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#TechnicalReport>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Tennis>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Game>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Manual>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#TheatreAndDance>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Humanities>,
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Organization>,
+        <http://benchmark/OWL2Bench#PerformingArts>,
+        <http://benchmark/OWL2Bench#Professor>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Travelling>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#PeopleWithHobby>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#UGCourse>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Course>,
+        <http://benchmark/OWL2Bench#Software>,
+        <http://benchmark/OWL2Bench#Sports>,
+        owl:Thing,
+        <http://benchmark/OWL2Bench#hasCollege> some 
+            (<http://benchmark/OWL2Bench#CivilEngineering>
+             and <http://benchmark/OWL2Bench#College>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Lecturer>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Professor>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#UGProgram>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        owl:Thing,
+        (<http://benchmark/OWL2Bench#hasDegreeFrom> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#ComputerScience>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#OperationsManagement>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#PhDProgram>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#SalesManagement>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing))
+         and (<http://benchmark/OWL2Bench#isAffiliateOf> some 
+            (<http://benchmark/OWL2Bench#AeronauticalEngineering>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)),
+        (<http://benchmark/OWL2Bench#hasStudent> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#PostDoc>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing))
+         and (<http://benchmark/OWL2Bench#isAffiliateOf> some 
+            (<http://benchmark/OWL2Bench#AeronauticalEngineering>
+             and <http://benchmark/OWL2Bench#AsianArts>
+             and <http://benchmark/OWL2Bench#Book>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#ElectiveCourse>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#FineArts>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#MedievalArts>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#PostDoc>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ProjectManagement>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#ResearchProject>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#TeachingCourse>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)),
+        <http://benchmark/OWL2Bench#hasAlumnus> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#hasProfessor> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ProjectManagement>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#ResearchProject>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#TeachingCourse>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing),
+        <http://benchmark/OWL2Bench#isAffiliateOf> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Engineering>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#MaterialScienceEngineering>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)
+    
+    
+Class: <http://benchmark/OWL2Bench#UGStudent>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#SelfAwarePerson>,
+        <http://benchmark/OWL2Bench#Student>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#University>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Organization>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#UnofficialPublication>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Interest>,
+        <http://benchmark/OWL2Bench#Publication>,
+        <http://benchmark/OWL2Bench#Reading>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#VisitingProfessor>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Faculty>,
+        <http://benchmark/OWL2Bench#Person>,
+        <http://benchmark/OWL2Bench#Professor>,
+        <http://benchmark/OWL2Bench#Work>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Woman>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#Person>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#WomenCollege>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#College>,
+        <http://benchmark/OWL2Bench#Institute>,
+        <http://benchmark/OWL2Bench#Organization>,
+        <http://benchmark/OWL2Bench#School>,
+        owl:Thing
+    
+    
+Class: <http://benchmark/OWL2Bench#Work>
+
+    SubClassOf: 
+        <http://benchmark/OWL2Bench#CollegeDiscipline>,
+        <http://benchmark/OWL2Bench#Music>,
+        <http://benchmark/OWL2Bench#Program>,
+        <http://benchmark/OWL2Bench#Software>,
+        owl:Thing
+    
+    
+Class: owl:Thing
+
+    SubClassOf: 
+        (<http://benchmark/OWL2Bench#enrollIn> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#Faculty>
+             and <http://benchmark/OWL2Bench#History>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Man>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#PhDProgram>
+             and <http://benchmark/OWL2Bench#PostDoc>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGStudent>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing))
+         and (<http://benchmark/OWL2Bench#hasMajor> some owl:Thing),
+        (<http://benchmark/OWL2Bench#enrollIn> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Man>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#PostDoc>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing))
+         and (<http://benchmark/OWL2Bench#worksFor> some 
+            (<http://benchmark/OWL2Bench#Article>
+             and <http://benchmark/OWL2Bench#Book>
+             and <http://benchmark/OWL2Bench#ClericalStaff>
+             and <http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#ElectiveCourse>
+             and <http://benchmark/OWL2Bench#Employee>
+             and <http://benchmark/OWL2Bench#FinancialAndAccountingManagement>
+             and <http://benchmark/OWL2Bench#FineArts>
+             and <http://benchmark/OWL2Bench#Football>
+             and <http://benchmark/OWL2Bench#Game>
+             and <http://benchmark/OWL2Bench#Humanities>
+             and <http://benchmark/OWL2Bench#HumanitiesAndSocialScience>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#LatinArts>
+             and <http://benchmark/OWL2Bench#Management>
+             and <http://benchmark/OWL2Bench#Manual>
+             and <http://benchmark/OWL2Bench#MediaArtsAndSciences>
+             and <http://benchmark/OWL2Bench#MedievalArts>
+             and <http://benchmark/OWL2Bench#Music>
+             and <http://benchmark/OWL2Bench#MusicsClass>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#PGProgram>
+             and <http://benchmark/OWL2Bench#PGStudent>
+             and <http://benchmark/OWL2Bench#Painting>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#Program>
+             and <http://benchmark/OWL2Bench#ProjectManagement>
+             and <http://benchmark/OWL2Bench#Publication>
+             and <http://benchmark/OWL2Bench#ResearchGroup>
+             and <http://benchmark/OWL2Bench#ResearchProject>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Statistics>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#SupportingStaff>
+             and <http://benchmark/OWL2Bench#TeachingCourse>
+             and <http://benchmark/OWL2Bench#Tennis>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and <http://benchmark/OWL2Bench#UGProgram>
+             and <http://benchmark/OWL2Bench#Work>
+             and owl:Thing)),
+        <http://benchmark/OWL2Bench#enrollIn> some 
+            (<http://benchmark/OWL2Bench#CollegeDiscipline>
+             and <http://benchmark/OWL2Bench#Course>
+             and <http://benchmark/OWL2Bench#Department>
+             and <http://benchmark/OWL2Bench#Interest>
+             and <http://benchmark/OWL2Bench#Man>
+             and <http://benchmark/OWL2Bench#Organization>
+             and <http://benchmark/OWL2Bench#Person>
+             and <http://benchmark/OWL2Bench#School>
+             and <http://benchmark/OWL2Bench#Science>
+             and <http://benchmark/OWL2Bench#SelfAwarePerson>
+             and <http://benchmark/OWL2Bench#Software>
+             and <http://benchmark/OWL2Bench#Sports>
+             and <http://benchmark/OWL2Bench#Student>
+             and <http://benchmark/OWL2Bench#UGCourse>
+             and owl:Thing)
+    
+    

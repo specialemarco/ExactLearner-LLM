@@ -152,7 +152,10 @@ ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
 for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
   [[ -e "$required" ]] || die "missing (or broken symlink): $required. Copy the dataset folder into data_paclo/ -- it is deliberately not in the repository."
 done
-echo "Config: $CONFIG | ontology: $ONTOLOGY | data dir: $ONTOLOGY_DIR"
+echo "Config: $CONFIG"
+echo "Ontology: $ONTOLOGY"
+echo "Data dir: $ONTOLOGY_DIR"
+echo 
 
 # --- from here down, everything needs the GPUs -------------------------------
 command -v nvidia-smi >/dev/null 2>&1 ||
@@ -165,11 +168,10 @@ n_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | wc -l)
 [[ "$n_gpus" -ge "$TENSOR_PARALLEL" ]] ||
   die "tensor-parallel size is $TENSOR_PARALLEL but only $n_gpus GPU(s) visible. vLLM would fall back to Ray and wait forever on a cluster that was never started."
 
-# Versions go in the log for provenance. A missing package or a CPU-only torch
-# fails here rather than as a server traceback a few seconds later.
+# log python, torch, transformers, vllm versions
 python3 -c '
 import sys, torch, transformers, vllm
-print(f"python {sys.version.split()[0]} | torch {torch.__version__} | transformers {transformers.__version__} | vllm {vllm.__version__}")
+print(f"\npython {sys.version.split()[0]} | torch {torch.__version__} | transformers {transformers.__version__} | vllm {vllm.__version__}")
 assert torch.cuda.is_available(), "torch reports no CUDA: a CPU-only build, or no GPU allocated"
 ' || die "Python environment unusable -- see above"
 
@@ -225,9 +227,11 @@ export EXACTLEARNER_PAC_SEED="${EXACTLEARNER_PAC_SEED:-0}"
 # within an experiment. See MEETING-2026-08-18.md section 8.
 export EXACTLEARNER_BUDGET_MODE="${EXACTLEARNER_BUDGET_MODE:-global}"
 
+echo 
 echo "Run parameters: $RUN_ARGS_SUMMARY"
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
-echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE | seeds: sampler=$EXACTLEARNER_SAMPLER_SEED pac=$EXACTLEARNER_PAC_SEED"
+echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE"
+echo "Seeds: sampler=$EXACTLEARNER_SAMPLER_SEED pac=$EXACTLEARNER_PAC_SEED"
 echo "ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"
 
 # Educloud sets http_proxy and curl honours it even for localhost, so probing
@@ -266,10 +270,6 @@ STATUS_FILE="${STATUS_FILE-$REPO_DIR/logs/server-status-${SLURM_JOB_ID:-local}.j
 
 echo "Server CWD: $SERVER_CWD"
 [[ -n "$STATUS_FILE" ]] && echo "Status:     $STATUS_FILE"
-echo
-echo "To watch this job from a login shell:"
-echo "  squeue -u \$USER"
-[[ -n "$STATUS_FILE" ]] && echo "  cat $STATUS_FILE   # rewritten every heartbeat; stale file = dead process"
 echo
 
 # TP workers must not fork from a process holding a CUDA context. llm_server.py
