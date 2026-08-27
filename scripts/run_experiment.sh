@@ -22,6 +22,8 @@
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
+# Fallback only: submit.sh passes --time from WALLTIME in scripts/models/<model>.env,
+# and a command-line option beats a directive. This is what a bare sbatch gets.
 #SBATCH --time=24:00:00
 #SBATCH --output=logs/%x-%j.log
 

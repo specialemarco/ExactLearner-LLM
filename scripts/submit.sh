@@ -13,8 +13,9 @@
 #
 # <model> is a file in scripts/models/ without the .env. It carries everything
 # that travels with the weights -- path, tensor parallelism, GPU count, token
-# budget, batch size -- and is tracked, so a model runs the same way for both
-# of us. scripts/experiment.env is yours alone: MODEL_ROOT and the account.
+# budget, batch size, walltime -- and is tracked, so a model runs the same way
+# for both of us. scripts/experiment.env is yours alone: MODEL_ROOT and the
+# account.
 #
 # The model file is sourced after the personal one and wins, because it states
 # facts about the model rather than preferences. To vary a setting, copy the
@@ -57,6 +58,17 @@ set +u; . "$EXACTLEARNER_ENV"; . "$EXACTLEARNER_MODEL_ENV"; set -u
 [[ -n "${MODEL_ROOT:-}"     ]] || die "MODEL_ROOT is not set in $EXACTLEARNER_ENV"
 [[ -n "${SBATCH_ACCOUNT:-}" ]] || die "SBATCH_ACCOUNT is not set in $EXACTLEARNER_ENV"
 
+# WALLTIME belongs with the model because how long a run needs follows the
+# weights: a 32B at 45 tok/s does not fit in what a 7B needs. Unset falls back to
+# the #SBATCH --time directive in run_experiment.sh. Checked here because sbatch
+# rejects a malformed one only after the rest of the line has been accepted, and
+# the error does not name the file it came from.
+if [[ -n "${WALLTIME:-}" ]]; then
+  [[ "$WALLTIME" =~ ^([0-9]+(:[0-9]{1,2}){0,2}|[0-9]+-[0-9]{1,2}(:[0-9]{1,2}){0,2}|UNLIMITED|INFINITE)$ ]] ||
+    die "WALLTIME=\"$WALLTIME\" in $EXACTLEARNER_MODEL_ENV is not a Slurm time.
+       Use minutes, MM:SS, HH:MM:SS, D-HH, D-HH:MM or D-HH:MM:SS -- e.g. 24:00:00 or 2-00:00:00."
+fi
+
 # The cache is keyed by the model name in the YAML, so the weights and that name
 # must agree. Running one model's weights under another's name writes its
 # answers into that model's cache and every later run replays them, silently.
@@ -70,12 +82,14 @@ RUN_ARGS_LIB="$SCRIPT_DIR/run_args.sh"
 
 export EXACTLEARNER_ENV EXACTLEARNER_MODEL_ENV RUN_ARGS_LIB
 
-echo "$MODEL_NAME ($MODEL) | $CONFIG | ${GPUS} tp=${TENSOR_PARALLEL} batch=${EXACTLEARNER_BATCH_SIZE}"
+echo "$MODEL_NAME ($MODEL) | $CONFIG | ${GPUS} tp=${TENSOR_PARALLEL} batch=${EXACTLEARNER_BATCH_SIZE} time=${WALLTIME:-<script default>}"
 echo "$RUN_ARGS_SUMMARY"
 
-# sbatch reads the #SBATCH directives inside run_experiment.sh before that
-# script executes, so account and GPUs can only be set from the command line.
-# SBATCH_EXTRA in the personal config covers partition/time if a site differs.
+# sbatch reads the #SBATCH directives inside run_experiment.sh before that script
+# executes, so account, GPUs and walltime can only be set from the command line.
+# SBATCH_EXTRA stays last so it still wins: it is the escape hatch for a site
+# whose limits the model file cannot know about.
 exec sbatch --account="$SBATCH_ACCOUNT" --gpus-per-node="$GPUS" \
+     ${WALLTIME:+--time="$WALLTIME"} \
      "${SBATCH_EXTRA[@]+"${SBATCH_EXTRA[@]}"}" \
      "$SCRIPT_DIR/run_experiment.sh" "$CONFIG" "$@"
