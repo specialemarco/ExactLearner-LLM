@@ -1,7 +1,6 @@
 package org.exactlearner.engine;
 
 import org.exactlearner.parser.OWLParser;
-import org.experiments.logger.CacheManager;
 import org.experiments.workload.WorkloadManager;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyManager;

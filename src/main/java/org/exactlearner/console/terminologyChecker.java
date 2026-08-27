@@ -6,7 +6,6 @@ import org.semanticweb.owlapi.model.*;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.Set;
 
 public class terminologyChecker {
 

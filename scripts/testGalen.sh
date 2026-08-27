@@ -1,4 +1,21 @@
 #!/bin/bash
+# BROKEN, BUT TRIVIALLY REPAIRABLE (audited 2026-08-27).
+#
+# One stale reference, and it is a rename rather than a deletion, so the target still exists:
+#   org.experiments.exp2.LaunchLLMLearner  ->  org.experiments.LaunchLLMLearner
+# Git recorded it in ca94e39 ("wip: refactoring", 2025-05-09) as
+#     org/experiments/{exp2 => }/LaunchLLMLearner.java | 2 +-
+# i.e. only the package line changed. This script was never rewired, so the mvn exec:java
+# call at the bottom fails to resolve its main class -- that single name is the only thing
+# standing between this script and working again.
+#
+# Everything else here is still valid: EXACTLEARNER_OLLAMA_URL is read by OllamaBridge.java
+# and BatchPrewarmer.java, and the YAML it generates into tmp/test_file.yml matches the
+# current Configuration fields (models / ontologies / system / maxTokens / queryFormat / type).
+#
+# Note it takes two args -- $1 the repo root to cd into, $2 a directory of ontology modules --
+# and samples 10 of them deterministically (shuf --random-source=<(yes 42)). GNU shuf only;
+# on macOS this needs coreutils' gshuf.
 cd $1 || { exit 127; }
 
 export EXACTLEARNER_OLLAMA_URL="http://localhost:11434/api/generate"

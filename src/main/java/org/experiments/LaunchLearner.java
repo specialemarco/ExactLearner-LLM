@@ -65,6 +65,8 @@ public abstract class LaunchLearner {
         printVictoryMessage();
     }
 
+    // PARKED -- sole call site is commented out a few lines above.
+    // Uncomment there to re-enable post-run validation of the hypothesis ontology.
     private void validateLearnedOntology() {
         if (!elQueryEngineForH.entailed(axiomsT)) {
             // throw new Exception("Something went horribly wrong!");

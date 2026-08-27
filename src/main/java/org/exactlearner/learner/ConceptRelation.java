@@ -1,7 +1,6 @@
 package org.exactlearner.learner;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ConceptRelation<T> {
     private final Map<T, ConceptRelationNode<T>> map = new HashMap<>();

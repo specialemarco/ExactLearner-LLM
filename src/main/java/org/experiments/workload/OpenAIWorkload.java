@@ -1,11 +1,9 @@
 package org.experiments.workload;
 
 import org.exactlearner.connection.ChatGPTBridge;
-import org.exactlearner.connection.OllamaBridge;
 import org.experiments.logger.Cache;
 import org.experiments.logger.SmartLogger;
 
-import java.net.Inet4Address;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.List;

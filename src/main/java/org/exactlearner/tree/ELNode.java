@@ -7,7 +7,6 @@ import org.semanticweb.owlapi.model.OWLProperty;
 import uk.ac.manchester.cs.owl.owlapi.OWLDataFactoryImpl;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ELNode {
 	private final ELTree tree;

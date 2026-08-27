@@ -2,6 +2,13 @@ package org.analysis.common;
 import org.apache.commons.math3.stat.inference.ChiSquareTest;
 import java.util.Arrays;
 
+// NOTE (audited 2026-08-27): used only by org.analysis.ResultAnalyzer. That class is a live
+// analysis entry point that is currently unreachable because scripts/testSimplification.sh
+// still invokes its pre-refactor name (org.analysis.exp2.ResultAnalyzer) -- so this class is
+// reachable again as soon as that script is repaired. See the note on ResultAnalyzer.
+//
+// NOT to be confused with org.exactlearner.utils.Metrics, which is the Metrics every other
+// call site in the codebase imports. Check the import before editing either one.
 public class Metrics {
     public static double calculateAccuracy(int[][] confusionMatrix) {
         int total = Arrays.stream(confusionMatrix).flatMapToInt(Arrays::stream).sum();

@@ -1,7 +1,6 @@
 package org.exactlearner.tree;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 import org.semanticweb.owlapi.model.OWLClassExpression;

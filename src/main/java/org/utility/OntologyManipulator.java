@@ -4,7 +4,6 @@ import org.apache.commons.collections4.IteratorUtils;
 import org.apache.jena.atlas.lib.Pair;
 import org.coode.owlapi.manchesterowlsyntax.ManchesterOWLSyntaxEditorParser;
 import org.exactlearner.parser.OWLParserImpl;
-import org.jetbrains.annotations.NotNull;
 import org.semanticweb.HermiT.Reasoner;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.expression.OWLEntityChecker;
@@ -15,15 +14,12 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.util.*;
-import uk.ac.manchester.cs.owl.owlapi.OWLDataFactoryImpl;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
 
 import java.io.File;
 import java.nio.file.FileSystems;
 import java.util.*;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class OntologyManipulator {
     public static int computeOntologySize(String ontologyFileName) {
@@ -90,6 +86,10 @@ public class OntologyManipulator {
         return parser;
     }
 
+    // UNREFERENCED -- no call site anywhere in src/, not even a commented-out one
+    // (unlike the other "never used locally" methods in this codebase). Computes the
+    // transitive-closure violations between true and not-true answer sets. Kept as a
+    // ready-made helper; wire it up or drop it.
     private static Set<String> checkClosure(Set<String> trueAnswers, Set<String> notTrueAnswers) {
         Set<Pair<String, String>> truePairs = getPair(trueAnswers);
         Set<Pair<String, String>> notTruePairs = getPair(notTrueAnswers);

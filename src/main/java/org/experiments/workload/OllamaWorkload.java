@@ -54,6 +54,9 @@ public class OllamaWorkload implements BaseWorkload {
         }
     }
 
+    // PARKED -- sole call site is commented out in the constructor above.
+    // Note the asymmetry with OpenAIWorkload, which does call its equivalent: verify
+    // whether skipping the check is intentional here (local Ollama) or an oversight.
     private void checkConnection(OllamaBridge bridge) {
         try {
             URLConnection connection = new URL(bridge.getUrl()).openConnection();

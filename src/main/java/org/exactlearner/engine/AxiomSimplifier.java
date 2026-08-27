@@ -1,6 +1,5 @@
 package org.exactlearner.engine;
 
-import org.checkerframework.checker.units.qual.A;
 import org.exactlearner.learner.ConceptRelation;
 import org.exactlearner.tree.ELNode;
 import org.exactlearner.tree.ELTree;

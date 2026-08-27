@@ -2,7 +2,6 @@ package org.exactlearner.engine;
 
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.owlapi.model.*;
-import org.semanticweb.owlapi.reasoner.Node;
 import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.slf4j.Logger;
@@ -58,6 +57,10 @@ public class ELEngine implements BaseEngine {
         return myManager.getOWLDataFactory().getOWLObjectIntersectionOf(mySet);
     }
 
+    // PARKED, NOT DEAD -- flagged "never used locally" because its only two call sites
+    // (in entailed(OWLAxiom) below) sit inside that method's commented-out block. Keep
+    // this and the commented block together: they are the two halves of the original
+    // EQ-decomposition path, superseded by a direct myReasoner.isEntailed(ax) call.
     private Boolean entailedEQ(OWLSubClassOfAxiom subclassAxiom) {
         Boolean result = myReasoner.isEntailed(subclassAxiom);
         unlocker.afterQueries(1);

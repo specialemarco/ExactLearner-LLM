@@ -21,6 +21,33 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * NOTE (audited 2026-08-27): this class is NOT dead code -- it is a live analysis entry
+ * point whose caller was never rewired after a rename. Do not delete it on the grounds
+ * that "nothing calls it": it is a main() class, run from the shell after an experiment,
+ * so no Java code is ever expected to reference it.
+ *
+ * THE REWRITE. Commit ca94e39 ("wip: refactoring", Matteo Magnini, 2025-05-09) reshaped
+ * org/analysis. Git recorded this file as a rename with only the package line changed:
+ *     org/analysis/{exp2 => }/ResultAnalyzer.java | 3 +-
+ * The same commit deleted exp1/ and exp3/ outright (~820 lines). The shell scripts were
+ * never updated, so they still name the pre-refactor classes.
+ *
+ * THE BROKEN LINK. scripts/testSimplification.sh invokes "org.analysis.exp2.ResultAnalyzer"
+ * -- this class's old fully-qualified name. The script is therefore trying to run exactly
+ * this code and failing to resolve the main class. Repointing that script at
+ * org.analysis.ResultAnalyzer is the repair; see the header of the script for the other
+ * stale references it needs fixed at the same time.
+ *
+ * STATUS OF THE REST OF THE PACKAGE. This is the only main() in org/analysis, so the
+ * neighbours cannot be script entry points the way this class is: common/Metrics is used
+ * only from here, and common/BaseResultReader and common/JenaQueryExecutor are referenced
+ * by nothing at all. Note that common/Metrics is NOT the Metrics the rest of the codebase
+ * uses -- that is org.exactlearner.utils.Metrics.
+ *
+ * Until the script is repaired, nothing here has run since May 2025 -- treat the hardcoded
+ * paths below as unverified.
+ */
 public class ResultAnalyzer {
 
     public static void main(String[] args) {
@@ -276,6 +303,11 @@ public class ResultAnalyzer {
         return Path.of(ontology).getFileName().toString().replaceAll("\\(.*\\)", "");
     }
 
+    // DEAD PATH BUILDER -- hardcodes an absolute path into another machine's home
+    // directory (/home/martint/onto/ontologies/...), the last "martint" reference left in
+    // src/. It cannot resolve anywhere in the current setup. Reachable only from
+    // getOntologyPathString and the 3-arg loadOntology below, both themselves uncalled,
+    // so all three are flagged "never used locally". Rewrite the path before reusing.
     private Path getOntologyPath(String type, String enginePrefix, String model) {
         return Path.of(String.format("%1$shome%1$smartint%1$sonto%1$sontologies%1$s%2$s%1$s%3$slearned_%4$s_%5$s",
                 FileSystems.getDefault().getSeparator(), type, enginePrefix, model.replace(":", "-"), getOntologyStringName()));

@@ -111,6 +111,8 @@ public class StatsPrinter {
         printStat("Total unsaturations: ", baseLearner.getNumberUnsaturations(), verb);
     }
 
+    // PARKED -- sole call site is commented out above (see "// printOracleStats(...)").
+    // Uncomment there to re-enable; kept so that toggle still works.
     private static void printOracleStats(Oracle baseOracle, boolean verb) {
         printStat("\nOracle Stats:", verb);
         printStat("Total left compositions: ", baseOracle.getNumberLeftComposition(), verb);
