@@ -79,6 +79,54 @@ public final class PacloDataset {
     }
 
     /**
+     * The BaseSet identifier a dataset path belongs to, taken from its folder
+     * name. OWL2Bench's three configurations are all called expertOntology.owl
+     * and differ only by folder, so this is what keeps their outputs apart.
+     *
+     * Falls back to the folder name itself, and to "" for a path with no parent
+     * folder -- callers then just use the ontology name unqualified.
+     */
+    public static String baseSetTag(String ontologyPath) {
+        Path parent = Path.of(ontologyPath).getParent();
+        if (parent == null || parent.getFileName() == null) {
+            return "";
+        }
+        String folder = parent.getFileName().toString();
+        if (folder.contains("exists_thing")) {
+            return "c2";
+        }
+        if (folder.contains("exists_partial")) {
+            return "c3";
+        }
+        if (folder.contains("class_names")) {
+            return "c1";
+        }
+        return folder;
+    }
+
+    /**
+     * The tag to qualify this ontology's output filenames with, or "" for an
+     * ontology that needs none.
+     *
+     * Only PACLO datasets get one, and they are exactly the ontologies that need
+     * one: their files are all called expertOntology.owl and differ only by
+     * folder, so without a tag each run overwrites the previous one's saved
+     * hypothesis. Everything else -- the small ontologies under
+     * src/main/resources -- already has a unique name and keeps it.
+     *
+     * The test is the presence of a baseSet file beside the ontology, the same
+     * condition loadBeside() uses, so the two can never disagree about what is a
+     * dataset.
+     */
+    public static String outputTag(String ontologyPath) {
+        Path parent = Path.of(ontologyPath).getParent();
+        if (parent == null || !parent.resolve("baseSet").toFile().isFile()) {
+            return "";
+        }
+        return baseSetTag(ontologyPath);
+    }
+
+    /**
      * Loads the dataset that targetFile belongs to, or returns null if either
      * companion file is absent -- callers treat that as "this is not a PACLO
      * dataset" and fall back to uniform PAC sampling.

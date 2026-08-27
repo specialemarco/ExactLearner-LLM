@@ -19,8 +19,13 @@ import org.experiments.workload.BatchPrewarmer;
 import org.experiments.workload.WorkLoadCounter;
 import org.experiments.workload.WorkloadManager;
 import org.experiments.workload.WorkloadManagerImpl;
+import org.evaluation.Evaluation;
 import org.pac.Pac;
+import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.owlapi.model.*;
+import org.semanticweb.owlapi.reasoner.InferenceType;
+import org.semanticweb.owlapi.reasoner.OWLReasoner;
+import org.utility.PacloDataset;
 import org.utility.OntologyManipulator;
 import org.utility.YAMLConfigLoader;
 import java.io.File;
@@ -42,8 +47,23 @@ public class LaunchLLMLearner extends LaunchLearner {
     protected String queryFormat;
     protected Integer maxTokens;
     protected List<Integer> hypothesisSizes;
-    // The model currently being run, set by setup(). Needed to resolve the cache.
+    // The model currently being run, set by setup(). Filename-safe: ':' is
+    // replaced, so this is NOT the string the cache is keyed on.
     protected String currentModel;
+
+    // The model string the engine resolves its cache with -- the raw config
+    // name, kept because currentModel has had ':' replaced and "llama2:13b" and
+    // "llama2-13b" are two different rows. Set alongside the engine itself, so
+    // the two can never disagree.
+    private String cacheModel;
+    private Cache currentCache;
+
+    // The PACLO dataset beside the target ontology. loadBeside() loads an
+    // ontology, builds an ELK reasoner and classifies the whole ABox, so the
+    // sampler and the evaluation share one rather than paying for it twice.
+    // Cleared per (ontology, model) in setup().
+    private PacloDataset pacloDataset;
+    private boolean pacloDatasetLoaded;
     // Protected rather than private so LaunchLLMLearnerAInduced can accumulate
     // into them from its own runLearner override (see skipPrecomputation).
     protected double totalCE = 0;
@@ -72,13 +92,35 @@ public class LaunchLLMLearner extends LaunchLearner {
         hypothesisSizes = ontologies.stream().map(OntologyManipulator::computeOntologySize).collect(Collectors.toList());
     }
 
-    // Optional 4th CLI arg: "skipprecomputation" (case-insensitive) disables
-    // learner.precomputation() in runLearner() below, for experiments isolating
-    // the A-induced sampling loop's contribution from precomputation's.
+    // ---- The three experiment axes ---------------------------------------
+    //
+    // One launcher covers what used to be four classes, because the three
+    // things that varied are independent of each other and of the loop:
+    //
+    //   precomputation  BEFORE the loop  -- skipPrecomputation, args[3]
+    //   sampler         INSIDE the loop  -- getCounterExample(), overridden
+    //   evaluation      AFTER the loop   -- evaluateAfterRun, args[4]
+    //
+    // The loop itself is identical in every arm, so it exists once, in
+    // runLearner() below. LaunchLLMLearnerAInducedNoPre (which only set
+    // skipPrecomputation) and LaunchLLMLearnerWithBarisEval (which only set
+    // evaluateAfterRun) were removed on 2026-08-27 in favour of these flags.
+
+    /**
+     * Optional 4th CLI arg. Disables learner.precomputation() in runLearner(),
+     * for experiments isolating the sampling loop's contribution from
+     * precomputation's.
+     */
     protected boolean skipPrecomputation = false;
 
-    public void run(String[] args) {
-        String configurationFile = args[0];
+    /**
+     * Optional 5th CLI arg. Runs Baris's Macro/Micro Precision/Recall evaluation
+     * after each model finishes. Off here so the plain PAC arm is unchanged;
+     * LaunchLLMLearnerAInduced defaults it on, as it always evaluated.
+     */
+    protected boolean evaluateAfterRun = false;
+
+    protected void parseExperimentArgs(String[] args) {
         if (args.length > 1) {
             epsilon = Double.parseDouble(args[1]);
         }
@@ -88,12 +130,104 @@ public class LaunchLLMLearner extends LaunchLearner {
         if (args.length > 3) {
             skipPrecomputation = Boolean.parseBoolean(args[3]);
         }
+        if (args.length > 4) {
+            evaluateAfterRun = Boolean.parseBoolean(args[4]);
+        }
         System.out.println("skipPrecomputation = " + skipPrecomputation);
+        System.out.println("evaluateAfterRun = " + evaluateAfterRun);
+    }
+
+    /**
+     * The cache this run's engine reads and writes. Resolved once per model:
+     * every batch path has to write into the same row the engine reads from, or
+     * the answers it paid for are never found.
+     */
+    protected Cache currentCache() {
+        if (currentCache == null && cacheModel != null) {
+            currentCache = cacheManager.getCache(cacheModel, system);
+        }
+        return currentCache;
+    }
+
+    /**
+     * The PACLO dataset beside the target ontology, loaded at most once per run,
+     * or null when there is none -- which is what tells the A-induced sampler to
+     * fall back to uniform PAC and the evaluation to skip.
+     */
+    protected PacloDataset pacloDataset() throws Exception {
+        if (!pacloDatasetLoaded) {
+            pacloDataset = PacloDataset.loadBeside(targetFile, groundTruthOntology);
+            pacloDatasetLoaded = true;
+        }
+        return pacloDataset;
+    }
+
+    /**
+     * Seed for the uniform PAC sampler. Fixed at 0 by default, as it always has
+     * been, so nothing already measured changes; set it to repeat the uniform arm
+     * independently, which is what comparing the two arms on one dataset needs --
+     * a single uniform run is one draw from a random process, not a baseline.
+     *
+     * Separate from EXACTLEARNER_SAMPLER_SEED, which seeds the A-induced sampler.
+     * The two samplers have independent streams and neither seed governs the other.
+     */
+    public static final String PAC_SEED_ENV = "EXACTLEARNER_PAC_SEED";
+
+    protected int pacSeed() {
+        String raw = System.getenv(PAC_SEED_ENV);
+        if (raw == null || raw.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            System.out.println("Ignoring " + PAC_SEED_ENV + "=" + raw + " (not a number), using 0");
+            return 0;
+        }
+    }
+
+    /** Names the arm in the run banner, e.g. " (A-induced)". */
+    protected String experimentLabel() {
+        return "";
+    }
+
+    /** Per-(ontology, model) reset, after setup and before the learner runs. */
+    protected void beforeModelRun() {
+    }
+
+    /** Post-run hook; by default the optional Baris evaluation. */
+    protected void afterLearningExperiment() {
+        if (!evaluateAfterRun) {
+            return;
+        }
+        try {
+            evaluateWithBaris();
+        } catch (Exception ex) {
+            System.out.println("Error during evaluateWithBaris: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Whether run() ends with printAverageStats().
+     *
+     * False in the A-induced arm, which has never printed it: printAverageStats()
+     * is private here, so the subclass that used to carry its own copy of run()
+     * structurally could not call it. Unifying run() would otherwise switch that
+     * output on silently, so the existing behaviour is preserved explicitly.
+     */
+    protected boolean shouldPrintAverageStats() {
+        return true;
+    }
+
+    public void run(String[] args) {
+        String configurationFile = args[0];
+        parseExperimentArgs(args);
         SmartLogger.checkCachedFiles();
         loadConfiguration(configurationFile);
         try {
             for (String ontology : ontologies) {
-                System.out.println("\nRunning experiment for " + ontology);
+                System.out.println("\nRunning experiment" + experimentLabel() + " for " + ontology);
                 for (String model : models) {
                     System.out.println("\nRunning experiment for " + model + "\n");
                     setup(ontology, model.replace(":", "-"));
@@ -105,7 +239,9 @@ public class LaunchLLMLearner extends LaunchLearner {
                     learner = new Learner(llmQueryEngineForT, elQueryEngineForH, myMetrics, conceptRelation);
                     installDecomposePrefetcher(model);
                     oracle = new Oracle(llmQueryEngineForT, elQueryEngineForH);
+                    beforeModelRun();
                     runLearningExperiment(args, hypothesisSizes.get(ontologies.indexOf(ontology)), model);
+                    afterLearningExperiment();
                     if (counter != null) {
                         counter.close();
                     }
@@ -117,7 +253,34 @@ public class LaunchLLMLearner extends LaunchLearner {
             e.printStackTrace();
             System.out.println("error" + e);
         }
-        printAverageStats();
+        if (shouldPrintAverageStats()) {
+            printAverageStats();
+        }
+    }
+
+    /**
+     * Macro/Micro Precision/Recall against the ground truth, as in Baris's
+     * Evaluation.java. Reuses whatever pacloDataset() already built -- in the
+     * A-induced arm that is the very baseSet and reasoner the sampler drew from.
+     *
+     * The expert reasoner precomputes the object property hierarchy and
+     * assertions as well as the class ones, unlike the dataset's own: the
+     * existential-restriction concepts in the C2/C3 baseSets are not classified
+     * correctly without them.
+     */
+    protected void evaluateWithBaris() throws Exception {
+        PacloDataset dataset = pacloDataset();
+        if (dataset == null) {
+            System.out.println("Baris evaluation unavailable: initialOntology.owl or baseSet not found beside " + targetFile);
+            return;
+        }
+        OWLReasoner expertReasoner = new ElkReasonerFactory().createReasoner(groundTruthOntology);
+        expertReasoner.precomputeInferences(
+                InferenceType.CLASS_HIERARCHY, InferenceType.CLASS_ASSERTIONS,
+                InferenceType.OBJECT_PROPERTY_HIERARCHY, InferenceType.OBJECT_PROPERTY_ASSERTIONS);
+        System.out.println("=== BARIS EVALUATION (Macro/Micro Precision/Recall)"
+                + (experimentLabel().isEmpty() ? " \u2014 uniform PAC" : experimentLabel()) + " ===");
+        new Evaluation().evaluate(hypothesisOntology, expertReasoner, dataset.baseSet(), dataset.initialReasoner());
     }
 
     protected void createWorkCounter(String ontologyShortName, String model) {
@@ -125,6 +288,10 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     protected void setLLMEngine(String model, String ontologyShortName) {
+        // Bound here, not in setup(), so the cache and the engine can only ever
+        // be resolved from one and the same model string.
+        this.cacheModel = model;
+        this.currentCache = null;
         WorkloadManager workloadManager = new WorkloadManagerImpl(model, system, maxTokens, queryFormat, ontologyShortName, cacheManager, counter);
         switch (queryFormat) {
             case "manchester" ->
@@ -156,6 +323,8 @@ public class LaunchLLMLearner extends LaunchLearner {
             // Remembered so subclasses can reach this run's cache
             // (cacheManager.getCache(model, system)) outside of setup.
             this.currentModel = model;
+            this.pacloDataset = null;
+            this.pacloDatasetLoaded = false;
             myMetrics = new Metrics(myRenderer);
             System.out.println("Trying to load groundTruthOntology");
             loadTargetOntology(ontology);
@@ -222,8 +391,7 @@ public class LaunchLLMLearner extends LaunchLearner {
             return;
         }
         try {
-            BatchPrewarmer.prewarmPrecomputation(
-                    engine, cacheManager.getCache(model, system), system, batchSize);
+            BatchPrewarmer.prewarmPrecomputation(engine, currentCache(), system, batchSize);
         } catch (Throwable t) {
             // Deliberately broad: a pre-warm is an optimisation, and must never
             // be able to fail a run that would otherwise have completed.
@@ -300,7 +468,7 @@ public class LaunchLLMLearner extends LaunchLearner {
             System.out.println("Batched decomposition skipped: engine is not an LLMEngine.");
             return;
         }
-        Cache cache = cacheManager.getCache(model, system);
+        Cache cache = currentCache();
         if (cache == null) {
             System.out.println("Batched decomposition skipped: no cache available.");
             return;
@@ -332,29 +500,86 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     /**
-     * Whether Learner.precomputation() will run for this experiment. Always true
-     * here; LaunchLLMLearnerAInduced overrides it when skipPrecomputation is set,
-     * so the batch pre-warm above can avoid fetching answers nothing will read.
+     * Whether Learner.precomputation() will run for this experiment. Drives both
+     * runLearner() below and the batch pre-warm above, which skips fetching
+     * answers nothing will read when precomputation is off.
      */
     protected boolean isPrecomputationEnabled() {
-        return true;
+        return !skipPrecomputation;
     }
 
-    // Protected rather than private so LaunchLLMLearnerAInduced can bypass this
-    // whole method when running the A-induced loop without precomputation.
+    /**
+     * Restores loop position from a previous job's checkpoint, returning the
+     * counterexample number to continue from (0 for a fresh run).
+     *
+     * This used to live only in LaunchLLMLearnerAInduced's copy of the loop, so a
+     * run WITH precomputation would read its checkpoint and announce the resume,
+     * then silently start again from zero with a full budget. There is one loop
+     * now, so there is one resume path and both arms honour it.
+     */
+    protected int restoreFromCheckpoint(Pac pac) throws Exception {
+        if (resumedState.counterExamples <= 0) {
+            return 0;
+        }
+        pac.restoreProvidedSamples(resumedState.providedSamples);
+        restoreSamplerPosition(resumedState.samplerDraws);
+        System.out.println("  resumed at counterexample " + resumedState.counterExamples
+                + ", " + (long) pac.getNumberOfProvidedSamples() + "/" + pac.getNumberOfSamples()
+                + " of the budget already spent");
+        return resumedState.counterExamples;
+    }
+
+    /**
+     * Replays a sampler's random stream to the checkpointed position. A no-op in
+     * the uniform-PAC arm, which draws from Pac itself and has no stream of its
+     * own to advance; LaunchLLMLearnerAInduced overrides it.
+     */
+    protected void restoreSamplerPosition(long samplerDraws) throws Exception {
+    }
+
+    /**
+     * THE equivalence-query loop -- one copy, shared by every arm.
+     *
+     * What varies around it is hooked, not forked: precomputation is gated by
+     * isPrecomputationEnabled(), the candidate source is getCounterExample()
+     * (uniform PAC here, ABox-induced in the subclass), and evaluation runs
+     * after the loop via afterLearningExperiment(). The loop body itself was
+     * identical in both arms, which is why the second copy that used to live in
+     * LaunchLLMLearnerAInduced could be removed outright.
+     */
     protected void runLearner(int hypothesisSize) throws Throwable {
         int numberOfCounterExamples = 0;
-        int seed = 0;
-        if (!skipPrecomputation) {
+        int seed = pacSeed();
+        if (isPrecomputationEnabled()) {
             // Computes inclusions of the form A implies B
             learner.precomputation();
         } else {
-            System.out.println("SKIPPING precomputation() — A-induced loop starts from an empty hypothesis.");
+            System.out.println("SKIPPING precomputation() — the loop starts from an empty hypothesis.");
         }
         Pac pac = new Pac(parser.getClasses().get(), parser.getObjectProperties(), epsilon, delta, hypothesisSize, seed);
+        pac.setBudgetMode(Pac.budgetModeFromEnv());
+        System.out.println("  PAC seed = " + seed + " (set " + PAC_SEED_ENV + " to vary it across repeats)");
         long totalPacSamples = pac.getNumberOfSamples();
+        System.out.println("  PAC sample budget (numberOfSamples) = " + totalPacSamples
+                + " per " + (pac.getBudgetMode() == Pac.BudgetMode.PER_ROUND ? "equivalence query" : "run")
+                + " (" + Pac.BUDGET_MODE_ENV + "=" + pac.getBudgetMode() + ")");
+        if (pac.getBudgetMode() == Pac.BudgetMode.PER_ROUND) {
+            // Said out loud because it changes what a run means, not how fast
+            // it gets there: under PER_ROUND the loop stops only once a full
+            // fresh budget of candidates has failed against the hypothesis as
+            // it then stands, which may not happen before walltime. Numbers
+            // from such a run are not comparable with any global-budget run.
+            System.out.println("  PER-ROUND BUDGET: each equivalence query starts from a full budget."
+                    + " Termination is no longer guaranteed at " + totalPacSamples + " candidates,"
+                    + " and results are NOT comparable with global-budget runs.");
+        }
+        numberOfCounterExamples = restoreFromCheckpoint(pac);
         while (true) {
             myMetrics.setEquivCount(myMetrics.getEquivCount() + 1);
+            // A resumed run restores the global counter but always opens a
+            // fresh round here, so under PER_ROUND the interrupted query's
+            // partly-spent budget is handed back in full.
+            pac.startRound();
             counterExample = getCounterExample(pac);
             if (counterExample == null) {
                 System.out.println("No counterexample found, closing...");

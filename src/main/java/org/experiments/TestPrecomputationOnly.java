@@ -7,9 +7,11 @@ import org.apache.logging.log4j.LogManager;
  * Runs ONLY the precomputation() phase and saves the resulting hypothesis,
  * without ever entering the equivalence-query loop.
  *
- * This is the complement of {@link LaunchLLMLearnerAInducedNoPre}: that one runs
- * the A-induced loop with precomputation off, this one runs precomputation with
- * the loop off. Together they decompose the learned ontology into the part the
+ * This is the complement of running LaunchLLMLearnerAInduced with precomputation
+ * off (pass "true" as the 4th CLI arg; there used to be a
+ * LaunchLLMLearnerAInducedNoPre subclass for it): that runs the A-induced loop
+ * with precomputation off, this runs precomputation with the loop off. Together
+ * they decompose the learned ontology into the part the
  * exhaustive O(n^2) class-pair pass is responsible for and the part the sampler
  * actually contributes -- a split that is otherwise unrecoverable from a normal
  * run, where the two are interleaved into one hypothesis.

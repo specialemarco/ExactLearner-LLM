@@ -9,6 +9,7 @@ import org.exactlearner.parser.OWLParser;
 import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.utils.Metrics;
 import org.pac.Pac;
+import org.utility.PacloDataset;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.formats.ManchesterSyntaxDocumentFormat;
 import org.semanticweb.owlapi.io.OWLObjectRenderer;
@@ -409,9 +410,23 @@ public abstract class LaunchLearner {
         return new File(hypoFile.getParentFile(), base + "-run-state.properties");
     }
 
+    /**
+     * Names this run's copy of the target ontology and its learned hypothesis.
+     *
+     * The BaseSet tag is what keeps a PACLO dataset's three configurations
+     * apart: C1, C2 and C3 are all called expertOntology.owl and differ only by
+     * folder, so without it every run silently overwrites the previous one's
+     * saved hypothesis. It applies to whichever sampler is running -- the
+     * collision is a property of the dataset, not of the arm -- and
+     * PacloDataset.outputTag() returns "" for everything else, which leaves the
+     * small ontologies named exactly as they always were.
+     */
     protected void setUpOntologyFolders(String format, String system, String model, String ontology) {
         String name = Path.of(ontology).getFileName().toString().replace(".owl", "");
-
+        String tag = PacloDataset.outputTag(ontology);
+        if (!tag.isEmpty()) {
+            name = name + "_" + tag;
+        }
         ontologyFolder = "results" + fileSeparator + "ontologies" + fileSeparator + "target_" + name + ".owl";
         ontologyFolderH = "results" + fileSeparator + "ontologies" + fileSeparator + infoString(name, model, format, system) + ".owl";
     }
@@ -541,41 +556,21 @@ public abstract class LaunchLearner {
     }
 
     protected OWLSubClassOfAxiom getCounterExample(Pac pac) throws Exception {
-        while (pac.getNumberOfProvidedSamples() < pac.getNumberOfSamples()) {
-            System.out.println("PAC Training sample: " + (int) (pac.getNumberOfProvidedSamples() + 1) + " out of " + pac.getNumberOfSamples());
+        while (pac.hasBudgetLeft()) {
+            // Counts against whichever budget is in force: the run-long pot
+            // under GLOBAL, this equivalence query's own under PER_ROUND.
+            System.out.println("PAC Training sample: " + (pac.getBudgetUsed() + 1) + " out of " + pac.getNumberOfSamples());
             // Get the last counterexample
             OWLSubClassOfAxiom selectedAxiom = pac.getRandomStatement();
 
-            if (selectedAxiom == null) {
-                System.out.println("PAC Algorithm completed");
-                return null;
+            if (!elQueryEngineForH.entailed(selectedAxiom) && llmQueryEngineForT.entailed(selectedAxiom)) {
+                return getCounterExampleSubClassOf(selectedAxiom);
             }
-            if (selectedAxiom.isOfType(AxiomType.SUBCLASS_OF)) {
-                if (!elQueryEngineForH.entailed(selectedAxiom) && llmQueryEngineForT.entailed(selectedAxiom)) {
-                    return getCounterExampleSubClassOf(selectedAxiom);
-                }
-            } else if (selectedAxiom.isOfType(AxiomType.EQUIVALENT_CLASSES)) {
-                OWLEquivalentClassesAxiom equivCounterexample = (OWLEquivalentClassesAxiom) selectedAxiom;
-                Collection<OWLSubClassOfAxiom> eqSubClassAxioms = equivCounterexample.asOWLSubClassOfAxioms();
-                for (OWLSubClassOfAxiom subClassAxiom : eqSubClassAxioms) {
-                    if (!elQueryEngineForH.entailed(subClassAxiom) && llmQueryEngineForT.entailed(selectedAxiom)) {
-                        return getCounterExampleSubClassOf(subClassAxiom);
-                    }
-                }
-            } else {
-                throw new Exception("Unknown axiom type: " + selectedAxiom.getAxiomType() + "You must delete unknown axioms FIRST!");
-            }
+            
         }
         return null;
     }
 
-    // MODIFICATION (A-induced integration): visibility changed from private to
-    // protected. This method is Ana's original counterexample-refinement logic
-    // (mergeLeft/saturateLeft/branchRight/composeLeft/composeRight/unsaturateRight,
-    // see body below, unchanged) — it needed to become accessible so that
-    // LaunchLLMLearnerAInduced.getCounterExample() (in a different class, same
-    // package) can call it on the axioms produced by the A-induced sampler,
-    // exactly as LaunchLearner's own uniform-PAC code path already does.
     protected OWLSubClassOfAxiom getCounterExampleSubClassOf(OWLSubClassOfAxiom counterexample) throws Exception {
         OWLSubClassOfAxiom newCounterexampleAxiom;
         OWLClassExpression left = counterexample.getSubClass();

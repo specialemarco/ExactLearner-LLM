@@ -100,6 +100,14 @@ public class ABoxInducedSubsumptionSampler {
         Collections.sort(this.orderedBaseSet);
         this.factory = factory;
         this.random = new Random(seed);
+        // Set here and never again, deliberately. It is the size of the instance
+        // space K0, the constant denominator of the conclusion weighting, and it
+        // is frozen for the same reason instanceCounts is frozen on a
+        // premise-only refresh: total and parts stay consistent because NEITHER
+        // moves. Refreshing it in update_sampler would be actively wrong for the
+        // one refresh that is planned -- update_sampler(hypothesisReasoner,
+        // false), where the hypothesis ontology is TBox-only, so the count would
+        // come back 0 and every conclusion weight would go negative.
         this.numberOfInstances = reasoner.getRootOntology().getIndividualsInSignature().size();
         // Initial setup refreshes both premise (lhs) and conclusion (rhs)
         // weights -- mirrors paclo's constructor call update_sampler(reasoner, true).
@@ -186,10 +194,34 @@ public class ABoxInducedSubsumptionSampler {
                     premise.add(expr);
                 }
             }
+            // NOT a cosmetic filter on trivial axioms -- this is what makes
+            // sampleConclusion() total, so do not simplify it away.
+            //
+            // A premise is always a subset of the base set: its elements come
+            // from instanceTypes, which update_sampler builds out of
+            // orderedBaseSet and nothing else. So equal sizes means equal sets,
+            // and retrying here is what guarantees the premise is a STRICT
+            // subset -- which is exactly the condition under which
+            // sampleConclusion()'s candidate list is non-empty. Drop this and
+            // that list can come back empty, and the failure surfaces as
+            // IllegalArgumentException from random.nextInt(0), several frames
+            // away from the cause.
+            //
+            // It cannot spin: escaping needs an individual typed with the whole
+            // base set AND nextBoolean() true for every one of those types, so
+            // the retry probability is at most 2^-|baseSet| per iteration.
         } while (premise.size() == baseSet.size());
         return premise;
     }
 
+    /**
+     * Picks the right-hand side from the base-set concepts the premise does not
+     * already contain, weighted towards the rare ones.
+     *
+     * Relies on samplePremise() returning a strict subset: with `remaining`
+     * empty, randomIndexLong() would reach random.nextInt(0) and throw. See the
+     * note on that method's retry loop.
+     */
     private OWLClassExpression sampleConclusion(Set<OWLClassExpression> premise) {
         // Built from orderedBaseSet rather than from a HashSet difference, so
         // that index i means the same concept on every run.
@@ -236,8 +268,27 @@ public class ABoxInducedSubsumptionSampler {
         return index;
     }
 
+    /**
+     * Individuals carrying at least one base-set type -- the population
+     * samplePremise() actually draws from, which is smaller than the ontology's
+     * individual count and is the number that matters. Zero means every premise
+     * degenerates to owl:Thing; see hasIndividuals().
+     */
+    public int typedIndividualCount() {
+        return instanceNames == null ? 0 : instanceNames.length;
+    }
+
+    /**
+     * The denominator of the conclusion weighting: the size of the instance space
+     * as it was at construction. Constant for the sampler's lifetime -- see the
+     * note on the field's assignment before changing that.
+     */
+    public long instanceUniverseSize() {
+        return numberOfInstances;
+    }
+
     public boolean hasIndividuals() {
-        return instanceNames != null && instanceNames.length > 0;
+        return typedIndividualCount() > 0;
     }
 
     /** How many samples have been drawn. See the `draws` field. */

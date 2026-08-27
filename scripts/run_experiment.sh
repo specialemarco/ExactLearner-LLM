@@ -188,7 +188,27 @@ export EXACTLEARNER_ELK_UNLOCK_INTERVAL="${EXACTLEARNER_ELK_UNLOCK_INTERVAL:-200
 # hypothesis and sample position. Discuss with Baris before defaulting it on.
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 
+# Seeds. Both default to 0, which is what every run so far used, so leaving them
+# alone reproduces previous runs exactly. Vary them to get an independent repeat
+# of the same experiment -- a single run is one draw from a random process, which
+# matters most when comparing the two arms on one dataset. The two streams are
+# independent: SAMPLER_SEED drives A-induced, PAC_SEED the uniform sampler.
+export EXACTLEARNER_SAMPLER_SEED="${EXACTLEARNER_SAMPLER_SEED:-0}"
+export EXACTLEARNER_PAC_SEED="${EXACTLEARNER_PAC_SEED:-0}"
+
+# Which reading of the PAC sampling budget the loop enforces. "global" (the
+# default, and what every run so far has used) spends one pot of numberOfSamples
+# candidates across the WHOLE run, so termination is guaranteed but the final
+# hypothesis is certified only by whatever budget was left after the last
+# counterexample. "per-round" gives each equivalence query a fresh full budget,
+# which is the standard reading of the (epsilon, delta) guarantee, but stops only
+# once a full budget has failed against the hypothesis as it then stands -- which
+# may not happen before walltime. The two are NOT comparable; do not mix modes
+# within an experiment. See MEETING-2026-08-18.md section 8.
+export EXACTLEARNER_BUDGET_MODE="${EXACTLEARNER_BUDGET_MODE:-global}"
+
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
+echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE | seeds: sampler=$EXACTLEARNER_SAMPLER_SEED pac=$EXACTLEARNER_PAC_SEED"
 echo "ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"
 
 # Educloud sets http_proxy and curl honours it even for localhost, so probing
@@ -367,6 +387,13 @@ echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG jfr=${JFR:-1}"
 # Plain java, not `mvn exec:java`: exec-maven-plugin is not in pom.xml, so Maven
 # would try to fetch it and fail on a compute node with no network.
 echo "Starting learner at $(date)"
+# Two optional trailing args select the experiment arm (added 2026-08-27, when the
+# four launcher classes were merged into flags):
+#   $4 skipPrecomputation  true = skip learner.precomputation() before the loop
+#                          (this replaces the old LaunchLLMLearnerAInducedNoPre)
+#   $5 evaluateAfterRun    Baris Macro/Micro P/R after the loop; defaults to true
+#                          for the A-induced arm, so omitting it changes nothing
+# Omitting both keeps the behaviour this script has always had.
 java "${JAVA_OPTS[@]}" -cp "target/classes:$(cat cp.txt)" \
   org.experiments.LaunchLLMLearnerAInduced "$CONFIG" "$EPSILON" "$DELTA"
 

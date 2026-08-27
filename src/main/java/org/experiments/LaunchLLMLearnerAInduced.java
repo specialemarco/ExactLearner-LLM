@@ -7,35 +7,28 @@ import org.sampler.ABoxInducedSubsumptionSampler;
 import org.utility.PacloDataset;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
-import org.semanticweb.owlapi.reasoner.OWLReasoner;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-import org.evaluation.Evaluation;
 import org.exactlearner.engine.LLMEngine;
 import org.experiments.logger.Cache;
 import org.experiments.workload.BatchPrewarmer;
 
 /**
- * NEW FILE — added for the A-induced sampling integration.
+ * The A-induced arm: the candidate axioms in the equivalence-query loop come
+ * from ABoxInducedSubsumptionSampler, which draws them grounded in the ABox of
+ * the OWL2Bench ontology, rather than from the uniform PAC sampler. That single
+ * substitution is what this class is for; everything downstream of it -- the
+ * entailment checks, getCounterExampleSubClassOf(), Learner.decompose() -- is
+ * inherited untouched, and so are run(), the loop itself and the resume path.
  *
- * Extends Ana's LaunchLLMLearner (the Mistral-based launcher) and replaces
- * the source of candidate axioms in the equivalence-query loop: instead of
- * Ana's uniform PAC sampler (pac.getRandomStatement()), this class uses
- * ABoxInducedSubsumptionSampler, which draws candidates grounded in the
- * ABox of the OWL2Bench ontology. Everything downstream of that single
- * substitution — checking entailment against the hypothesis, checking
- * entailment against Mistral, refining the counterexample via
- * getCounterExampleSubClassOf(), and the structural decomposition in
- * Learner.decompose() — is entirely Ana's original machinery, reused
- * unmodified.
- *
- * This class also adds the evaluation step (evaluateWithBaris, using
- * Baris's Macro/Micro Precision/Recall metrics) and a small number of
- * bookkeeping features (BaseSet-aware file naming, precomputation
- * skip flag) needed to run and compare the OWL2Bench experiments.
+ * What else lives here: the counterexample bookkeeping the evaluation reports,
+ * and the batched candidate prefetch. The PACLO dataset the sampler draws from is
+ * the parent's, so the evaluation reuses it rather than rebuilding it, and the
+ * BaseSet-aware output filenames are the parent's too -- that collision belongs
+ * to the dataset, not to this arm. Precomputation and evaluation are flags on
+ * LaunchLLMLearner, not subclasses -- see the axes comment there.
  */
 public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
@@ -45,15 +38,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // live alongside the target ontology, only known once setup() has run).
     private ABoxInducedSubsumptionSampler aboxSampler = null;
 
-    // Kept alongside aboxSampler so that evaluateWithBaris() can reuse the
-    // exact same baseSet and reasoner used for sampling, without having to
-    // reload/rebuild them a second time after the run finishes.
-    private Set<OWLClassExpression> aInducedBaseSet = null;
-    private OWLReasoner aInducedInitialReasoner = null;
-
-    // Counts how many counterexamples were accepted during the A-induced
-    // equivalence-query loop for the current run (reset per ontology/model
-    // combination in run()). Reported at evaluation time.
+    // Counterexamples accepted during this (ontology, model) run; reset in
+    // beforeModelRun() and reported at evaluation time.
     private int counterExampleCount = 0;
 
     // PAC sample index of the previous counterexample, so each one can report
@@ -69,24 +55,15 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         return aboxSampler == null ? 0L : aboxSampler.getDraws();
     }
 
-    // If true, Ana's precomputation() phase is skipped entirely and the run
-    // measures the A-induced loop's contribution on its own. Precomputation
-    // tests every ordered pair of class names before the loop starts, so it
-    // absorbs the "easy" atomic subsumptions; turning it off is what isolates
-    // how much the A-induced sampler finds by itself. Set via
-    // LaunchLLMLearnerAInducedNoPre, not by editing this default.
-    //
-    // The field itself now lives on LaunchLLMLearner (protected), which reads it
-    // in its own runLearner() and parses it from args[3]. Redeclaring it here
-    // would SHADOW the inherited one: run() below would write the subclass copy
-    // while the parent kept reading its own, permanently false.
+    // Precomputation absorbs the easy atomic subsumptions before the loop starts,
+    // so turning it off (args[3], skipPrecomputation on LaunchLLMLearner) is what
+    // isolates what the A-induced sampler finds by itself.
 
-    // Batched candidate evaluation. Resolved lazily and turned off permanently
-    // for the run if anything about the batch path is unavailable, so a broken
-    // batch endpoint degrades to the original one-at-a-time loop rather than
-    // failing a run that would otherwise have completed.
+    // Batched candidate evaluation. Turned off for the rest of the model's run
+    // if anything about the batch path is unavailable, so a broken batch
+    // endpoint degrades to the one-at-a-time loop rather than failing a run
+    // that would otherwise have completed.
     private boolean batchedLoopDisabled = false;
-    private Cache loopCache = null;
 
     /**
      * Seed for the A-induced sampler, from the environment. Fixed by default so
@@ -97,10 +74,6 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      * has never governed A-induced sampling.
      */
     public static final String SAMPLER_SEED_ENV = "EXACTLEARNER_SAMPLER_SEED";
-
-    public void setSkipPrecomputation(boolean skip) {
-        this.skipPrecomputation = skip;
-    }
 
     private long samplerSeed() {
         String raw = System.getenv(SAMPLER_SEED_ENV);
@@ -116,252 +89,147 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         }
     }
 
-    @Override
-    protected boolean isPrecomputationEnabled() {
-        return !skipPrecomputation;
-    }
-
     public static void main(String[] args) {
         LogManager.getRootLogger().atLevel(Level.OFF);
         new LaunchLLMLearnerAInduced().run(args);
     }
 
+    // ---- Arm configuration ------------------------------------------------
+    // The loop, the resume path and the run() scaffolding all live in
+    // LaunchLLMLearner now. This class supplies only what makes the arm
+    // A-induced: the sampler (getCounterExample below), the sampler's stream
+    // position on resume, and these hooks.
+
+    /** Evaluation defaults on for this arm; args[4]="false" still turns it off. */
+    {
+        evaluateAfterRun = true;
+    }
+
+    @Override
+    protected String experimentLabel() {
+        return " (A-induced)";
+    }
+
     /**
-     * Runs the A-induced equivalence-query loop WITHOUT Ana's precomputation()
-     * when skipPrecomputation is set; otherwise defers to the parent, which
-     * calls precomputation() first.
-     *
-     * The loop body below is the parent's, minus the precomputation call: build
-     * a Pac budget, then repeatedly ask for a counterexample until the sampler
-     * exhausts it. The per-sample normalisation of the totals at the end
-     * matches the parent so the two arms stay directly comparable.
+     * Drops everything held over from the previous iteration of run()'s loops.
+     * The batch flag belongs here too: a batch path that was unavailable for one
+     * model says nothing about the next.
      */
     @Override
-    protected void runLearner(int hypothesisSize) throws Throwable {
-        if (!skipPrecomputation) {
-            super.runLearner(hypothesisSize);
-            return;
+    protected void beforeModelRun() {
+        aboxSampler = null;
+        counterExampleCount = 0;
+        samplesAtLastCounterExample = 0;
+        batchedLoopDisabled = false;
+    }
+
+    /** This arm has never printed average stats; pinned by LauncherFlagMatrixTest. */
+    @Override
+    protected boolean shouldPrintAverageStats() {
+        return false;
+    }
+
+    /** Replays the sampler's draw sequence to the checkpointed position. */
+    @Override
+    protected void restoreSamplerPosition(long samplerDraws) throws Exception {
+        if (aboxSampler == null) {
+            initAboxSampler();
         }
+        if (aboxSampler != null) {
+            aboxSampler.fastForwardTo(samplerDraws);
+        }
+    }
 
-        int numberOfCounterExamples = 0;
-        int seed = 0;
-        Pac pac = new Pac(
-                parser.getClasses().get(),
-                parser.getObjectProperties(),
-                epsilon, delta, hypothesisSize, seed);
-        long totalPacSamples = pac.getNumberOfSamples();
-        System.out.println("SKIP PRECOMPUTATION: pure A-induced loop");
-        System.out.println("  PAC sample budget (numberOfSamples) = " + totalPacSamples);
-
-        // DRAFT (resume): pick the run up where the last job checkpointed it.
-        // hypothesisSize comes from the TARGET ontology, so the budget above is
-        // the same number on a resumed run as on a fresh one -- what changes is
-        // how much of it is already spent. A no-op unless EXACTLEARNER_RESUME
-        // was set and loadHypothesisOntology() found something to resume from.
-        if (resumedState.counterExamples > 0) {
-            numberOfCounterExamples = resumedState.counterExamples;
-            pac.restoreProvidedSamples(resumedState.providedSamples);
-            if (aboxSampler == null) {
-                initAboxSampler();
-            }
-            if (aboxSampler != null) {
-                aboxSampler.fastForwardTo(resumedState.samplerDraws);
-            }
+    /** Additionally restores this arm's own per-counterexample bookkeeping. */
+    @Override
+    protected int restoreFromCheckpoint(Pac pac) throws Exception {
+        int resumed = super.restoreFromCheckpoint(pac);
+        if (resumed > 0) {
             samplesAtLastCounterExample = (long) pac.getNumberOfProvidedSamples();
-            counterExampleCount = numberOfCounterExamples;
-            System.out.println("  resumed at counterexample " + numberOfCounterExamples
-                    + ", " + (long) pac.getNumberOfProvidedSamples() + "/" + totalPacSamples
-                    + " of the budget already spent");
+            counterExampleCount = resumed;
         }
-
-        while (true) {
-            myMetrics.setEquivCount(myMetrics.getEquivCount() + 1);
-            counterExample = getCounterExample(pac);
-            if (counterExample == null) {
-                System.out.println("No counterexample found, closing...");
-                break;
-            }
-            System.out.println("Counterexample number: " + ++numberOfCounterExamples);
-            int size = myMetrics.getSizeOfCounterexample(counterExample);
-            if (size > myMetrics.getSizeOfLargestCounterExample()) {
-                myMetrics.setSizeOfLargestCounterExample(size);
-            }
-            counterExample = learner.decompose(counterExample.getSubClass(), counterExample.getSuperClass());
-            checkTransformations();
-
-            // See LaunchLearner.checkpointHypothesis: without this a walltime
-            // kill discards every counterexample this loop has found.
-            providedSamples = (long) pac.getNumberOfProvidedSamples();
-            checkpointHypothesis(numberOfCounterExamples);
-        }
-
-        totalCE += (double) numberOfCounterExamples / (double) totalPacSamples;
-        totalMembershipQ += (double) myMetrics.getMembCount() / (double) totalPacSamples;
-        totalEquivalenceQ += (double) myMetrics.getEquivCount() / (double) totalPacSamples;
+        return resumed;
     }
 
     /**
-     * Overrides LaunchLLMLearner.run(). The overall structure (loop over
-     * ontologies, loop over models, setup/train/evaluate/cleanup) mirrors
-     * Ana's original run() closely; the two additions are:
-     *   - resetting aboxSampler/counterExampleCount before each run, so a
-     *     fresh sampler is built for every ontology/model combination
-     *     instead of reusing one left over from a previous iteration;
-     *   - calling evaluateWithBaris() after runLearningExperiment(), to
-     *     compute and print Macro/Micro Precision/Recall against the
-     *     OWL2Bench ground truth once the hypothesis has been learned and
-     *     saved.
-     */
-    @Override
-    public void run(String[] args) {
-        String configurationFile = args[0];
-        if (args.length > 1) epsilon = Double.parseDouble(args[1]);
-        if (args.length > 2) delta = Double.parseDouble(args[2]);
-        if (args.length > 3) skipPrecomputation = Boolean.parseBoolean(args[3]);
-        System.out.println("skipPrecomputation = " + skipPrecomputation);
-
-        org.experiments.logger.SmartLogger.checkCachedFiles();
-        loadConfiguration(configurationFile);
-        try {
-            for (String ontology : ontologies) {
-                System.out.println("\nRunning experiment (A-induced) for " + ontology);
-                for (String model : models) {
-                    System.out.println("\nRunning experiment for " + model + "\n");
-                    setup(ontology, model.replace(":", "-"));
-                    elQueryEngineForH = new org.exactlearner.engine.ELEngine(hypothesisOntology);
-                    String ontologyShortName = ontology.substring(ontology.lastIndexOf("/") + 1, ontology.lastIndexOf("."));
-                    createWorkCounter(ontologyShortName, model);
-                    conceptRelation = new org.exactlearner.learner.ConceptRelation<>();
-                    setLLMEngine(model, ontologyShortName);
-                    learner = new org.exactlearner.learner.Learner(llmQueryEngineForT, elQueryEngineForH, myMetrics, conceptRelation);
-                    // This override is the launcher run_experiment.sh actually
-                    // starts, so without this call EXACTLEARNER_BATCH_DECOMPOSE
-                    // does nothing at all and decomposition stays sequential.
-                    installDecomposePrefetcher(model);
-                    oracle = new org.exactlearner.oracle.Oracle(llmQueryEngineForT, elQueryEngineForH);
-
-                    // Force a fresh A-induced sampler for this ontology/model run.
-                    aboxSampler = null;
-                    counterExampleCount = 0;
-                    samplesAtLastCounterExample = 0;
-
-                    runLearningExperiment(args, hypothesisSizes.get(ontologies.indexOf(ontology)), model);
-
-                    // Baris-style evaluation (Macro/Micro Precision/Recall) after training.
-                    try {
-                        evaluateWithBaris();
-                    } catch (Exception ex) {
-                        System.out.println("Error during evaluateWithBaris: " + ex.getMessage());
-                        ex.printStackTrace();
-                    }
-
-                    if (counter != null) counter.close();
-                    cleaningUp();
-                }
-                System.out.println("\nFinished experiment for " + ontology + "\n");
-            }
-        } catch (Throwable e) {
-            e.printStackTrace();
-            System.out.println("error" + e);
-        }
-    }
-
-    /**
-     * Overrides LaunchLearner.getCounterExample(). This is the single most
-     * important method in the whole integration: it is where Ana's uniform
-     * PAC sampling is swapped out for A-induced sampling.
+     * Where the sampler substitution happens. Against the inherited uniform loop:
      *
-     * On first call, lazily builds the A-induced sampler via
-     * initAboxSampler(). If the required files (initialOntology.owl,
-     * baseSet) are not found next to the target ontology — e.g. when this
-     * launcher is pointed at one of Ana's original small ontologies rather
-     * than an OWL2Bench BaseSet — it falls back to the parent class's
-     * uniform PAC sampling (super.getCounterExample), so this class remains
-     * safely usable on any ontology, not only OWL2Bench.
-     *
-     * The core substitution vs. Ana's original getCounterExample:
      *   BEFORE (uniform PAC): OWLSubClassOfAxiom ax = pac.getRandomStatement();
      *   AFTER  (A-induced):   OWLSubClassOfAxiom ax = aboxSampler.sample();
      *
-     * Everything else in this loop — advancing the PAC sample counter,
-     * checking entailment against the hypothesis (entH) and against
-     * Mistral (entT), and calling getCounterExampleSubClassOf() once a
-     * genuine counterexample (!entH && entT) is found — reuses Ana's
-     * existing logic unchanged.
+     * Everything else -- spending the budget, entH/entT, calling
+     * getCounterExampleSubClassOf() on a genuine counterexample -- is unchanged.
      *
-     * NOTE: the DEBUG print statements below (for the first 10 samples of
-     * each run) are temporary instrumentation added during development to
-     * verify the sampler was producing sensible axioms and that entailment
-     * checks behaved as expected. They are not part of the core algorithm.
+     * The sampler is built on first call. When initialOntology.owl and baseSet
+     * are not beside the target ontology this is not a PACLO dataset, and the
+     * loop falls back to uniform PAC sampling, so the class stays usable on the
+     * small ontologies too.
      */
     @Override
     protected OWLSubClassOfAxiom getCounterExample(Pac pac) throws Exception {
         if (aboxSampler == null) {
             initAboxSampler();
             if (aboxSampler == null) {
-                System.out.println("Setup AInduced non disponibile per questa ontologia — fallback a PAC uniforme");
+                System.out.println("A-induced setup not available for this ontology \u2014 falling back to uniform PAC");
                 return super.getCounterExample(pac);
             }
         }
 
 
         // ------------------------------------------------------------------
-        // NOT ADOPTED FROM debug-verify-v2 -- open decision, see below.
+        // The budget this loop spends is Pac's, and which one it is depends on
+        // Pac.BudgetMode: GLOBAL by default (one pot for the whole run),
+        // PER_ROUND under EXACTLEARNER_BUDGET_MODE=per-round (a fresh full
+        // budget per equivalence query, which is what debug-verify-v2 does).
+        // Nothing here needs to know which -- hasBudgetLeft() answers for both.
         //
-        // That branch replaces the global budget used here with a PER-ROUND
-        // budget: searchForCounterExample() counts its own attempts up to
-        // pac.getNumberOfSamples(), so every equivalence query gets a fresh
-        // full Occam bound, and on exhaustion it rebuilds an ELK reasoner over
+        // STILL NOT ADOPTED from debug-verify-v2: the other half of that
+        // branch, which on exhausting a round rebuilds an ELK reasoner over
         // hypothesisOntology, calls update_sampler(reasoner, false) to refresh
-        // the premise-side types against the GROWN hypothesis, and retries once
-        // with the same budget.
+        // the premise-side types against the GROWN hypothesis, and retries the
+        // round once. The refresh is worth having on its own -- the sampler
+        // here is built once against the initial ontology and never updated, so
+        // as the hypothesis grows it keeps proposing candidates the hypothesis
+        // already entails, and each of those still costs a model query (entT
+        // below is computed whether or not entH is true).
         //
-        // The refresh is worth having on its own -- the sampler here is built
-        // once against the initial ontology and never updated, so as the
-        // hypothesis grows it keeps proposing candidates the hypothesis already
-        // entails. But the refresh only has teeth under per-round budgets: with
-        // the global budget below, a round that returns null has by definition
-        // spent the budget, so a retry would exit immediately.
-        //
-        // The two therefore cannot be separated, and switching to per-round
-        // budgets changes the stopping condition for every experiment (and
-        // breaks the resume checkpoint, which assumes providedSamples is a
-        // monotone global counter). Left as-is pending the stopping-condition
-        // discussion with Baris. update_sampler(reasoner, false) is already
-        // merged and available in ABoxInducedSubsumptionSampler.
+        // What blocks it is resume, not the budget: fastForwardTo() replays
+        // sample() calls against the live weight table, and update_sampler
+        // rebuilds that table, so a resumed run would replay the early draws
+        // against post-refresh weights and reconstruct a different stream.
+        // Refreshing at each accepted counterexample -- the point where the
+        // hypothesis actually changes -- is the cheaper version of this and
+        // works under either budget mode; it needs the refresh points recorded
+        // in the checkpoint, or an explicit fallback to a fresh stream on
+        // resume. See MEETING-2026-08-18.md section 8.
         // ------------------------------------------------------------------
         int batchSize = batchedLoopSize();
 
-        while (pac.getNumberOfProvidedSamples() < pac.getNumberOfSamples()) {
+        while (pac.hasBudgetLeft()) {
             // Draw a block of candidates and fetch their answers in ONE call, so
-            // the GPU sees batchSize prompts instead of one. This is purely a
-            // transport change: the examination loop below is byte-for-byte the
-            // original sequential one, and every answer it needs was just written
-            // into the cache the engine reads. With a measured 1-in-264 hit rate,
-            // almost every block is all-negative, so the speculation is nearly
-            // always fully used.
+            // the GPU sees batchSize prompts instead of one. Purely a transport
+            // change: the examination loop below is the original sequential one,
+            // and every answer it needs was just written into the cache the
+            // engine reads. C2's measured hit rate is ~1 in 32 -- about one
+            // block -- so a block is usually, not almost always, fully spent.
+            // (The older 1-in-264 figure divided by total requests, which
+            // counted decompose()'s membership queries; see MEETING section 8.)
             List<OWLSubClassOfAxiom> block = drawBlock(batchSize, pac);
             if (block.isEmpty()) return null;
-            if (batchSize > 1) {
-                prefetchAnswers(block, batchSize);
-            }
+            prefetchAnswers(block);
 
             for (OWLSubClassOfAxiom selectedAxiom : block) {
-                if (pac.getNumberOfProvidedSamples() >= pac.getNumberOfSamples()) {
+                if (!pac.hasBudgetLeft()) {
                     return null;
                 }
-                // NOTE: incrementProvidedSamples() is a small addition to Ana's
-                // Pac class (see Pac.java). It exists because pac.getRandomStatement()
-                // normally advances this counter internally; since we bypass that
-                // method entirely and call aboxSampler.sample() directly, we must
-                // advance the counter here ourselves, or the PAC sample budget
-                // would never be consumed and this loop would run forever.
+                // getRandomStatement() advances the budget internally; this loop
+                // bypasses it for aboxSampler.sample(), so it has to spend the
+                // budget itself or the loop would never terminate.
                 //
-                // Only candidates actually EXAMINED consume budget. Anything left
-                // in the block after a counterexample is discarded unexamined, so
-                // the budget is spent exactly as it would be sequentially and the
-                // two modes stay directly comparable. Their answers stay in the
-                // cache, so redrawing them later costs nothing.
+                // Only candidates actually EXAMINED count. Whatever is left in
+                // the block after a counterexample is discarded unexamined, so
+                // batched and sequential runs spend the budget identically and
+                // stay comparable; the discarded answers stay cached anyway.
                 pac.incrementProvidedSamples();
                 if (pac.getNumberOfProvidedSamples() <= 10) {
                     System.out.println("DEBUG sampled: " + selectedAxiom.getSubClass() + " SubClassOf " + selectedAxiom.getSuperClass());
@@ -410,15 +278,15 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
 
     /** Draws up to batchSize candidates, never more than the remaining PAC budget. */
     private List<OWLSubClassOfAxiom> drawBlock(int batchSize, Pac pac) {
-        // getNumberOfProvidedSamples() returns double (it is a counter Ana exposes
-        // for the statistics), so narrow it explicitly rather than letting the
-        // subtraction promote to double.
-        long remaining = pac.getNumberOfSamples() - (long) pac.getNumberOfProvidedSamples();
-        int want = (int) Math.min(Math.max(batchSize, 1), Math.max(remaining, 0));
+        // Whichever budget is in force: the run-long pot under GLOBAL, this
+        // equivalence query's own under PER_ROUND. Never overdraw it, or a
+        // block would examine candidates the loop is no longer allowed to.
+        long remaining = pac.getRemainingSamples();
+        int want = (int) Math.min(Math.max(batchSize, 1), remaining);
         List<OWLSubClassOfAxiom> block = new ArrayList<>(want);
         for (int i = 0; i < want; i++) {
             OWLSubClassOfAxiom axiom = aboxSampler.sample();
-            if (axiom == null) break;   // sampler exhausted
+            //if (axiom == null) break;   // sampler exhausted
             block.add(axiom);
         }
         return block;
@@ -433,13 +301,13 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      * concepts, never intersections. If the engine did ask something different,
      * that query would just miss the cache and be issued normally.
      */
-    private void prefetchAnswers(List<OWLSubClassOfAxiom> block, int batchSize) {
-        if (batchedLoopDisabled) return;
+    private void prefetchAnswers(List<OWLSubClassOfAxiom> block) {
+        if (batchedLoopDisabled || block.size() < 2) return;
         if (!(llmQueryEngineForT instanceof LLMEngine engine)) {
             batchedLoopDisabled = true;
             return;
         }
-        Cache cache = loopCache();
+        Cache cache = currentCache();
         if (cache == null) {
             batchedLoopDisabled = true;
             return;
@@ -455,7 +323,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                 }
             }
             if (!pending.isEmpty()) {
-                BatchPrewarmer.fetchAndCache(cache, system, new ArrayList<>(pending), batchSize);
+                BatchPrewarmer.fetchAndCache(cache, system, new ArrayList<>(pending), pending.size());
             }
         } catch (Throwable t) {
             System.out.println("A-induced batch prefetch failed, continuing sequentially: " + t);
@@ -463,106 +331,67 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         }
     }
 
-    private Cache loopCache() {
-        if (loopCache == null && currentModel != null) {
-            loopCache = cacheManager.getCache(currentModel, system);
-        }
-        return loopCache;
-    }
-
     /**
-     * Overrides LaunchLearner.setUpOntologyFolders(). Ana's original method
-     * derives the saved hypothesis filename only from the ontology's file
-     * name (e.g. "expertOntology"), which is fine for her small ontologies
-     * (each has a unique name) but is NOT fine here: OWL2Bench's C1, C2 and
-     * C3 BaseSet configurations all point to files also named
-     * "expertOntology.owl" (just in different folders — see the BaseSet tag
-     * detection below), so without this override every C1/C2/C3 run would
-     * silently overwrite the previous one's saved learned ontology.
+     * Builds the sampler for the current target ontology, once per run, on the
+     * first getCounterExample(). Leaves it null when loadBeside() finds no
+     * PACLO dataset beside the target, which is the fallback signal.
      *
-     * This override extracts a BaseSet tag (c1/c2/c3) from the parent
-     * folder name of the target ontology file and injects it into both the
-     * target-copy filename and the learned-hypothesis filename, e.g.
-     * "expertOntology_c2_mistral_nlp_advanced.owl" instead of the
-     * ambiguous "expertOntology_mistral_nlp_advanced.owl".
-     */
-    @Override
-    protected void setUpOntologyFolders(String format, String system, String model, String ontology) {
-        String name = java.nio.file.Path.of(ontology).getFileName().toString().replace(".owl", "");
-        // Extract the BaseSet identifier (c1/c2/c3) from the parent folder name.
-        String parentFolder = java.nio.file.Path.of(ontology).getParent().getFileName().toString();
-        String baseSetTag;
-        if (parentFolder.contains("exists_thing")) baseSetTag = "c2";
-        else if (parentFolder.contains("exists_partial")) baseSetTag = "c3";
-        else if (parentFolder.contains("class_names")) baseSetTag = "c1";
-        else baseSetTag = parentFolder;
-
-        String nameWithBaseSet = name + "_" + baseSetTag;
-        ontologyFolder = "results" + java.io.File.separator + "ontologies" + java.io.File.separator + "target_" + nameWithBaseSet + ".owl";
-        ontologyFolderH = "results" + java.io.File.separator + "ontologies" + java.io.File.separator + infoString(nameWithBaseSet, model, format, system) + ".owl";
-    }
-
-    /**
-     * Lazily builds the A-induced sampler for the current target ontology.
-     * Called once per run, on the first invocation of getCounterExample().
-     *
-     * PacloDataset.loadBeside() reads initialOntology.owl and baseSet from
-     * the dataset folder (see that class for the ABox injection this
-     * depends on) and returns null when they are absent -- e.g. when the
-     * launcher is pointed at one of Ana's small ontologies -- in which case
-     * getCounterExample() falls back to uniform PAC sampling.
+     * Throws, rather than falling back, when the dataset is there but no
+     * individual carries a base-set type -- see checkSamplerIsUsable().
      */
     private void initAboxSampler() throws Exception {
-        PacloDataset dataset = PacloDataset.loadBeside(targetFile, groundTruthOntology);
+        PacloDataset dataset = pacloDataset();
         if (dataset == null) {
             return;
         }
-
         long seed = samplerSeed();
         aboxSampler = new ABoxInducedSubsumptionSampler(
                 dataset.baseSet(), dataset.initialReasoner(), OWLManager.getOWLDataFactory(), seed);
-        System.out.println("A-induced sampler seed: " + seed
+        checkSamplerIsUsable(dataset);
+        // One line that answers both "which arm ran" and "which base set", so
+        // neither has to be inferred from where other lines sit in the log. The
+        // "PACLO dataset" line above is printed by whichever arm loads the
+        // dataset; this one prints only for A-induced, and only once the sampler
+        // is built and has passed the check above.
+        System.out.println("A-induced sampler ready: baseSet " + dataset.baseSet().size()
+                + ", " + aboxSampler.typedIndividualCount() + " typed individuals, seed " + seed
                 + " (set " + SAMPLER_SEED_ENV + " to vary it across repeats)");
-
-        // Held so evaluateWithBaris() reuses the same baseSet and reasoner
-        // instead of rebuilding them once the run has finished.
-        this.aInducedBaseSet = dataset.baseSet();
-        this.aInducedInitialReasoner = dataset.initialReasoner();
     }
 
     /**
-     * Evaluates the learned hypothesisOntology using the same logic
-     * (Macro/Micro Precision/Recall) as Baris's Evaluation.java from
-     * paclo. Must be called AFTER the run has completed, i.e. after
-     * hypothesisOntology has been populated and saved (see run()).
+     * Refuses to run A-induced sampling that cannot be A-induced.
      *
-     * Builds a fresh ELK reasoner directly on groundTruthOntology (the
-     * OWL2Bench expert ontology) to serve as the "ground truth" reasoner
-     * that Evaluation.evaluate() compares the learned hypothesis against.
-     * Unlike initAboxSampler()'s reasoner, this one requests full
-     * precomputation including object property hierarchy/assertions,
-     * since existential-restriction concepts in the baseSet (present in
-     * C2/C3) need those inferences to be classified correctly.
+     * With no individual carrying a base-set type, samplePremise() has nothing to
+     * draw from and returns the empty premise, so every single candidate becomes
+     * `owl:Thing SubClassOf X`. That failure is silent and it does not look like
+     * a failure: a few hundred distinct queries, everything after them a cache
+     * hit, the whole budget spent in minutes, no counterexamples, and a clean
+     * "No counterexample found, closing..." at the end. It reads exactly like a
+     * hypothesis that converged.
+     *
+     * Deliberately NOT the uniform-PAC fallback that a missing dataset takes.
+     * The dataset being present means A-induced sampling was what was asked for,
+     * and quietly running a different experiment for 24 hours is the specific
+     * outcome HPC-RUNBOOK.md warns about. Better to lose the allocation in the
+     * first minute with a message naming the cause.
      */
-    public void evaluateWithBaris() throws Exception {
-        if (aInducedBaseSet == null || aInducedInitialReasoner == null) {
-            System.out.println("Baris evaluation not available: A-induced sampler was not initialized for this run.");
+    private void checkSamplerIsUsable(PacloDataset dataset) {
+        if (aboxSampler.hasIndividuals()) {
             return;
         }
-        org.semanticweb.elk.owlapi.ElkReasonerFactory rf = new org.semanticweb.elk.owlapi.ElkReasonerFactory();
-        OWLReasoner expertReasoner = rf.createReasoner(groundTruthOntology);
-        expertReasoner.precomputeInferences(
-            org.semanticweb.owlapi.reasoner.InferenceType.CLASS_HIERARCHY,
-            org.semanticweb.owlapi.reasoner.InferenceType.CLASS_ASSERTIONS,
-            org.semanticweb.owlapi.reasoner.InferenceType.OBJECT_PROPERTY_HIERARCHY,
-            org.semanticweb.owlapi.reasoner.InferenceType.OBJECT_PROPERTY_ASSERTIONS);
-
-        System.out.println("=== BARIS EVALUATION (Macro/Micro Precision/Recall) ===");
-        System.out.println("Counterexamples found during this run: " + counterExampleCount);
-        new Evaluation().evaluate(hypothesisOntology, expertReasoner, aInducedBaseSet, aInducedInitialReasoner);
+        aboxSampler = null;
+        throw new IllegalStateException(
+                "A-induced sampling is impossible for " + dataset.directory() + ": no individual has"
+                + " a base-set type, so every candidate would be owl:Thing SubClassOf X."
+                + " The \"PACLO dataset\" line above reports how many individuals were typed --"
+                + " 0 there means the ABox injection or the baseSet is wrong for this dataset,"
+                + " not that the run is finished. Fix the dataset rather than rerunning.");
     }
 
-    public int getCounterExampleCount() {
-        return counterExampleCount;
+    /** Reports what the loop cost before the inherited evaluation runs. */
+    @Override
+    protected void evaluateWithBaris() throws Exception {
+        System.out.println("Counterexamples found during this run: " + counterExampleCount);
+        super.evaluateWithBaris();
     }
 }

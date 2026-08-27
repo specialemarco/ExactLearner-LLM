@@ -42,9 +42,6 @@ public class AskStatement {
             System.out.println("Training samples done: " + i + "/" + pac.getNumberOfSamples());
             Runnable work;
             var s = pac.getRandomStatement();
-            if (s == null) {
-                throw new IllegalStateException("No statement available.");
-            }
             var statement = new ManchesterOWLSyntaxOWLObjectRendererImpl().render(s);
             if (OllamaWorkload.supportedModels.contains(model)) {
                 work = new OllamaWorkload(model, system, statement, maxTokens);
