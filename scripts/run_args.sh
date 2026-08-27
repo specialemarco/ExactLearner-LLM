@@ -15,6 +15,7 @@
 #
 #   eps=0.2            PAC epsilon
 #   delta=0.1          PAC delta
+#   cache=shared       shared cache.sqlite3, or fresh, or a path of its own
 #   precomp=true       run learner.precomputation() before the loop
 #   eval=baris|none    Macro/Micro Precision/Recall after the loop
 #   budget=global      or per-round -- see MEETING-2026-08-18.md section 8
@@ -52,6 +53,7 @@ resolve_config() {
 parse_run_args() {
   EPSILON=""
   DELTA=""
+  CACHE_MODE=shared
   local precomp="" evaluate="" positional=0
 
   local arg key value
@@ -85,6 +87,17 @@ parse_run_args() {
           *) die "budget=$value: expected global or per-round" ;;
         esac
         ;;
+      cache)
+        # fresh is resolved by resolve_cache_path() rather than here: submit.sh
+        # sources this file too, and sbatch exports its environment, so a path
+        # built from the login node's $$ would follow the job and defeat itself.
+        case "$(run_args_lower "$value")" in
+          shared|keep) CACHE_MODE=shared ;;
+          fresh|new|cold) CACHE_MODE=fresh ;;
+          "") die "cache=: expected shared, fresh, or a path" ;;
+          *) CACHE_MODE=path; export EXACTLEARNER_CACHE="$value" ;;
+        esac
+        ;;
       seed)    parse_run_int "$key" "$value"; export EXACTLEARNER_SAMPLER_SEED="$value" ;;
       pacseed) parse_run_int "$key" "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
       *) die "unknown parameter '$key'. Use one of: $RUN_ARGS_USAGE" ;;
@@ -114,6 +127,7 @@ parse_run_args() {
   # Echoed back by both scripts. Only what was actually asked for: a parameter
   # left out is the launcher's own default, and this file does not know it.
   RUN_ARGS_SUMMARY="eps=$EPSILON delta=$DELTA"
+  [[ "$CACHE_MODE" != shared ]] && RUN_ARGS_SUMMARY+=" cache=$CACHE_MODE"
   [[ -n "$precomp"  ]] && RUN_ARGS_SUMMARY+=" precomp=$precomp"
   [[ "$evaluate" == true  ]] && RUN_ARGS_SUMMARY+=" eval=baris"
   [[ "$evaluate" == false ]] && RUN_ARGS_SUMMARY+=" eval=none"
@@ -123,7 +137,17 @@ parse_run_args() {
   return 0
 }
 
-RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none budget=global|per-round seed=N pacseed=N"
+RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> budget=global|per-round seed=N pacseed=N"
+
+# Called by run_experiment.sh only, once the job id is known. cache=fresh gets a
+# file of its own per job, so the run pays for every query it asks and its timings
+# stand alone -- the shared cache is keyed by (model, system, query) and not by
+# ontology or run, so a rerun of the same configuration replays the previous
+# run's answers. The shared cache is never touched, moved or deleted by this.
+resolve_cache_path() {
+  [[ "${CACHE_MODE:-shared}" == fresh ]] || return 0
+  export EXACTLEARNER_CACHE="cache-fresh-${SLURM_JOB_ID:-$$}.sqlite3"
+}
 
 # bash 3.2 on a mac has no ${x,,}, and these scripts get edited there.
 run_args_lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }

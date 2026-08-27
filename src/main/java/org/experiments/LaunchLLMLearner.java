@@ -74,7 +74,32 @@ public class LaunchLLMLearner extends LaunchLearner {
     protected double epsilon = 0.2;
     protected double delta = 0.1;
 
-    protected final CacheManager cacheManager = new CacheManager(false);;
+    /**
+     * Where the query cache lives. Defaults to the shared cache.sqlite3 in the
+     * working directory, which is the point of it -- an answer paid for once is
+     * replayed by every later run of the same (model, system).
+     *
+     * Point this at a path of its own for a run whose timings have to stand on
+     * their own: the cache is keyed by (model, system, query) and NOT by
+     * ontology or by run, so a rerun of the same configuration replays the
+     * previous run's answers and issues no LLM call for them. A speedup measured
+     * against a warm cache is measuring the cache.
+     */
+    public static final String CACHE_PATH_ENV = "EXACTLEARNER_CACHE";
+
+    protected static String cachePath() {
+        String raw = System.getenv(CACHE_PATH_ENV);
+        return (raw == null || raw.isBlank()) ? "cache.sqlite3" : raw.trim();
+    }
+
+    /**
+     * Whether the cache file was already there when this JVM started. Static, so
+     * it is evaluated before the CacheManager field below -- constructing that
+     * creates the file, after which the question can no longer be asked.
+     */
+    private static final boolean CACHE_EXISTED = new java.io.File(cachePath()).exists();
+
+    protected final CacheManager cacheManager = new CacheManager(cachePath(), false);
 
     public static void main(String[] args) {
         LogManager.getRootLogger().atLevel(Level.OFF);
@@ -135,6 +160,9 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
         System.out.println("skipPrecomputation = " + skipPrecomputation);
         System.out.println("evaluateAfterRun = " + evaluateAfterRun);
+        // Recorded in the log because a warm cache is invisible in the timings
+        // otherwise, and it is the first thing to check before believing them.
+        System.out.println("cache = " + cachePath() + (CACHE_EXISTED ? " (existing)" : " (new, cold)"));
     }
 
     /**

@@ -91,6 +91,7 @@ RUN_ARGS_LIB="${RUN_ARGS_LIB:-$SCRIPT_DIR/run_args.sh}"
 # Already a real path when submit.sh resolved it; this is for a bare sbatch.
 CONFIG="$(resolve_config "$CONFIG")"
 parse_run_args "$@"
+resolve_cache_path   # cache=fresh needs $SLURM_JOB_ID, which only exists here
 LEARNER_ARGS=("$CONFIG" "$EPSILON" "$DELTA" ${LEARNER_FLAG_ARGS[@]+"${LEARNER_FLAG_ARGS[@]}"})
 
 

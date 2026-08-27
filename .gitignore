@@ -139,3 +139,6 @@ logs/
 cp.txt
 .ipynb_checkpoints/
 scripts/experiment.env
+
+# Per-run caches from cache=fresh; the shared one is listed above.
+cache-fresh-*.sqlite3
