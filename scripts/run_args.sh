@@ -1,0 +1,145 @@
+# Argument handling shared by submit.sh and run_experiment.sh: the config name,
+# and the run parameters in name=value form.
+#
+# Sourced by both so a typo is caught by submit.sh before the job is queued,
+# rather than 20 minutes later when the model has finished loading.
+#
+# resolve_config() takes the bare name of a config -- everything under
+# CONFIG_DIR can be named without the directory and without the .yml:
+#
+#   scripts/submit.sh <model> mistral-owl2bench-c2-nlp-advanced
+#
+# A path that exists as given is still used unchanged, so tab completion of the
+# full path keeps working. It is resolved relative to the working directory,
+# which both scripts already require to be the repository root.
+#
+#   eps=0.2            PAC epsilon
+#   delta=0.1          PAC delta
+#   precomp=true       run learner.precomputation() before the loop
+#   eval=baris|none    Macro/Micro Precision/Recall after the loop
+#   budget=global      or per-round -- see MEETING-2026-08-18.md section 8
+#   seed=0             A-induced sampler
+#   pacseed=0          uniform PAC sampler
+#
+# Order does not matter and every one is optional; omitting all of them is the
+# arm every run so far has used. Bare numbers are still read as epsilon then
+# delta, so the old positional form keeps working.
+#
+# precomp is the readable direction of the Java flag, which is skipPrecomputation:
+# precomp=false means skip it. eval names the evaluator rather than saying true,
+# because "baris" is what the report is called; none turns it off.
+#
+# Sets: EPSILON, DELTA, LEARNER_FLAG_ARGS (the trailing argv for the launcher),
+# RUN_ARGS_SUMMARY (what was asked for, echoed back), and exports
+# EXACTLEARNER_BUDGET_MODE / _SAMPLER_SEED / _PAC_SEED when given.
+
+CONFIG_DIR="src/main/java/org/configurations/experiments"
+
+resolve_config() {
+  local given="${1-}" candidate
+  [[ -n "$given" ]] || die "no config given"
+  for candidate in "$given" "$given.yml" "$CONFIG_DIR/$given" "$CONFIG_DIR/$given.yml"; do
+    if [[ -f "$candidate" ]]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  die "no such config: $given
+       looked in . and $CONFIG_DIR, with and without .yml
+       available: $(ls "$CONFIG_DIR" 2>/dev/null | sed 's/\.yml$//' | tr '\n' ' ')"
+}
+
+parse_run_args() {
+  EPSILON=""
+  DELTA=""
+  local precomp="" evaluate="" positional=0
+
+  local arg key value
+  for arg in "$@"; do
+    if [[ "$arg" != *=* ]]; then
+      # Legacy positional form: epsilon, then delta.
+      case $((positional++)) in
+        0) EPSILON="$arg" ;;
+        1) DELTA="$arg" ;;
+        *) die "unexpected argument '$arg'. Use name=value: $RUN_ARGS_USAGE" ;;
+      esac
+      continue
+    fi
+
+    key="${arg%%=*}"
+    value="${arg#*=}"
+    case "$key" in
+      eps|epsilon) EPSILON="$value" ;;
+      delta)       DELTA="$value" ;;
+      precomp)     precomp="$(parse_run_bool "$key" "$value")" ;;
+      eval)
+        case "$(run_args_lower "$value")" in
+          baris|true|on|yes) evaluate=true ;;
+          none|false|off|no) evaluate=false ;;
+          *) die "eval=$value: expected baris or none" ;;
+        esac
+        ;;
+      budget)
+        case "$(run_args_lower "$value")" in
+          global|per-round|perround|round) export EXACTLEARNER_BUDGET_MODE="$value" ;;
+          *) die "budget=$value: expected global or per-round" ;;
+        esac
+        ;;
+      seed)    parse_run_int "$key" "$value"; export EXACTLEARNER_SAMPLER_SEED="$value" ;;
+      pacseed) parse_run_int "$key" "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
+      *) die "unknown parameter '$key'. Use one of: $RUN_ARGS_USAGE" ;;
+    esac
+  done
+
+  EPSILON="${EPSILON:-0.2}"
+  DELTA="${DELTA:-0.1}"
+  parse_run_num epsilon "$EPSILON"
+  parse_run_num delta   "$DELTA"
+
+  # The launcher reads these positionally, so eval cannot be passed without
+  # precomp ahead of it. false is skipPrecomputation's own default, so filling it
+  # in changes nothing. eval is left off entirely when unset, because the two
+  # arms disagree about its default and only the launcher knows which is running.
+  LEARNER_FLAG_ARGS=()
+  if [[ -n "$precomp" || -n "$evaluate" ]]; then
+    # Java's flag is skipPrecomputation -- the negation of precomp.
+    if [[ "$precomp" == false ]]; then
+      LEARNER_FLAG_ARGS+=(true)
+    else
+      LEARNER_FLAG_ARGS+=(false)
+    fi
+    [[ -n "$evaluate" ]] && LEARNER_FLAG_ARGS+=("$evaluate")
+  fi
+
+  # Echoed back by both scripts. Only what was actually asked for: a parameter
+  # left out is the launcher's own default, and this file does not know it.
+  RUN_ARGS_SUMMARY="eps=$EPSILON delta=$DELTA"
+  [[ -n "$precomp"  ]] && RUN_ARGS_SUMMARY+=" precomp=$precomp"
+  [[ "$evaluate" == true  ]] && RUN_ARGS_SUMMARY+=" eval=baris"
+  [[ "$evaluate" == false ]] && RUN_ARGS_SUMMARY+=" eval=none"
+  [[ -n "${EXACTLEARNER_BUDGET_MODE:-}"  ]] && RUN_ARGS_SUMMARY+=" budget=$EXACTLEARNER_BUDGET_MODE"
+  [[ -n "${EXACTLEARNER_SAMPLER_SEED:-}" ]] && RUN_ARGS_SUMMARY+=" seed=$EXACTLEARNER_SAMPLER_SEED"
+  [[ -n "${EXACTLEARNER_PAC_SEED:-}"     ]] && RUN_ARGS_SUMMARY+=" pacseed=$EXACTLEARNER_PAC_SEED"
+  return 0
+}
+
+RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none budget=global|per-round seed=N pacseed=N"
+
+# bash 3.2 on a mac has no ${x,,}, and these scripts get edited there.
+run_args_lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+parse_run_bool() {
+  case "$(run_args_lower "$2")" in
+    true|on|yes)  printf true ;;
+    false|off|no) printf false ;;
+    *) die "$1=$2: expected true or false" ;;
+  esac
+}
+
+parse_run_int() {
+  [[ "$2" =~ ^-?[0-9]+$ ]] || die "$1=$2: expected an integer"
+}
+
+parse_run_num() {
+  [[ "$2" =~ ^[0-9]*\.?[0-9]+$ ]] || die "$1=$2: expected a number"
+}

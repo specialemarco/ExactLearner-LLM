@@ -1,7 +1,7 @@
 #!/bin/bash
 # ExactLearner-LLM on Slurm: model server + learner in one job.
 #
-#   scripts/submit.sh <model> <config.yml> [epsilon] [delta]
+#   scripts/submit.sh <model> <config> [name=value ...]
 #
 # <model> names a file in scripts/models/. Account and GPUs come from that
 # script's sbatch line, because sbatch reads the directives below first.
@@ -71,9 +71,27 @@ MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"                # KV cache cap; prompts ar
 USER_SITE="${USER_SITE:-0}"                           # 1 re-enables ~/.local (holds a py3.11 accelerate)
 PORT="${PORT:-11434}"
 
-CONFIG="${1:?usage: sbatch scripts/run_experiment.sh <config.yml> [epsilon] [delta]}"
-EPSILON="${2:-0.2}"
-DELTA="${3:-0.1}"
+CONFIG="${1:?usage: sbatch scripts/run_experiment.sh <config> [name=value ...]}"
+shift
+
+# Everything after the config is name=value; see scripts/run_args.sh. Parsed
+# before the seed and budget exports below, because seed=/pacseed=/budget= set
+# exactly those variables and have to win over the defaults there.
+#
+# Sourcing this one is mandatory, so it cannot rely on $SCRIPT_DIR alone: Slurm
+# may hand the compute node a copy of this script in a node-local spool
+# directory, where scripts/ does not exist. submit.sh exports the login-node
+# path, and SLURM_SUBMIT_DIR is the repo root for a bare sbatch, since these
+# scripts must be submitted from there anyway.
+RUN_ARGS_LIB="${RUN_ARGS_LIB:-$SCRIPT_DIR/run_args.sh}"
+[[ -f "$RUN_ARGS_LIB" ]] || RUN_ARGS_LIB="${SLURM_SUBMIT_DIR:-$PWD}/scripts/run_args.sh"
+[[ -f "$RUN_ARGS_LIB" ]] || die "cannot find run_args.sh (looked in $SCRIPT_DIR and ${SLURM_SUBMIT_DIR:-$PWD}/scripts). Submit from the repository root, or with scripts/submit.sh."
+. "$RUN_ARGS_LIB"
+
+# Already a real path when submit.sh resolved it; this is for a bare sbatch.
+CONFIG="$(resolve_config "$CONFIG")"
+parse_run_args "$@"
+LEARNER_ARGS=("$CONFIG" "$EPSILON" "$DELTA" ${LEARNER_FLAG_ARGS[@]+"${LEARNER_FLAG_ARGS[@]}"})
 
 
 module purge
@@ -207,6 +225,7 @@ export EXACTLEARNER_PAC_SEED="${EXACTLEARNER_PAC_SEED:-0}"
 # within an experiment. See MEETING-2026-08-18.md section 8.
 export EXACTLEARNER_BUDGET_MODE="${EXACTLEARNER_BUDGET_MODE:-global}"
 
+echo "Run parameters: $RUN_ARGS_SUMMARY"
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
 echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE | seeds: sampler=$EXACTLEARNER_SAMPLER_SEED pac=$EXACTLEARNER_PAC_SEED"
 echo "ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"
@@ -387,14 +406,7 @@ echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG jfr=${JFR:-1}"
 # Plain java, not `mvn exec:java`: exec-maven-plugin is not in pom.xml, so Maven
 # would try to fetch it and fail on a compute node with no network.
 echo "Starting learner at $(date)"
-# Two optional trailing args select the experiment arm (added 2026-08-27, when the
-# four launcher classes were merged into flags):
-#   $4 skipPrecomputation  true = skip learner.precomputation() before the loop
-#                          (this replaces the old LaunchLLMLearnerAInducedNoPre)
-#   $5 evaluateAfterRun    Baris Macro/Micro P/R after the loop; defaults to true
-#                          for the A-induced arm, so omitting it changes nothing
-# Omitting both keeps the behaviour this script has always had.
 java "${JAVA_OPTS[@]}" -cp "target/classes:$(cat cp.txt)" \
-  org.experiments.LaunchLLMLearnerAInduced "$CONFIG" "$EPSILON" "$DELTA"
+  org.experiments.LaunchLLMLearnerAInduced "${LEARNER_ARGS[@]}"
 
 echo "Finished at $(date)"
