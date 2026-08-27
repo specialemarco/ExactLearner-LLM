@@ -21,6 +21,8 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=8
+# Fallback only, like --time below: submit.sh passes --mem from MEMORY in
+# scripts/models/<model>.env when that is set.
 #SBATCH --mem=128G
 # Fallback only: submit.sh passes --time from WALLTIME in scripts/models/<model>.env,
 # and a command-line option beats a directive. This is what a bare sbatch gets.

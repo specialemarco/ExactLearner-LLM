@@ -130,7 +130,7 @@ public abstract class LaunchLearner {
 
     private void handleNoTransformation() {
         addHypothesis(counterExample);
-        System.out.println("Not an EL Terminology:" + counterExample.getSubClass() + " SubclassOf " + counterExample.getSuperClass());
+        //System.out.println("No reduction possible:" + counterExample.getSubClass() + " SubclassOf " + counterExample.getSuperClass());
     }
 
     void addHypothesis(OWLAxiom addedAxiom) {

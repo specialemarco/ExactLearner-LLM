@@ -286,7 +286,7 @@ public class Learner implements BaseLearner {
             }
         }
         System.out.println(
-                "Error decomposing. Not an EL Terminology: " + left.toString() + "subclass of" + right.toString());
+                "No decomposition possible. Could not reduce: " + left.toString() + "subclass of" + right.toString());
         return myEngineForT.getSubClassAxiom(left, right);
 
     }
