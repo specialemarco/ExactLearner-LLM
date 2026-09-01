@@ -52,6 +52,7 @@ results/ontologies/desaturate
 *.ear
 *.nar
 hs_err_pid*
+.sdkmanrc
 
 ##############################
 ## Maven

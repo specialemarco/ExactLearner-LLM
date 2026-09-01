@@ -152,7 +152,10 @@ mkdir -p logs results/ontologies statistics
 # missing the learner silently falls back to uniform PAC sampling -- a different
 # experiment, with no error. Datasets live in data_paclo/ (gitignored), read
 # relative to the repository root, which is why submitting from there matters.
-ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"')
+# Same `|| true` as in submit.sh: every config does name an ontology, so this is
+# belt and braces, but a grep miss here would abort the job silently rather than
+# reaching the "missing" die below that explains what to do.
+ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"') || true
 ONTOLOGY_DIR=$(dirname "$ONTOLOGY")
 for required in "$ONTOLOGY" "$ONTOLOGY_DIR/initialOntology.owl" "$ONTOLOGY_DIR/baseSet"; do
   [[ -e "$required" ]] || die "missing (or broken symlink): $required. Copy the dataset folder into data_paclo/ -- it is deliberately not in the repository."
@@ -213,6 +216,17 @@ export EXACTLEARNER_ELK_UNLOCK_INTERVAL="${EXACTLEARNER_ELK_UNLOCK_INTERVAL:-200
 # hypothesis and sample position. Discuss with Baris before defaulting it on.
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 
+# The model name the learner files its cache and results under. Exported from the
+# same model file that supplies the weights, so the two cannot drift apart -- the
+# name does NOT choose the weights (llm_server.py serves whatever MODEL_PATH it was
+# started with), it only decides which cache rows are read and what the output is
+# called. With this set a config need not name a model at all, which is what lets
+# one config serve every model.
+export EXACTLEARNER_MODEL="${EXACTLEARNER_MODEL:-${MODEL_NAME:-}}"
+[[ -n "$EXACTLEARNER_MODEL" ]] ||
+  die "MODEL_NAME is not set. It comes from scripts/models/<model>.env, so submit with
+       scripts/submit.sh <model> <config>, or export EXACTLEARNER_MODEL yourself."
+
 # Seeds. Both default to 0, which is what every run so far used, so leaving them
 # alone reproduces previous runs exactly. Vary them to get an independent repeat
 # of the same experiment -- a single run is one draw from a random process, which
@@ -233,6 +247,21 @@ export EXACTLEARNER_PAC_SEED="${EXACTLEARNER_PAC_SEED:-0}"
 export EXACTLEARNER_BUDGET_MODE="${EXACTLEARNER_BUDGET_MODE:-global}"
 
 echo 
+# One job is always one repeat. repeats=N is submit.sh's business -- it fires N of
+# these -- so say so rather than letting the name imply this job does all N.
+if [[ "${REPEATS:-1}" -gt 1 ]]; then
+  warn "repeats=$REPEATS is handled by submit.sh, which submits that many jobs.
+         This job runs ONE repeat, with the seeds below."
+fi
+
+# Names this repeat's outputs; empty for an ordinary single run, which then keeps
+# the filenames it has always had.
+export EXACTLEARNER_RUN_TAG="${EXACTLEARNER_RUN_TAG:-}"
+
+echo "Model: $EXACTLEARNER_MODEL (weights: $MODEL_PATH)"
+if [[ -n "$EXACTLEARNER_RUN_TAG" ]]; then
+  echo "Run tag: $EXACTLEARNER_RUN_TAG (outputs carry this suffix)"
+fi
 echo "Run parameters: $RUN_ARGS_SUMMARY"
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
 echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE"

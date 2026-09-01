@@ -106,10 +106,67 @@ public class LaunchLLMLearner extends LaunchLearner {
         new LaunchLLMLearner().run(args);
     }
 
+    /**
+     * The model this run queries, overriding whatever the config names.
+     *
+     * The model string is a cache key and a label -- it is NOT what selects the
+     * weights. llm_server.py serves whatever --model path it was started with and
+     * merely echoes this name back, so on the cluster the weights are chosen by
+     * MODEL_PATH and the name only decides which cache rows are read and written
+     * and what the output file is called. That is why they have to agree, and why
+     * having the config state it separately was a standing trap: every
+     * mistral-owl2bench-*.yml names deepseek-r1-32b.
+     *
+     * Set, the config need not name a model at all, so one config serves every
+     * model. scripts/run_experiment.sh exports it from MODEL_NAME in
+     * scripts/models/<model>.env, which is the same file that supplies the weights,
+     * so the name and the weights cannot drift apart.
+     */
+    public static final String MODEL_ENV = "EXACTLEARNER_MODEL";
+
+    /**
+     * Reconciles the config's models: list with the environment.
+     *
+     * The override collapses the list to one entry, deliberately: run()'s loop over
+     * models dates from a shared Ollama server that hosted many, and against a
+     * single-model vLLM server the second and later entries would be answered by the
+     * first one's weights and filed under their own cache key. Says out loud what it
+     * dropped rather than doing it quietly.
+     */
+    protected List<String> resolveModels(List<String> fromConfig) {
+        String raw = System.getenv(MODEL_ENV);
+        String override = (raw == null || raw.isBlank()) ? null : raw.trim();
+
+        if (override == null) {
+            if (fromConfig == null || fromConfig.isEmpty()) {
+                throw new IllegalStateException(
+                        "This config names no model and " + MODEL_ENV + " is unset, so there is "
+                        + "nothing to query. Submit through scripts/submit.sh, which exports it "
+                        + "from scripts/models/<model>.env, or set it yourself: "
+                        + MODEL_ENV + "=deepseek-r1-32b");
+            }
+            System.out.println("models = " + fromConfig + " (from the config; set "
+                    + MODEL_ENV + " to override)");
+            return fromConfig;
+        }
+
+        if (fromConfig == null || fromConfig.isEmpty()) {
+            System.out.println("model = " + override + " (from " + MODEL_ENV
+                    + "; the config names none)");
+        } else if (fromConfig.size() == 1 && fromConfig.get(0).equals(override)) {
+            System.out.println("model = " + override + " (from " + MODEL_ENV
+                    + ", and the config agrees)");
+        } else {
+            System.out.println("model = " + override + " (from " + MODEL_ENV
+                    + ", OVERRIDING the config's " + fromConfig + ")");
+        }
+        return List.of(override);
+    }
+
     protected void loadConfiguration(String fileName) {
         Configuration config = new YAMLConfigLoader().getConfig(fileName, Configuration.class);
         //choose configuration from file here:
-        models = config.getModels();
+        models = resolveModels(config.getModels());
         system = config.getSystem();
         queryFormat = config.getQueryFormat();
         ontologies = config.getOntologies();
@@ -387,7 +444,14 @@ public class LaunchLLMLearner extends LaunchLearner {
         if (system.length() > 50) {
             systemCode = "advanced";
         }
+        // Built here rather than from infoString(), so the run tag has to be
+        // appended separately: without it every repeat of an experiment writes
+        // its statistics over the previous one's, which is precisely the file
+        // the confidence interval is computed from.
         var filename =  targetFile.getName() + "_" + model + "_" + queryFormat + "_" + systemCode;
+        if (!runTag().isEmpty()) {
+            filename = filename + "_" + runTag();
+        }
         var dir = "statistics/";
         var statFile = new File(dir, filename);
         printAndSaveStats(timeStart, timeEnd, args, true,

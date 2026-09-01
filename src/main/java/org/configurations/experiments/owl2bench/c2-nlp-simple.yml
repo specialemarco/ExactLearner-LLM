@@ -1,0 +1,8 @@
+ontologies:
+  - "data_paclo/owl2bench-1-el-class_names_exists_thing/expertOntology.owl"
+system: >
+  Answer with only True or False.
+queryFormat: >
+  nlp
+maxTokens: 2
+type: "statementsQuerying"

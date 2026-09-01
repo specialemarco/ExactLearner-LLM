@@ -73,6 +73,75 @@ public class OutputNamingTest {
         assertNotEquals(c2, c3, "C2 and C3 must not share a hypothesis file");
     }
 
+    // ---- repeats must not overwrite each other -----------------------------
+
+    /**
+     * Repeats exist to put a confidence interval on the sampler's randomness, and
+     * they are submitted as parallel jobs. Sharing an output file would make the
+     * last one to finish the only one measured -- and racing on the target copy
+     * can hand one repeat another's half-written file.
+     */
+    @Test
+    public void repeatsUnderDifferentSeedsGetDistinctFiles(@TempDir Path tmp) throws IOException {
+        String c2 = dataset(tmp, "owl2bench-1-el-class_names_exists_thing");
+
+        String seed1 = hypothesisFileFor(taggedLauncher("seed1"), c2);
+        String seed2 = hypothesisFileFor(taggedLauncher("seed2"), c2);
+
+        assertTrue(seed1.endsWith("_seed1.owl"), seed1);
+        assertNotEquals(seed1, seed2, "two repeats must not share a hypothesis file");
+    }
+
+    /** The target copy is deleted and rewritten per run, so it must be tagged too. */
+    @Test
+    public void repeatsAlsoGetDistinctTargetCopies(@TempDir Path tmp) throws IOException {
+        String c2 = dataset(tmp, "owl2bench-1-el-class_names_exists_thing");
+
+        LaunchLLMLearner first = taggedLauncher("seed1");
+        first.setUpOntologyFolders("nlp", ADVANCED, "deepseek-r1-32b", c2);
+        LaunchLLMLearner second = taggedLauncher("seed2");
+        second.setUpOntologyFolders("nlp", ADVANCED, "deepseek-r1-32b", c2);
+
+        assertNotEquals(first.ontologyFolder, second.ontologyFolder,
+                "parallel repeats would otherwise race on one target file");
+    }
+
+    /** No tag set is the ordinary single run, whose names must not change at all. */
+    @Test
+    public void anUntaggedRunKeepsItsHistoricalName(@TempDir Path tmp) throws IOException {
+        String c2 = dataset(tmp, "owl2bench-1-el-class_names_exists_thing");
+
+        String untagged = hypothesisFileFor(new LaunchLLMLearner(), c2);
+
+        assertTrue(untagged.endsWith("expertOntology_c2_deepseek-r1-32b_nlp_advanced.owl"), untagged);
+    }
+
+    /**
+     * A tag reaches a filename, and Slurm exports the whole submitting
+     * environment, so it must not be able to escape results/.
+     */
+    @Test
+    public void aHostileTagCannotEscapeTheOutputDirectory(@TempDir Path tmp) throws IOException {
+        String c2 = dataset(tmp, "owl2bench-1-el-class_names_exists_thing");
+
+        String path = hypothesisFileFor(taggedLauncher("../../etc/passwd"), c2);
+
+        // The dots survive as literal filename characters, which is harmless --
+        // what must not survive is a separator, since that is what would let the
+        // tag climb out of the directory. Assert the containment itself.
+        assertEquals(Path.of("results", "ontologies"), Path.of(path).getParent(), path);
+    }
+
+    /** A launcher whose run tag is fixed, standing in for EXACTLEARNER_RUN_TAG. */
+    private static LaunchLLMLearner taggedLauncher(String tag) {
+        return new LaunchLLMLearner() {
+            @Override
+            protected String runTag() {
+                return tag.replaceAll("[^A-Za-z0-9._-]", "-");
+            }
+        };
+    }
+
     /** Writes a dataset folder: expertOntology.owl plus the baseSet that marks it as one. */
     private static String dataset(Path tmp, String folder) throws IOException {
         Path dir = tmp.resolve(folder);

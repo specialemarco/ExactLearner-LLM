@@ -5,9 +5,17 @@
 # rather than 20 minutes later when the model has finished loading.
 #
 # resolve_config() takes the bare name of a config -- everything under
-# CONFIG_DIR can be named without the directory and without the .yml:
+# CONFIG_DIR can be named without that directory and without the .yml. The
+# OWL2Bench configs live in owl2bench/ and name no model at all -- the model comes
+# from the first argument, so one config serves every model:
 #
-#   scripts/submit.sh <model> mistral-owl2bench-c2-nlp-advanced
+#   scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced
+#   scripts/submit.sh mistral-7b      owl2bench/c2-nlp-advanced
+#
+# The flat pre-2026-09-01 names still resolve and still work -- they are the same
+# experiments, with the model hard-coded inside:
+#
+#   scripts/submit.sh deepseek-r1-32b mistral-owl2bench-c2-nlp-advanced
 #
 # A path that exists as given is still used unchanged, so tab completion of the
 # full path keeps working. It is resolved relative to the working directory,
@@ -21,6 +29,7 @@
 #   budget=global      or per-round -- see MEETING-2026-08-18.md section 8
 #   seed=0             A-induced sampler
 #   pacseed=0          uniform PAC sampler
+#   repeats=1          submit this many jobs, seeds seed..seed+N-1 (submit.sh only)
 #
 # Order does not matter and every one is optional; omitting all of them is the
 # arm every run so far has used. Bare numbers are still read as epsilon then
@@ -36,6 +45,15 @@
 
 CONFIG_DIR="src/main/java/org/configurations/experiments"
 
+# Every config under CONFIG_DIR, named the way resolve_config accepts them:
+# relative to CONFIG_DIR and without the .yml. Recursive, because the per-model
+# folders added on 2026-09-01 put the OWL2Bench configs one level down, and a
+# plain ls would list the folder names rather than anything runnable.
+list_configs() {
+  (cd "$CONFIG_DIR" 2>/dev/null &&
+     find . -name '*.yml' | sed 's|^\./||; s|\.yml$||' | sort)
+}
+
 resolve_config() {
   local given="${1-}" candidate
   [[ -n "$given" ]] || die "no config given"
@@ -47,13 +65,14 @@ resolve_config() {
   done
   die "no such config: $given
        looked in . and $CONFIG_DIR, with and without .yml
-       available: $(ls "$CONFIG_DIR" 2>/dev/null | sed 's/\.yml$//' | tr '\n' ' ')"
+       available: $(list_configs | tr '\n' ' ')"
 }
 
 parse_run_args() {
   EPSILON=""
   DELTA=""
   CACHE_MODE=shared
+  REPEATS=1
   local precomp="" evaluate="" positional=0
 
   local arg key value
@@ -100,6 +119,15 @@ parse_run_args() {
         ;;
       seed)    parse_run_int "$key" "$value"; export EXACTLEARNER_SAMPLER_SEED="$value" ;;
       pacseed) parse_run_int "$key" "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
+      repeats)
+        # Acted on by submit.sh, which fires this many jobs. Parsed here too so
+        # that a bare `sbatch run_experiment.sh <config> repeats=5` is not
+        # rejected as an unknown name -- the job itself is always one repeat, and
+        # run_experiment.sh says so rather than silently doing one of five.
+        parse_run_int "$key" "$value"
+        [[ "$value" -ge 1 ]] || die "repeats=$value: expected 1 or more"
+        REPEATS="$value"
+        ;;
       *) die "unknown parameter '$key'. Use one of: $RUN_ARGS_USAGE" ;;
     esac
   done
@@ -134,10 +162,11 @@ parse_run_args() {
   [[ -n "${EXACTLEARNER_BUDGET_MODE:-}"  ]] && RUN_ARGS_SUMMARY+=" budget=$EXACTLEARNER_BUDGET_MODE"
   [[ -n "${EXACTLEARNER_SAMPLER_SEED:-}" ]] && RUN_ARGS_SUMMARY+=" seed=$EXACTLEARNER_SAMPLER_SEED"
   [[ -n "${EXACTLEARNER_PAC_SEED:-}"     ]] && RUN_ARGS_SUMMARY+=" pacseed=$EXACTLEARNER_PAC_SEED"
+  [[ "$REPEATS" -gt 1 ]] && RUN_ARGS_SUMMARY+=" repeats=$REPEATS"
   return 0
 }
 
-RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> budget=global|per-round seed=N pacseed=N"
+RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> budget=global|per-round seed=N pacseed=N repeats=N"
 
 # Called by run_experiment.sh only, once the job id is known. cache=fresh gets a
 # file of its own per job, so the run pays for every query it asks and its timings

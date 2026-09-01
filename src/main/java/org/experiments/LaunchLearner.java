@@ -427,8 +427,42 @@ public abstract class LaunchLearner {
         if (!tag.isEmpty()) {
             name = name + "_" + tag;
         }
-        ontologyFolder = "results" + fileSeparator + "ontologies" + fileSeparator + "target_" + name + ".owl";
+        // Tagged as well, though every repeat would write identical content: it is
+        // deleted and recreated by saveTargetOntology(), and
+        // computeConceptAndRoleNumbers() reads it straight back, so two parallel
+        // repeats sharing it can have one read the other's half-written file and
+        // silently take the wrong concept and role counts into its statistics.
+        String targetName = runTag().isEmpty() ? name : name + "_" + runTag();
+        ontologyFolder = "results" + fileSeparator + "ontologies" + fileSeparator + "target_" + targetName + ".owl";
         ontologyFolderH = "results" + fileSeparator + "ontologies" + fileSeparator + infoString(name, model, format, system) + ".owl";
+    }
+
+    /**
+     * Label separating one repeat of an experiment from another, from the
+     * environment. Empty by default, which leaves every output named exactly as
+     * it always has been.
+     *
+     * Repeats exist to put a confidence interval on the sampler's randomness:
+     * the same configuration is run under different seeds, and the spread across
+     * those runs is the measurement. That only works if they do not collide.
+     * Every per-run artefact is named from infoString() -- the hypothesis, its
+     * -trajectory/ directory, its -run-state.properties -- so tagging here
+     * separates all of them at once, and the target copy is tagged alongside in
+     * setUpOntologyFolders() because parallel jobs otherwise delete and rewrite
+     * one file underneath each other.
+     *
+     * Sanitised rather than trusted: this reaches a filename, and Slurm exports
+     * the whole submitting environment, so a stray value must not be able to
+     * write outside results/.
+     */
+    public static final String RUN_TAG_ENV = "EXACTLEARNER_RUN_TAG";
+
+    protected String runTag() {
+        String raw = System.getenv(RUN_TAG_ENV);
+        if (raw == null || raw.isBlank()) {
+            return "";
+        }
+        return raw.trim().replaceAll("[^A-Za-z0-9._-]", "-");
     }
 
     protected String infoString(String ontology, String model, String format, String system) {
@@ -436,7 +470,9 @@ public abstract class LaunchLearner {
         if (system.trim().equals("Answer with only True or False.")) {
             systemType = "base";
         }
-        return ontology + "_" + model + "_" + format + "_" + systemType;
+        String name = ontology + "_" + model + "_" + format + "_" + systemType;
+        String tag = runTag();
+        return tag.isEmpty() ? name : name + "_" + tag;
     }
 
     protected void computeConceptAndRoleNumbers() throws IOException {
