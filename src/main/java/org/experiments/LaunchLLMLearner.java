@@ -615,6 +615,20 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
         pac.restoreProvidedSamples(resumedState.providedSamples);
         restoreSamplerPosition(resumedState.samplerDraws);
+        // setup() builds a fresh Metrics for every job, so without this the
+        // statistics file of a resumed run counts only that job's own queries.
+        // Restored here because runLearner() has not entered the loop yet, and
+        // the loop is the only thing that reads or advances them.
+        if (resumedState.metricsPresent) {
+            myMetrics.setMembCount(resumedState.membCount);
+            myMetrics.setEquivCount(resumedState.equivCount);
+            myMetrics.setSizeOfLargestCounterExample(resumedState.largestCounterExample);
+        } else {
+            System.out.println("  WARNING: this checkpoint predates metrics carry-over."
+                    + " The hypothesis and the sample position resume exactly, but the"
+                    + " membership/equivalence counts restart from zero -- this run's"
+                    + " query totals will undercount by whatever the earlier job spent.");
+        }
         System.out.println("  resumed at counterexample " + resumedState.counterExamples
                 + ", " + (long) pac.getNumberOfProvidedSamples() + "/" + pac.getNumberOfSamples()
                 + " of the budget already spent");

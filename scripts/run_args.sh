@@ -27,6 +27,7 @@
 #   precomp=true       run learner.precomputation() before the loop
 #   eval=baris|none    Macro/Micro Precision/Recall after the loop
 #   budget=global      or per-round -- see MEETING-2026-08-18.md section 8
+#   resume=false       continue from the previous job's checkpointed hypothesis
 #   seed=0             A-induced sampler
 #   pacseed=0          uniform PAC sampler
 #   repeats=1          submit this many jobs, seeds seed..seed+N-1 (submit.sh only)
@@ -41,7 +42,7 @@
 #
 # Sets: EPSILON, DELTA, LEARNER_FLAG_ARGS (the trailing argv for the launcher),
 # RUN_ARGS_SUMMARY (what was asked for, echoed back), and exports
-# EXACTLEARNER_BUDGET_MODE / _SAMPLER_SEED / _PAC_SEED when given.
+# EXACTLEARNER_BUDGET_MODE / _SAMPLER_SEED / _PAC_SEED / _RESUME when given.
 
 CONFIG_DIR="src/main/java/org/configurations/experiments"
 
@@ -73,7 +74,7 @@ parse_run_args() {
   DELTA=""
   CACHE_MODE=shared
   REPEATS=1
-  local precomp="" evaluate="" positional=0
+  local precomp="" evaluate="" resume="" positional=0
 
   local arg key value
   for arg in "$@"; do
@@ -117,6 +118,20 @@ parse_run_args() {
           *) CACHE_MODE=path; export EXACTLEARNER_CACHE="$value" ;;
         esac
         ;;
+      resume)
+        # Continues from <hypo>.owl + <hypo>-run-state.properties in
+        # results/ontologies/ instead of deleting them and starting empty.
+        # A parameter rather than a bare environment variable so that a typo
+        # fails at submission, and so the run summary records that the numbers
+        # came from more than one job.
+        #
+        # Assigned to a local and exported below rather than exported straight
+        # from the substitution: `export X="$(f)"` takes its exit status from
+        # export, not from f, so die() inside parse_run_bool would NOT trip
+        # set -e -- and resume=ture would then quietly run with resume off,
+        # which deletes the very checkpoint it was asked to continue from.
+        resume="$(parse_run_bool "$key" "$value")"
+        ;;
       seed)    parse_run_int "$key" "$value"; export EXACTLEARNER_SAMPLER_SEED="$value" ;;
       pacseed) parse_run_int "$key" "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
       repeats)
@@ -131,6 +146,10 @@ parse_run_args() {
       *) die "unknown parameter '$key'. Use one of: $RUN_ARGS_USAGE" ;;
     esac
   done
+
+  # Exported only when asked for, so an unset resume leaves run_experiment.sh's
+  # own default (false) in place rather than overriding an inherited value.
+  [[ -n "$resume" ]] && export EXACTLEARNER_RESUME="$resume"
 
   EPSILON="${EPSILON:-0.2}"
   DELTA="${DELTA:-0.1}"
@@ -160,13 +179,14 @@ parse_run_args() {
   [[ "$evaluate" == true  ]] && RUN_ARGS_SUMMARY+=" eval=baris"
   [[ "$evaluate" == false ]] && RUN_ARGS_SUMMARY+=" eval=none"
   [[ -n "${EXACTLEARNER_BUDGET_MODE:-}"  ]] && RUN_ARGS_SUMMARY+=" budget=$EXACTLEARNER_BUDGET_MODE"
+  [[ -n "${EXACTLEARNER_RESUME:-}"       ]] && RUN_ARGS_SUMMARY+=" resume=$EXACTLEARNER_RESUME"
   [[ -n "${EXACTLEARNER_SAMPLER_SEED:-}" ]] && RUN_ARGS_SUMMARY+=" seed=$EXACTLEARNER_SAMPLER_SEED"
   [[ -n "${EXACTLEARNER_PAC_SEED:-}"     ]] && RUN_ARGS_SUMMARY+=" pacseed=$EXACTLEARNER_PAC_SEED"
   [[ "$REPEATS" -gt 1 ]] && RUN_ARGS_SUMMARY+=" repeats=$REPEATS"
   return 0
 }
 
-RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> budget=global|per-round seed=N pacseed=N repeats=N"
+RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
 
 # Called by run_experiment.sh only, once the job id is known. cache=fresh gets a
 # file of its own per job, so the run pays for every query it asks and its timings

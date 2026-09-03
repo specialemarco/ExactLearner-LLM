@@ -142,6 +142,7 @@ Everything after the config is `name=value`, in any order, all optional:
 | `eval=baris\|none` | Macro/Micro Precision/Recall after the loop |
 | `cache=shared\|fresh\|<path>` | query cache; `fresh` gives the job its own file |
 | `budget=global\|per-round` | how the PAC sample budget is spent |
+| `resume=true\|false` | continue from the previous job's checkpoint (default off) |
 | `seed=N` `pacseed=N` | A-induced sampler seed, uniform PAC sampler seed |
 | `repeats=N` | submit N jobs, seeds `seed`..`seed+N-1`, for a confidence interval |
 
@@ -167,6 +168,61 @@ minutes later on a compute node. `scripts/run_experiment.sh` runs
 > `precomp` is the readable direction of the Java flag, which is
 > `skipPrecomputation`. `precomp=false` is what makes it **skip**. The script
 > does the inversion for you.
+
+#### Resuming a run that hit the walltime
+
+A C2 run does not fit in one 24 h job, and a job killed at the walltime keeps
+everything it learned: `checkpointHypothesis()` writes after **every**
+counterexample, into `results/ontologies/`:
+
+```
+expertOntology_<...>.owl                  the hypothesis as of the last counterexample
+expertOntology_<...>-trajectory/0001.owl  a numbered copy per counterexample
+expertOntology_<...>-run-state.properties counterExamples, providedSamples, samplerDraws,
+                                          and the metrics totals
+```
+
+`resume=true` continues from those instead of starting empty:
+
+```bash
+scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false resume=true
+```
+
+The hypothesis is loaded rather than re-derived, `Pac.providedSamples` is put
+back, and the sampler is fast-forwarded by replaying that many `sample()` calls
+— purely local, no reasoner, no model, no cache — so the next candidate is the
+one an uninterrupted run would have drawn. Restart costs seconds.
+
+> ⚠️ **`resume=false` deletes the checkpoint.** `loadHypothesisOntology()` calls
+> `hypoFile.delete()` whenever the flag is off, so a plain resubmit in the same
+> directory destroys the previous job's hypothesis before it starts. Copy
+> `results/ontologies/` aside if you are not certain.
+
+**Why the query cache is not enough on its own.** The cache makes the *questions*
+free but not the Java re-derivation, which is what fills the wall clock when
+nothing is waiting on the GPU: replaying a counterexample costs ~4.5 min against
+~7.9 min for a novel one. A 24 h job that starts with `C` counterexamples banked
+can therefore add only `(1440 − 4.5C)/7.9` more, which reaches zero at
+**C = 320** — against the ~381 that job 4110003's sampling rate puts a finished
+C2 run at. Chaining jobs without `resume=true` converges short of the finish
+line no matter how many jobs it gets.
+
+Read these lines to confirm a resume took:
+
+```
+RESUMING from results/ontologies/... (771 logical axioms, counterexamples=190 ...)
+  resumed at counterexample 190, 5201/10661 of the budget already spent
+```
+
+The axiom count must match the last `Checkpointed hypothesis` line of the run
+being continued, and the first new counterexample must be numbered 191, not 1.
+
+**What resume changes about the numbers.** The run's results then come from
+several jobs rather than one. The hypothesis and the sample stream are exact;
+the metrics totals (`membCount`, `equivCount`, the largest counterexample) are
+carried in the state file so the statistics still describe the whole run. A
+checkpoint written before those fields existed resumes fine but restarts its
+query counts from zero — the launcher prints a warning saying so.
 
 #### Repeats and confidence intervals
 

@@ -211,9 +211,15 @@ export EXACTLEARNER_BATCH_UNSATURATE="${EXACTLEARNER_BATCH_UNSATURATE:-true}"
 export EXACTLEARNER_ELK_UNLOCK="${EXACTLEARNER_ELK_UNLOCK:-true}"
 export EXACTLEARNER_ELK_UNLOCK_INTERVAL="${EXACTLEARNER_ELK_UNLOCK_INTERVAL:-2000}"
 
-# DRAFT, default OFF: never run on the cluster, and it changes what a run *is*,
-# not just its speed. Set, a job resumes from the previous one's checkpointed
-# hypothesis and sample position. Discuss with Baris before defaulting it on.
+# Default OFF, set with `resume=true`. It changes what a run *is*, not just its
+# speed -- the numbers then come from several jobs -- so it stays opt-in until
+# that is agreed, but C2 cannot finish without it: a 24 h job that starts with C
+# counterexamples banked in the cache can add only (1440 - 4.5C)/7.9 more, which
+# reaches zero at C = 320 against the ~381 a finished run needs.
+#
+# Set, the job continues from the previous one's checkpointed hypothesis, PAC
+# counter, sampler position and metrics totals -- all in results/ontologies/,
+# which is therefore NOT safe to wipe between jobs of the same run.
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 
 # The model name the learner files its cache and results under. Exported from the

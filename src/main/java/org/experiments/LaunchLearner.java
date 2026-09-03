@@ -272,15 +272,25 @@ public abstract class LaunchLearner {
     }
 
     /**
-     * DRAFT -- opt-in via EXACTLEARNER_RESUME, off by default, and not yet run
-     * on the cluster. Unset, this method is byte-identical to the original.
-     * See NEXT-SESSION.md for the questions this raises for the 18th.
+     * Opt-in via EXACTLEARNER_RESUME (scripts: `resume=true`), off by default.
+     * Unset, this method is byte-identical to the original.
      *
      * Set, a job continues from the hypothesis the previous one checkpointed
-     * instead of starting from empty. Job 4044683 reached 158 counterexamples
-     * in 23.6 h and threw all of it away at the walltime; without this, every
-     * future job spends its first 24 h re-deriving those same 158 before it can
-     * find anything new, and the run can never finish however many jobs it gets.
+     * instead of starting from empty, and restoreFromCheckpoint() puts the PAC
+     * counter, the sampler stream and the metrics totals back where they were.
+     *
+     * Why it is not optional for C2. Job 4044683 reached 158 counterexamples in
+     * 23.6 h and 4110003 reached 190 in 24 h; both discarded everything at the
+     * walltime. Resuming through the query cache alone does not rescue that:
+     * replay costs ~4.5 min per counterexample against ~7.9 min for a novel one,
+     * so a 24 h job that starts with C counterexamples banked can add only
+     * (1440 - 4.5C)/7.9 more, which reaches zero at C = 320 -- and 4110003's
+     * own sampling rate puts a finished C2 run at ~381. Without this, jobs
+     * repeat each other and the run cannot finish however many it gets.
+     *
+     * NOT YET VERIFIED ON THE CLUSTER. Try a deliberately short job first and
+     * check the RESUMING line's axiom count against the last checkpoint of the
+     * run being continued.
      */
     protected void loadHypothesisOntology() throws OWLOntologyCreationException, IOException {
         hypoFile = new File(ontologyFolderH);
@@ -343,10 +353,42 @@ public abstract class LaunchLearner {
         final long providedSamples;
         final long samplerDraws;
 
+        // Metrics totals. Carried because Metrics is rebuilt by setup() on every
+        // job, so without these a resumed run's statistics file reports only the
+        // segment that job happened to run -- a two-job C2 run would report the
+        // second job's few thousand membership queries and silently drop the
+        // first job's 50,000. The hypothesis resumes either way; this is about
+        // the numbers being reportable.
+        final int membCount;
+        final int equivCount;
+        final int largestCounterExample;
+
+        // False for a state file written before the three fields above existed
+        // -- job 4110003's is one. Such a checkpoint still resumes exactly; only
+        // its query totals restart from zero, and restoreFromCheckpoint() says
+        // so out loud rather than letting a short count pass for a measurement.
+        final boolean metricsPresent;
+
         RunState(int counterExamples, long providedSamples, long samplerDraws) {
+            this(counterExamples, providedSamples, samplerDraws, 0, 0, 0, false);
+        }
+
+        RunState(int counterExamples, long providedSamples, long samplerDraws,
+                 int membCount, int equivCount, int largestCounterExample) {
+            this(counterExamples, providedSamples, samplerDraws,
+                    membCount, equivCount, largestCounterExample, true);
+        }
+
+        private RunState(int counterExamples, long providedSamples, long samplerDraws,
+                         int membCount, int equivCount, int largestCounterExample,
+                         boolean metricsPresent) {
             this.counterExamples = counterExamples;
             this.providedSamples = providedSamples;
             this.samplerDraws = samplerDraws;
+            this.membCount = membCount;
+            this.equivCount = equivCount;
+            this.largestCounterExample = largestCounterExample;
+            this.metricsPresent = metricsPresent;
         }
 
         static RunState empty() {
@@ -360,10 +402,17 @@ public abstract class LaunchLearner {
             try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
                 Properties props = new Properties();
                 props.load(in);
+                // Read with defaults rather than rejected when the metrics keys
+                // are absent, so a checkpoint from an earlier job still resumes.
+                boolean hasMetrics = props.getProperty("membCount") != null;
                 return new RunState(
                         Integer.parseInt(props.getProperty("counterExamples", "0")),
                         Long.parseLong(props.getProperty("providedSamples", "0")),
-                        Long.parseLong(props.getProperty("samplerDraws", "0")));
+                        Long.parseLong(props.getProperty("samplerDraws", "0")),
+                        Integer.parseInt(props.getProperty("membCount", "0")),
+                        Integer.parseInt(props.getProperty("equivCount", "0")),
+                        Integer.parseInt(props.getProperty("largestCounterExample", "0")),
+                        hasMetrics);
             } catch (Exception e) {
                 // A hypothesis with no readable state file still resumes, it
                 // just restarts the sample stream. Say so rather than failing:
@@ -381,6 +430,9 @@ public abstract class LaunchLearner {
             props.setProperty("counterExamples", Integer.toString(counterExamples));
             props.setProperty("providedSamples", Long.toString(providedSamples));
             props.setProperty("samplerDraws", Long.toString(samplerDraws));
+            props.setProperty("membCount", Integer.toString(membCount));
+            props.setProperty("equivCount", Integer.toString(equivCount));
+            props.setProperty("largestCounterExample", Integer.toString(largestCounterExample));
             try (java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
                 props.store(out, "ExactLearner run state, written at each checkpoint");
             }
@@ -390,7 +442,9 @@ public abstract class LaunchLearner {
         public String toString() {
             return "counterexamples=" + counterExamples
                     + " providedSamples=" + providedSamples
-                    + " samplerDraws=" + samplerDraws;
+                    + " samplerDraws=" + samplerDraws
+                    + " membCount=" + membCount
+                    + " equivCount=" + equivCount;
         }
     }
 
@@ -553,7 +607,9 @@ public abstract class LaunchLearner {
             // for counterexamples the hypothesis does not actually contain.
             // Behind is harmless -- those samples get examined again, find
             // nothing, and cost only local reasoner time.
-            RunState state = new RunState(counterExampleNumber, providedSamples, samplerDraws());
+            RunState state = new RunState(counterExampleNumber, providedSamples, samplerDraws(),
+                    myMetrics.getMembCount(), myMetrics.getEquivCount(),
+                    myMetrics.getSizeOfLargestCounterExample());
             state.write(runStateFile());
 
             System.out.println("Checkpointed hypothesis after counterexample "
