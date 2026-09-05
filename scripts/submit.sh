@@ -131,6 +131,14 @@ elif [[ "$yml_model" != "$MODEL_NAME" ]]; then
   die "$CONFIG asks for \"$yml_model\" but $MODEL.env serves \"$MODEL_NAME\". That name is the cache key -- mixing them corrupts it."
 fi
 
+# One directory per config and model. Thirty repeats otherwise put ninety files
+# -- job log, server status, trace -- in one flat logs/, and the job log's name
+# says only the job id. Created here because sbatch does NOT create the --output
+# directory: it fails the job at launch instead, before anything is logged.
+LOG_DIR="logs/$(basename "$CONFIG" .yml)-$MODEL_NAME"
+mkdir -p "$LOG_DIR"
+export EXACTLEARNER_LOG_DIR="$LOG_DIR"
+
 # Absolute, and on the shared filesystem: the job may run from a spool copy of
 # run_experiment.sh, where a relative scripts/ does not resolve.
 RUN_ARGS_LIB="$SCRIPT_DIR/run_args.sh"
@@ -139,6 +147,7 @@ export EXACTLEARNER_ENV EXACTLEARNER_MODEL_ENV RUN_ARGS_LIB
 
 echo "$MODEL_NAME ($MODEL) | $CONFIG | ${GPUS} tp=${TENSOR_PARALLEL} batch=${EXACTLEARNER_BATCH_SIZE} time=${WALLTIME:-<script default>} mem=${MEMORY:-<script default>}"
 echo "$RUN_ARGS_SUMMARY"
+echo "logs -> $LOG_DIR/"
 
 # sbatch reads the #SBATCH directives inside run_experiment.sh before that script
 # executes, so account, GPUs and walltime can only be set from the command line.
@@ -148,6 +157,7 @@ submit_one() {
   sbatch --account="$SBATCH_ACCOUNT" --gpus-per-node="$GPUS" \
      ${WALLTIME:+--time="$WALLTIME"} \
      ${MEMORY:+--mem="$MEMORY"} \
+     --output="$LOG_DIR/%x-%j.log" \
      "${SBATCH_EXTRA[@]+"${SBATCH_EXTRA[@]}"}" \
      "$SCRIPT_DIR/run_experiment.sh" "$CONFIG" "$@"
 }

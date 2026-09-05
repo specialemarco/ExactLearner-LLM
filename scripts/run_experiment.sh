@@ -295,6 +295,11 @@ SERVER_ARGS=(--tensor-parallel-size "$TENSOR_PARALLEL"
 # statistics/ did, surfacing as "Model architectures ['Qwen2ForCausalLM'] failed
 # to be inspected". Cheap insurance. The Java process still runs from the root.
 REPO_DIR="$PWD"
+
+# One directory per config and model, so a batch of repeats does not bury the
+# folder. submit.sh sets and creates it; a bare sbatch keeps the flat logs/.
+LOG_DIR="${EXACTLEARNER_LOG_DIR:-logs}"
+mkdir -p "$LOG_DIR"
 SERVER_CWD="${SERVER_CWD:-${SCRATCH:-/tmp}/exactlearner-server-${SLURM_JOB_ID:-$$}}"
 mkdir -p "$SERVER_CWD"
 
@@ -305,8 +310,8 @@ mkdir -p "$SERVER_CWD"
 # an absolute path, or empty to disable either.
 # ${VAR-...} not ${VAR:-...}: only an UNSET variable takes the default, so
 # setting either to the empty string disables it.
-TRACE_FILE="${TRACE_FILE-$REPO_DIR/logs/traces-${SLURM_JOB_ID:-local}.jsonl}"
-STATUS_FILE="${STATUS_FILE-$REPO_DIR/logs/server-status-${SLURM_JOB_ID:-local}.json}"
+TRACE_FILE="${TRACE_FILE-$REPO_DIR/$LOG_DIR/traces-${SLURM_JOB_ID:-local}.jsonl}"
+STATUS_FILE="${STATUS_FILE-$REPO_DIR/$LOG_DIR/server-status-${SLURM_JOB_ID:-local}.json}"
 
 echo "Server CWD: $SERVER_CWD"
 [[ -n "$STATUS_FILE" ]] && echo "Status:     $STATUS_FILE"
@@ -413,9 +418,9 @@ done
 # collection at ~1.6% of wall clock, ruling it out. Both are opt-in now -- see
 # JFR=1 below and GC_LOG_DETAIL for the verbose form.
 JAVA_HEAP="${JAVA_HEAP:-64g}"
-GC_LOG="${GC_LOG:-logs/gc-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.log}"
-JFR_FILE="${JFR_FILE:-logs/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
-JFR_REPO="${JFR_REPO:-logs/jfr-repo-${SLURM_JOB_ID:-$$}}"
+GC_LOG="${GC_LOG:-$LOG_DIR/gc-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.log}"
+JFR_FILE="${JFR_FILE:-$LOG_DIR/jfr-${SLURM_JOB_NAME:-exactlearner}-${SLURM_JOB_ID:-$$}.jfr}"
+JFR_REPO="${JFR_REPO:-$LOG_DIR/jfr-repo-${SLURM_JOB_ID:-$$}}"
 mkdir -p "$(dirname "$GC_LOG")"
 
 # ParallelGCThreads: the 8 cores are shared with the model server and G1 sizes
