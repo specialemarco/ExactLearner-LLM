@@ -660,7 +660,11 @@ public class LaunchLLMLearner extends LaunchLearner {
             // Computes inclusions of the form A implies B
             learner.precomputation();
         } else {
-            System.out.println("SKIPPING precomputation() — the loop starts from an empty hypothesis.");
+            int startingAxioms = hypothesisOntology == null ? 0 : hypothesisOntology.getLogicalAxiomCount();
+            System.out.println("SKIPPING precomputation() — the loop starts from "
+                    + (startingAxioms == 0
+                            ? "an empty hypothesis."
+                            : "the resumed hypothesis (" + startingAxioms + " logical axioms)."));
         }
         Pac pac = new Pac(parser.getClasses().get(), parser.getObjectProperties(), epsilon, delta, hypothesisSize, seed);
         pac.setBudgetMode(Pac.budgetModeFromEnv());
