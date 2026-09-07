@@ -213,4 +213,152 @@ public class ABoxInducedSamplerTest {
         }
         assertEquals(200, sampler.getDraws());
     }
+
+    // ---- the weighting axis, added 2026-09-07 -------------------------------
+
+    /**
+     * One individual typed with all EIGHT base-set concepts, and eight typed with
+     * exactly one each. The weighted draw gives the rich one 2^8 = 256 against
+     * 2^1 = 2 apiece, so it wins 256/272 of the time; the uniform draw gives it
+     * 1 in 9. Only the rich individual can produce a premise of more than one
+     * concept, so the shape of the left-hand side reports which was drawn without
+     * the sampler having to expose it.
+     */
+    private static ABoxInducedSubsumptionSampler skewedSampler(
+            ABoxInducedSubsumptionSampler.Weighting weighting) throws Exception {
+        OWLOntologyManager manager = OWLManager.createOWLOntologyManager();
+        OWLDataFactory df = manager.getOWLDataFactory();
+        OWLOntology ont = manager.createOntology(iri("skewed"));
+        OWLNamedIndividual rich = df.getOWLNamedIndividual(iri("rich"));
+        Set<OWLClassExpression> baseSet = new LinkedHashSet<>();
+        for (int i = 0; i < 8; i++) {
+            OWLClass c = df.getOWLClass(iri("C" + i));
+            baseSet.add(c);
+            manager.addAxiom(ont, df.getOWLDeclarationAxiom(c));
+            manager.addAxiom(ont, df.getOWLClassAssertionAxiom(c, rich));
+            manager.addAxiom(ont, df.getOWLClassAssertionAxiom(c, df.getOWLNamedIndividual(iri("poor" + i))));
+        }
+        OWLReasoner reasoner = new ElkReasonerFactory().createReasoner(ont);
+        reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY, InferenceType.CLASS_ASSERTIONS);
+        return new ABoxInducedSubsumptionSampler(baseSet, reasoner, df, 0L, weighting);
+    }
+
+    /** Fraction of draws whose premise is a conjunction, i.e. came from `rich`. */
+    private static int conjunctivePremises(ABoxInducedSubsumptionSampler sampler, int draws) {
+        int n = 0;
+        for (int i = 0; i < draws; i++) {
+            if (sampler.sample().getSubClass() instanceof OWLObjectIntersectionOf) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * The whole point of the axis: the two modes really do draw the premise
+     * individual differently. Expected around 360 and around 43 out of 400; the
+     * bounds are loose enough that only a mode that stopped weighting (or started)
+     * can trip them.
+     */
+    @Test
+    public void theTwoModesDrawThePremiseIndividualDifferently() throws Exception {
+        int weighted = conjunctivePremises(
+                skewedSampler(ABoxInducedSubsumptionSampler.Weighting.WEIGHTED), 400);
+        int unweighted = conjunctivePremises(
+                skewedSampler(ABoxInducedSubsumptionSampler.Weighting.UNWEIGHTED), 400);
+
+        assertTrue(weighted > 300,
+                "weighted should almost always draw the 8-type individual, got " + weighted + "/400");
+        assertTrue(unweighted < 150,
+                "unweighted draws it 1 time in 9, got " + unweighted + "/400");
+    }
+
+    /** Unweighted is still the same seeded stream, not ThreadLocalRandom. */
+    @Test
+    public void unweightedIsReproducibleUnderOneSeed() throws Exception {
+        assertEquals(
+                conjunctivePremises(skewedSampler(ABoxInducedSubsumptionSampler.Weighting.UNWEIGHTED), 200),
+                conjunctivePremises(skewedSampler(ABoxInducedSubsumptionSampler.Weighting.UNWEIGHTED), 200));
+    }
+
+    /** Weighted stays the default, so no existing run changes arm by accident. */
+    @Test
+    public void theSeededConstructorsStillMeanWeighted() throws Exception {
+        assertEquals(ABoxInducedSubsumptionSampler.Weighting.WEIGHTED,
+                samplerFor(ontology(true)).weighting());
+    }
+
+    /**
+     * UNWEIGHTED draws from the whole signature, untyped individuals included,
+     * because paclo's ABoxInducedSubsumptionSampler does: its `individuals` array
+     * is getIndividualsInSignature() and its premise loop is guarded by
+     * individualTypes.containsKey(ind), so an untyped draw leaves the premise
+     * empty and the axiom reads owl:Thing SubClassOf X.
+     *
+     * This test exists because that is easy to mistake for a bug and "fix" --
+     * an earlier version of this file did exactly that, restricting UNWEIGHTED to
+     * typed individuals to keep the arms differing in one thing. It made the arm
+     * something upstream has no counterpart for. With 1 typed individual against
+     * 20 untyped, roughly 95% of draws must be Top here; WEIGHTED, over the same
+     * ontology, must be 0%.
+     */
+    @Test
+    public void unweightedDrawsUntypedIndividualsJustAsPacloDoes() throws Exception {
+        OWLOntologyManager manager = OWLManager.createOWLOntologyManager();
+        OWLDataFactory df = manager.getOWLDataFactory();
+        OWLOntology ont = manager.createOntology(iri("untyped"));
+        OWLNamedIndividual typed = df.getOWLNamedIndividual(iri("typed"));
+
+        // Five base-set concepts, four of them on the one typed individual, so a
+        // typed draw empties the premise only 1 time in 16. Without that the
+        // p=0.5 filter alone would produce Tops often enough to blur the two arms.
+        Set<OWLClassExpression> baseSet = new LinkedHashSet<>();
+        for (int i = 0; i < 5; i++) {
+            OWLClass c = df.getOWLClass(iri("C" + i));
+            baseSet.add(c);
+            manager.addAxiom(ont, df.getOWLDeclarationAxiom(c));
+            if (i < 4) {
+                manager.addAxiom(ont, df.getOWLClassAssertionAxiom(c, typed));
+            }
+        }
+        // 20 individuals with no base-set type at all, in the signature only
+        // because a role assertion mentions them.
+        OWLObjectProperty r = df.getOWLObjectProperty(iri("r"));
+        for (int i = 0; i < 20; i++) {
+            manager.addAxiom(ont, df.getOWLObjectPropertyAssertionAxiom(
+                    r, typed, df.getOWLNamedIndividual(iri("bare" + i))));
+        }
+
+        OWLReasoner reasoner = new ElkReasonerFactory().createReasoner(ont);
+        reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY, InferenceType.CLASS_ASSERTIONS);
+
+        ABoxInducedSubsumptionSampler unweighted = new ABoxInducedSubsumptionSampler(
+                baseSet, reasoner, df, 0L, ABoxInducedSubsumptionSampler.Weighting.UNWEIGHTED);
+        ABoxInducedSubsumptionSampler weighted = new ABoxInducedSubsumptionSampler(
+                baseSet, reasoner, df, 0L, ABoxInducedSubsumptionSampler.Weighting.WEIGHTED);
+
+        assertEquals(1, unweighted.typedIndividualCount(), "one individual has base-set types");
+        assertEquals(21, unweighted.premisePopulationSize(),
+                "the plain sampler draws from the whole signature, untyped included");
+        assertEquals(1, weighted.premisePopulationSize(),
+                "the weighted one draws only from the typed individuals");
+
+        // ~95% against ~6%: 20 draws in 21 land on an untyped individual and
+        // leave the premise empty, which the weighted arm cannot do at all.
+        assertTrue(tops(unweighted, 400) > 300,
+                "unweighted must reach the untyped individuals");
+        assertTrue(tops(weighted, 400) < 100,
+                "weighted must not: its population is the typed individual alone");
+    }
+
+    /** Draws whose left-hand side degenerated to owl:Thing, i.e. an empty premise. */
+    private static int tops(ABoxInducedSubsumptionSampler sampler, int draws) {
+        int n = 0;
+        for (int i = 0; i < draws; i++) {
+            if (sampler.sample().getSubClass().isOWLThing()) {
+                n++;
+            }
+        }
+        return n;
+    }
 }

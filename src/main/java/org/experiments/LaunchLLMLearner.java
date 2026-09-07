@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static org.utility.StatsPrinter.*;
@@ -217,6 +218,16 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
         System.out.println("skipPrecomputation = " + skipPrecomputation);
         System.out.println("evaluateAfterRun = " + evaluateAfterRun);
+        // Printed by both arms, and checked here rather than at first use: an
+        // EXACTLEARNER_SAMPLER the launcher class cannot honour has to fail
+        // before the model is loaded, not two hours into the loop.
+        System.out.println("sampler = " + samplerArm() + " (" + SAMPLER_ENV + ")");
+        if (samplerArm() != SamplerArm.PAC && !(this instanceof LaunchLLMLearnerAInduced)) {
+            throw new IllegalStateException(SAMPLER_ENV + "=" + samplerArm()
+                    + " needs org.experiments.LaunchLLMLearnerAInduced, but this run is "
+                    + getClass().getName() + ". run_experiment.sh picks the class from"
+                    + " sampler=; a bare java invocation has to pick it too.");
+        }
         // Recorded in the log because a warm cache is invisible in the timings
         // otherwise, and it is the first thing to check before believing them.
         System.out.println("cache = " + cachePath() + (CACHE_EXISTED ? " (existing)" : " (new, cold)"));
@@ -268,6 +279,59 @@ public class LaunchLLMLearner extends LaunchLearner {
         } catch (NumberFormatException e) {
             System.out.println("Ignoring " + PAC_SEED_ENV + "=" + raw + " (not a number), using 0");
             return 0;
+        }
+    }
+
+    /**
+     * Which candidate sampler the equivalence-query loop draws from. The fourth
+     * experiment axis, added 2026-09-07 beside precomputation / sampler /
+     * evaluation: scripts/run_args.sh's `sampler=` sets it.
+     *
+     *   pac         Pac.getRandomStatement() -- uniform over the statement
+     *               space built from the signature, never looks at the ABox
+     *   weighted    ABoxInducedSubsumptionSampler, premise individual drawn
+     *               proportionally to 2^|C(a,K0)|  (what every run so far used)
+     *   unweighted  the same sampler, premise individual drawn uniformly
+     *
+     * Unset means the launcher class's own default, so the two production
+     * invocations are unchanged. See ABoxInducedSubsumptionSampler.Weighting
+     * for what the last two do and do not share.
+     */
+    public static final String SAMPLER_ENV = "EXACTLEARNER_SAMPLER";
+
+    public enum SamplerArm { PAC, WEIGHTED, UNWEIGHTED }
+
+    private SamplerArm samplerArm = null;
+
+    /** The arm this launcher class runs when SAMPLER_ENV is unset. */
+    protected SamplerArm defaultSamplerArm() {
+        return SamplerArm.PAC;
+    }
+
+    /**
+     * Deliberately throws on an unrecognised value rather than defaulting.
+     * run_args.sh validates first, so reaching here means the variable was set
+     * by hand -- and the failure mode this guards against is a 24 h job that
+     * quietly runs a different arm than the one asked for.
+     */
+    protected SamplerArm samplerArm() {
+        if (samplerArm != null) {
+            return samplerArm;
+        }
+        String raw = System.getenv(SAMPLER_ENV);
+        if (raw == null || raw.isBlank()) {
+            return samplerArm = defaultSamplerArm();
+        }
+        switch (raw.trim().toLowerCase(Locale.ROOT)) {
+            case "pac": case "uniform":
+                return samplerArm = SamplerArm.PAC;
+            case "weighted": case "abox": case "abox-weighted":
+                return samplerArm = SamplerArm.WEIGHTED;
+            case "unweighted": case "abox-unweighted": case "plain":
+                return samplerArm = SamplerArm.UNWEIGHTED;
+            default:
+                throw new IllegalArgumentException(SAMPLER_ENV + "=" + raw
+                        + " is not a sampler. Expected pac, weighted or unweighted.");
         }
     }
 

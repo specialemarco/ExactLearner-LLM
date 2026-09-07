@@ -27,6 +27,7 @@
 #   precomp=true       run learner.precomputation() before the loop
 #   eval=baris|none    Macro/Micro Precision/Recall after the loop
 #   budget=global      or per-round -- see MEETING-2026-08-18.md section 8
+#   sampler=weighted   or unweighted (both ABox-induced), or pac (uniform)
 #   resume=false       continue from the previous job's checkpointed hypothesis
 #   seed=0             A-induced sampler
 #   pacseed=0          uniform PAC sampler
@@ -40,9 +41,21 @@
 # precomp=false means skip it. eval names the evaluator rather than saying true,
 # because "baris" is what the report is called; none turns it off.
 #
+# sampler names the candidate source in the equivalence-query loop, the fourth
+# axis. weighted (the default, and every run before 2026-09-07) and unweighted are
+# paclo's two ABox-induced samplers -- WeightedABoxInducedSubsumptionSampler and
+# ABoxInducedSubsumptionSampler. weighted draws the premise individual from the
+# typed individuals with probability proportional to 2^|types|; unweighted draws
+# uniformly from every individual in the signature, so untyped ones give an empty
+# premise (owl:Thing on the left), which is what the plain sampler does. pac is
+# the uniform sampler over the signature, which never looks at the ABox.
+# run_experiment.sh turns this into the launcher class, since the class is what
+# the arm has always been.
+#
 # Sets: EPSILON, DELTA, LEARNER_FLAG_ARGS (the trailing argv for the launcher),
 # RUN_ARGS_SUMMARY (what was asked for, echoed back), and exports
-# EXACTLEARNER_BUDGET_MODE / _SAMPLER_SEED / _PAC_SEED / _RESUME when given.
+# EXACTLEARNER_BUDGET_MODE / _SAMPLER / _SAMPLER_SEED / _PAC_SEED / _RESUME
+# when given.
 
 CONFIG_DIR="src/main/java/org/configurations/experiments"
 
@@ -132,6 +145,18 @@ parse_run_args() {
         # which deletes the very checkpoint it was asked to continue from.
         resume="$(parse_run_bool "$key" "$value")"
         ;;
+      sampler)
+        # Normalised here so the Java side and the class selection in
+        # run_experiment.sh both see one spelling. abox is accepted as a synonym
+        # for weighted because that is what the logs and MEETING notes call the
+        # arm, and plain for unweighted because that is paclo's name for it.
+        case "$(run_args_lower "$value")" in
+          weighted|abox|abox-weighted)   export EXACTLEARNER_SAMPLER=weighted ;;
+          unweighted|abox-unweighted|plain) export EXACTLEARNER_SAMPLER=unweighted ;;
+          pac|uniform)                   export EXACTLEARNER_SAMPLER=pac ;;
+          *) die "sampler=$value: expected weighted, unweighted or pac" ;;
+        esac
+        ;;
       seed)    parse_run_int "$key" "$value"; export EXACTLEARNER_SAMPLER_SEED="$value" ;;
       pacseed) parse_run_int "$key" "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
       repeats)
@@ -178,6 +203,7 @@ parse_run_args() {
   [[ -n "$precomp"  ]] && RUN_ARGS_SUMMARY+=" precomp=$precomp"
   [[ "$evaluate" == true  ]] && RUN_ARGS_SUMMARY+=" eval=baris"
   [[ "$evaluate" == false ]] && RUN_ARGS_SUMMARY+=" eval=none"
+  [[ -n "${EXACTLEARNER_SAMPLER:-}"      ]] && RUN_ARGS_SUMMARY+=" sampler=$EXACTLEARNER_SAMPLER"
   [[ -n "${EXACTLEARNER_BUDGET_MODE:-}"  ]] && RUN_ARGS_SUMMARY+=" budget=$EXACTLEARNER_BUDGET_MODE"
   [[ -n "${EXACTLEARNER_RESUME:-}"       ]] && RUN_ARGS_SUMMARY+=" resume=$EXACTLEARNER_RESUME"
   [[ -n "${EXACTLEARNER_SAMPLER_SEED:-}" ]] && RUN_ARGS_SUMMARY+=" seed=$EXACTLEARNER_SAMPLER_SEED"
@@ -186,7 +212,7 @@ parse_run_args() {
   return 0
 }
 
-RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
+RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> sampler=weighted|unweighted|pac budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
 
 # Called by run_experiment.sh only, once the job id is known. cache=fresh gets a
 # file of its own per job, so the run pays for every query it asks and its timings

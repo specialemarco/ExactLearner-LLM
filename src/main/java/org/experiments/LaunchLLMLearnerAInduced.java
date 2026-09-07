@@ -19,7 +19,9 @@ import org.experiments.workload.BatchPrewarmer;
  * The A-induced arm: the candidate axioms in the equivalence-query loop come
  * from ABoxInducedSubsumptionSampler, which draws them grounded in the ABox of
  * the OWL2Bench ontology, rather than from the uniform PAC sampler. That single
- * substitution is what this class is for; everything downstream of it -- the
+ * substitution is what this class is for. Which of the sampler's two premise
+ * draws it uses -- weighted or unweighted -- is EXACTLEARNER_SAMPLER, the axis
+ * added 2026-09-07; see LaunchLLMLearner.SAMPLER_ENV. Everything downstream of it -- the
  * entailment checks, getCounterExampleSubClassOf(), Learner.decompose() -- is
  * inherited untouched, and so are run(), the loop itself and the resume path.
  *
@@ -89,6 +91,24 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         }
     }
 
+    /**
+     * This class is the ABox-induced arm, so an unset EXACTLEARNER_SAMPLER means
+     * the weighted sampler -- what every run before 2026-09-07 used. sampler=pac
+     * is still honoured here (getCounterExample falls straight through to the
+     * inherited uniform loop) so that a hand-run java invocation of this class
+     * cannot silently contradict the variable.
+     */
+    @Override
+    protected SamplerArm defaultSamplerArm() {
+        return SamplerArm.WEIGHTED;
+    }
+
+    private ABoxInducedSubsumptionSampler.Weighting samplerWeighting() {
+        return samplerArm() == SamplerArm.UNWEIGHTED
+                ? ABoxInducedSubsumptionSampler.Weighting.UNWEIGHTED
+                : ABoxInducedSubsumptionSampler.Weighting.WEIGHTED;
+    }
+
     public static void main(String[] args) {
         LogManager.getRootLogger().atLevel(Level.OFF);
         new LaunchLLMLearnerAInduced().run(args);
@@ -105,9 +125,18 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         evaluateAfterRun = true;
     }
 
+    /**
+     * " (A-induced)" for the weighted arm is the string every log so far
+     * carries and LauncherFlagMatrixTest pins, so it stays exactly that; only
+     * the two arms added on 2026-09-07 say more.
+     */
     @Override
     protected String experimentLabel() {
-        return " (A-induced)";
+        switch (samplerArm()) {
+            case PAC:        return " (uniform PAC, via the A-induced launcher)";
+            case UNWEIGHTED: return " (A-induced, unweighted)";
+            default:         return " (A-induced)";
+        }
     }
 
     /**
@@ -167,6 +196,9 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      */
     @Override
     protected OWLSubClassOfAxiom getCounterExample(Pac pac) throws Exception {
+        if (samplerArm() == SamplerArm.PAC) {
+            return super.getCounterExample(pac);
+        }
         if (aboxSampler == null) {
             initAboxSampler();
             if (aboxSampler == null) {
@@ -328,21 +360,33 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      * individual carries a base-set type -- see checkSamplerIsUsable().
      */
     private void initAboxSampler() throws Exception {
+        // sampler=pac reaches here only through restoreSamplerPosition(), whose
+        // checkpointed draw count is 0 for that arm anyway.
+        if (samplerArm() == SamplerArm.PAC) {
+            return;
+        }
         PacloDataset dataset = pacloDataset();
         if (dataset == null) {
             return;
         }
         long seed = samplerSeed();
         aboxSampler = new ABoxInducedSubsumptionSampler(
-                dataset.baseSet(), dataset.initialReasoner(), OWLManager.getOWLDataFactory(), seed);
+                dataset.baseSet(), dataset.initialReasoner(), OWLManager.getOWLDataFactory(),
+                seed, samplerWeighting());
         checkSamplerIsUsable(dataset);
         // One line that answers both "which arm ran" and "which base set", so
         // neither has to be inferred from where other lines sit in the log. The
         // "PACLO dataset" line above is printed by whichever arm loads the
         // dataset; this one prints only for A-induced, and only once the sampler
         // is built and has passed the check above.
-        System.out.println("A-induced sampler ready: baseSet " + dataset.baseSet().size()
-                + ", " + aboxSampler.typedIndividualCount() + " typed individuals, seed " + seed
+        // Both counts, because the two arms draw from different populations:
+        // WEIGHTED from the typed individuals, UNWEIGHTED from the whole
+        // signature. Printing only one would misreport whichever arm is running.
+        System.out.println("A-induced sampler ready: " + aboxSampler.weighting()
+                + " premise draw over " + aboxSampler.premisePopulationSize() + " individuals"
+                + " (" + aboxSampler.typedIndividualCount() + " typed of "
+                + aboxSampler.instanceUniverseSize() + " in the signature)"
+                + ", baseSet " + dataset.baseSet().size() + ", seed " + seed
                 + " (set " + SAMPLER_SEED_ENV + " to vary it across repeats)");
     }
 

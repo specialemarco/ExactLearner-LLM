@@ -74,7 +74,7 @@ An experiment varies three things, and they are independent of each other:
 | Axis | When it happens | Selected by |
 |---|---|---|
 | **precomputation** | *before* the learning loop | `precomp=` flag (Java: `skipPrecomputation`) |
-| **sampler** | *inside* the loop | which launcher class you run |
+| **sampler** | *inside* the loop | `sampler=` flag (which picks the launcher class) |
 | **evaluation** | *after* the loop | `eval=` flag (Java: `evaluateAfterRun`) |
 
 There used to be four launcher classes, two of which existed only to flip one
@@ -93,8 +93,8 @@ the flags reproduce exactly what the deleted classes hard-coded.
 
 | Class | Sampler | Default `precomp` | Default `eval` |
 |---|---|---|---|
-| `org.experiments.LaunchLLMLearner` | uniform PAC | on | off |
-| `org.experiments.LaunchLLMLearnerAInduced` | ABox-induced (PACLO) | on | on |
+| `org.experiments.LaunchLLMLearner` | uniform PAC (`sampler=pac`) | on | off |
+| `org.experiments.LaunchLLMLearnerAInduced` | ABox-induced, PACLO (`sampler=weighted\|unweighted`) | on | on |
 | `org.experiments.LaunchExactLearner` | synthetic teacher (no LLM) | — | — |
 
 `LaunchLLMLearnerAInduced` needs `initialOntology.owl` and `baseSet` beside the
@@ -141,6 +141,7 @@ Everything after the config is `name=value`, in any order, all optional:
 | `precomp=true\|false` | run `learner.precomputation()` before the loop |
 | `eval=baris\|none` | Macro/Micro Precision/Recall after the loop |
 | `cache=shared\|fresh\|<path>` | query cache; `fresh` gives the job its own file |
+| `sampler=weighted\|unweighted\|pac` | where the loop's candidate axioms come from (default `weighted`) |
 | `budget=global\|per-round` | how the PAC sample budget is spent |
 | `resume=true\|false` | continue from the previous job's checkpoint (default off) |
 | `seed=N` `pacseed=N` | A-induced sampler seed, uniform PAC sampler seed |
@@ -158,7 +159,56 @@ scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=true
 
 # a run whose timings must stand alone: its own cache, so it pays for every query
 scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false cache=fresh
+
+# the sampler axis: the same experiment under each of the three candidate sources
+scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false sampler=weighted
+scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false sampler=unweighted
+scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false sampler=pac
 ```
+
+#### The three samplers
+
+`weighted` and `unweighted` are [paclo](https://github.com/sertkaya/paclo)'s two
+ABox-induced samplers, ported into one class and selected by the flag:
+
+| `sampler=` | paclo class | Premise individual drawn from |
+|---|---|---|
+| `weighted` (default) | `WeightedABoxInducedSubsumptionSampler` | individuals with ≥1 base-set type, with probability ∝ 2^\|C(a,K₀)\| |
+| `unweighted` | `ABoxInducedSubsumptionSampler` | **every** individual in the signature, uniformly |
+| `pac` | — (`Pac.getRandomStatement()`) | nothing; it samples the signature, never the ABox |
+
+The two ABox arms differ in the population as well as the weights, because
+upstream does. Under `unweighted`, drawing an untyped individual leaves the
+premise empty, so the candidate is `owl:Thing ⊑ X` — that is the plain sampler's
+behaviour, not a defect, and it is the reason the weighted one exists. Expect a
+large share of `⊤` premises on a dataset where most individuals carry no
+base-set type.
+
+What they *do* share: the p=0.5 filter on the drawn individual's types, the
+strict-subset retry, and the rarity weighting of the conclusion. One thing is
+deliberately **not** reproduced — paclo's plain class indexes its conclusion
+weights by position in a `HashSet` difference while the counts are indexed by
+position in the base set, so the weight applied to a concept is another
+concept's. Both upstream classes intend the same quantity and the weighted one
+keys it correctly; reproducing the misalignment would make the arms differ in a
+second, accidental way. See the `Weighting` javadoc in
+`src/main/java/org/sampler/ABoxInducedSubsumptionSampler.java`.
+
+Also not ported: upstream's `uniformConclusions` constructor flag, present on
+both classes, which replaces the rarity weighting with a uniform pick. That is a
+third axis and nothing asks for it yet.
+
+Two caveats when comparing against `sampler=pac`:
+
+- It is a different launcher class, and only the A-induced one batches its
+  candidates (`EXACTLEARNER_BATCH_SIZE` prompts per LLM call). A `pac` run
+  queries one at a time and is much slower per sample. That is the arm, not a
+  regression.
+- Its randomness is `pacseed=`, not `seed=` — the two streams are independent.
+
+Outputs are kept apart automatically: a non-default arm puts its own name in
+`EXACTLEARNER_RUN_TAG` and in the log folder, so `sampler=unweighted seed=3`
+does not overwrite `sampler=weighted seed=3` in `results/ontologies/`.
 
 `scripts/run_args.sh` is the parser and the reference. Both `submit.sh` and the
 job source it, so a misspelled parameter fails at submission rather than 20

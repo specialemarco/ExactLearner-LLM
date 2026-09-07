@@ -14,7 +14,7 @@
 # A path that exists is used as given.
 #
 # The run parameters are name=value in any order and all optional -- eps, delta,
-# precomp, eval, budget, seed, pacseed, repeats. scripts/run_args.sh documents them
+# precomp, eval, sampler, budget, seed, pacseed, repeats. scripts/run_args.sh documents them
 # and is sourced here as well as in the job, so a typo fails now rather than after
 # the model has loaded on a compute node.
 #
@@ -135,7 +135,16 @@ fi
 # -- job log, server status, trace -- in one flat logs/, and the job log's name
 # says only the job id. Created here because sbatch does NOT create the --output
 # directory: it fails the job at launch instead, before anything is logged.
-LOG_DIR="logs/$(basename "$CONFIG" .yml)-$MODEL_NAME"
+# The arm joins the log folder and the run tag below, but ONLY when it is not
+# the weighted default -- so every path a run produced before 2026-09-07 is
+# byte-for-byte the path it produced then, and the new arms land beside those
+# rather than on top of them. The collision is real and silent: results/ontologies/
+# is keyed by (dataset, run tag), not by sampler, so weighted and unweighted at
+# one seed would otherwise write the same hypothesis, trajectory and run-state.
+ARM_TAG=""
+[[ "${EXACTLEARNER_SAMPLER:-weighted}" == weighted ]] || ARM_TAG="${EXACTLEARNER_SAMPLER}"
+
+LOG_DIR="logs/$(basename "$CONFIG" .yml)-$MODEL_NAME${ARM_TAG:+-$ARM_TAG}"
 mkdir -p "$LOG_DIR"
 export EXACTLEARNER_LOG_DIR="$LOG_DIR"
 
@@ -199,7 +208,7 @@ for (( i = 0; i < REPEATS; i++ )); do
   pacseed=$(( base_pac + i ))
   # Exported, not passed: sbatch forwards the submitting environment, and the
   # launcher reads this rather than taking it as an argument.
-  export EXACTLEARNER_RUN_TAG="seed${seed}"
+  export EXACTLEARNER_RUN_TAG="${ARM_TAG:+${ARM_TAG}-}seed${seed}"
   # Appended after "$@", so these win over any seed= the user also gave -- that
   # one is the base the repeats count up from, not a value to apply to each.
   printf '  seed=%s pacseed=%s tag=%s -> ' "$seed" "$pacseed" "$EXACTLEARNER_RUN_TAG"

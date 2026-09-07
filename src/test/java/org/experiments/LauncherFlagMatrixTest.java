@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -76,6 +77,79 @@ public class LauncherFlagMatrixTest {
         assertTrue(launcher.evaluateAfterRun, "evaluation stays on");
         assertEquals(0.2, launcher.epsilon, 0.0);
         assertEquals(0.1, launcher.delta, 0.0);
+    }
+
+    // ---- the sampler axis, added 2026-09-07 --------------------------------
+    //
+    // These pin samplerArm() by override rather than by setting
+    // EXACTLEARNER_SAMPLER, so the assertions say what the arm is regardless of
+    // what the developer's shell happens to export. The three tests above that
+    // call parseExperimentArgs() on the real classes do read the environment,
+    // deliberately: they are the ones asserting the DEFAULTS.
+
+    private static LaunchLLMLearner uniformLauncherClaiming(LaunchLLMLearner.SamplerArm arm) {
+        return new LaunchLLMLearner() {
+            @Override
+            protected SamplerArm samplerArm() {
+                return arm;
+            }
+        };
+    }
+
+    @Test
+    public void eachLauncherClassDefaultsToItsOwnSampler() {
+        assertEquals(LaunchLLMLearner.SamplerArm.PAC,
+                new LaunchLLMLearner().defaultSamplerArm());
+        assertEquals(LaunchLLMLearner.SamplerArm.WEIGHTED,
+                new LaunchLLMLearnerAInduced().defaultSamplerArm(),
+                "an unset EXACTLEARNER_SAMPLER must keep running what every run so far ran");
+    }
+
+    /**
+     * run_experiment.sh maps sampler= to the launcher class, so the two can only
+     * disagree in a hand-written java invocation. That has to fail before the
+     * model loads rather than run the wrong arm for 24 hours.
+     */
+    @Test
+    public void anAboxArmOnTheUniformLauncherIsRefused() {
+        for (LaunchLLMLearner.SamplerArm arm : new LaunchLLMLearner.SamplerArm[] {
+                LaunchLLMLearner.SamplerArm.WEIGHTED, LaunchLLMLearner.SamplerArm.UNWEIGHTED }) {
+            LaunchLLMLearner launcher = uniformLauncherClaiming(arm);
+            assertThrows(IllegalStateException.class,
+                    () -> launcher.parseExperimentArgs(args("0.2", "0.1")),
+                    arm + " cannot run on LaunchLLMLearner");
+        }
+    }
+
+    /** The reverse direction is fine: the A-induced launcher can run uniform PAC. */
+    @Test
+    public void theAInducedLauncherAcceptsThePacArm() {
+        LaunchLLMLearnerAInduced launcher = new LaunchLLMLearnerAInduced() {
+            @Override
+            protected SamplerArm samplerArm() {
+                return SamplerArm.PAC;
+            }
+        };
+        launcher.parseExperimentArgs(args("0.2", "0.1"));
+        assertEquals(" (uniform PAC, via the A-induced launcher)", launcher.experimentLabel());
+    }
+
+    /** The banner names the arm, and the weighted one keeps the string the logs have. */
+    @Test
+    public void theLabelNamesTheArm() {
+        assertEquals(" (A-induced)", new LaunchLLMLearnerAInduced() {
+            @Override
+            protected SamplerArm samplerArm() {
+                return SamplerArm.WEIGHTED;
+            }
+        }.experimentLabel());
+
+        assertEquals(" (A-induced, unweighted)", new LaunchLLMLearnerAInduced() {
+            @Override
+            protected SamplerArm samplerArm() {
+                return SamplerArm.UNWEIGHTED;
+            }
+        }.experimentLabel());
     }
 
     /** The axes must not interfere: precomputation off must not disable evaluation. */

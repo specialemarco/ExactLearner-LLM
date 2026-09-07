@@ -241,6 +241,29 @@ export EXACTLEARNER_MODEL="${EXACTLEARNER_MODEL:-${MODEL_NAME:-}}"
 export EXACTLEARNER_SAMPLER_SEED="${EXACTLEARNER_SAMPLER_SEED:-0}"
 export EXACTLEARNER_PAC_SEED="${EXACTLEARNER_PAC_SEED:-0}"
 
+# Which sampler feeds the equivalence-query loop. Defaults to weighted, which is
+# the sampler every run before 2026-09-07 used, so leaving it alone reproduces
+# them. Set with `sampler=` (scripts/run_args.sh), which validates the spelling.
+#
+# The arm has always been the launcher CLASS -- see the axes comment in
+# LaunchLLMLearner.java -- so that is what this picks, rather than adding a
+# second mechanism. weighted and unweighted are paclo's two ABox-induced
+# samplers, one class here and selected by EXACTLEARNER_SAMPLER, which
+# LaunchLLMLearnerAInduced reads; pac is the parent class, whose loop has always
+# drawn from Pac.getRandomStatement().
+#
+# The classes are NOT interchangeable beyond the sampler: only the A-induced one
+# batches its candidates (EXACTLEARNER_BATCH_SIZE prompts per LLM call), so a pac
+# run issues one query at a time and is far slower per sample. That is a property
+# of the arm, not a regression -- do not read it as the sampler being slow.
+export EXACTLEARNER_SAMPLER="${EXACTLEARNER_SAMPLER:-weighted}"
+case "$EXACTLEARNER_SAMPLER" in
+  weighted|unweighted) LEARNER_MAIN_CLASS=org.experiments.LaunchLLMLearnerAInduced ;;
+  pac)                 LEARNER_MAIN_CLASS=org.experiments.LaunchLLMLearner ;;
+  *) die "EXACTLEARNER_SAMPLER=$EXACTLEARNER_SAMPLER: expected weighted, unweighted or pac.
+       Set it with sampler= rather than by hand, so the spelling is checked at submission." ;;
+esac
+
 # Which reading of the PAC sampling budget the loop enforces. "global" (the
 # default, and what every run so far has used) spends one pot of numberOfSamples
 # candidates across the WHOLE run, so termination is guaranteed but the final
@@ -261,7 +284,13 @@ if [[ "${REPEATS:-1}" -gt 1 ]]; then
 fi
 
 # Names this repeat's outputs; empty for an ordinary single run, which then keeps
-# the filenames it has always had.
+# the filenames it has always had. submit.sh sets it per repeat; the default here
+# covers a bare `sbatch run_experiment.sh <config> sampler=unweighted`, which
+# would otherwise overwrite the weighted arm's hypothesis and run-state in
+# results/ontologies/ -- those are keyed by dataset and tag, not by sampler.
+if [[ -z "${EXACTLEARNER_RUN_TAG:-}" && "$EXACTLEARNER_SAMPLER" != weighted ]]; then
+  EXACTLEARNER_RUN_TAG="$EXACTLEARNER_SAMPLER"
+fi
 export EXACTLEARNER_RUN_TAG="${EXACTLEARNER_RUN_TAG:-}"
 
 echo "Model: $EXACTLEARNER_MODEL (weights: $MODEL_PATH)"
@@ -270,6 +299,7 @@ if [[ -n "$EXACTLEARNER_RUN_TAG" ]]; then
 fi
 echo "Run parameters: $RUN_ARGS_SUMMARY"
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
+echo "Sampler: $EXACTLEARNER_SAMPLER ($LEARNER_MAIN_CLASS)"
 echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE"
 echo "Seeds: sampler=$EXACTLEARNER_SAMPLER_SEED pac=$EXACTLEARNER_PAC_SEED"
 echo "ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"
@@ -470,6 +500,6 @@ echo "JVM: heap=$JAVA_HEAP gc-log=$GC_LOG detail=${GC_LOG_DETAIL:-0} jfr=${JFR:-
 # would try to fetch it and fail on a compute node with no network.
 echo "Starting learner at $(date)"
 java "${JAVA_OPTS[@]}" -cp "target/classes:$(cat cp.txt)" \
-  org.experiments.LaunchLLMLearnerAInduced "${LEARNER_ARGS[@]}"
+  "$LEARNER_MAIN_CLASS" "${LEARNER_ARGS[@]}"
 
 echo "Finished at $(date)"
