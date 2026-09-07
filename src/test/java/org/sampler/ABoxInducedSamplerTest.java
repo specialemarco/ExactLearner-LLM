@@ -217,12 +217,10 @@ public class ABoxInducedSamplerTest {
     // ---- the weighting axis, added 2026-09-07 -------------------------------
 
     /**
-     * One individual typed with all EIGHT base-set concepts, and eight typed with
-     * exactly one each. The weighted draw gives the rich one 2^8 = 256 against
-     * 2^1 = 2 apiece, so it wins 256/272 of the time; the uniform draw gives it
-     * 1 in 9. Only the rich individual can produce a premise of more than one
-     * concept, so the shape of the left-hand side reports which was drawn without
-     * the sampler having to expose it.
+     * One individual typed with all eight base-set concepts against eight typed
+     * with one each: weighted gives the rich one 2^8 against 2^1 apiece, so
+     * 256/272 of draws; uniform gives it 1 in 9. Only it can produce a premise of
+     * more than one concept, so the left-hand side reports which was drawn.
      */
     private static ABoxInducedSubsumptionSampler skewedSampler(
             ABoxInducedSubsumptionSampler.Weighting weighting) throws Exception {
@@ -254,12 +252,7 @@ public class ABoxInducedSamplerTest {
         return n;
     }
 
-    /**
-     * The whole point of the axis: the two modes really do draw the premise
-     * individual differently. Expected around 360 and around 43 out of 400; the
-     * bounds are loose enough that only a mode that stopped weighting (or started)
-     * can trip them.
-     */
+    /** Expected ~360 and ~43 of 400; only a mode that stopped weighting trips these. */
     @Test
     public void theTwoModesDrawThePremiseIndividualDifferently() throws Exception {
         int weighted = conjunctivePremises(
@@ -290,17 +283,10 @@ public class ABoxInducedSamplerTest {
 
     /**
      * UNWEIGHTED draws from the whole signature, untyped individuals included,
-     * because paclo's ABoxInducedSubsumptionSampler does: its `individuals` array
-     * is getIndividualsInSignature() and its premise loop is guarded by
-     * individualTypes.containsKey(ind), so an untyped draw leaves the premise
-     * empty and the axiom reads owl:Thing SubClassOf X.
-     *
-     * This test exists because that is easy to mistake for a bug and "fix" --
-     * an earlier version of this file did exactly that, restricting UNWEIGHTED to
-     * typed individuals to keep the arms differing in one thing. It made the arm
-     * something upstream has no counterpart for. With 1 typed individual against
-     * 20 untyped, roughly 95% of draws must be Top here; WEIGHTED, over the same
-     * ontology, must be 0%.
+     * because paclo's plain sampler does — so an untyped draw gives owl:Thing on
+     * the left. This test exists because that looks like a bug worth "fixing":
+     * an earlier version of this file restricted UNWEIGHTED to typed individuals,
+     * making it an arm upstream has no counterpart for.
      */
     @Test
     public void unweightedDrawsUntypedIndividualsJustAsPacloDoes() throws Exception {
@@ -309,9 +295,8 @@ public class ABoxInducedSamplerTest {
         OWLOntology ont = manager.createOntology(iri("untyped"));
         OWLNamedIndividual typed = df.getOWLNamedIndividual(iri("typed"));
 
-        // Five base-set concepts, four of them on the one typed individual, so a
-        // typed draw empties the premise only 1 time in 16. Without that the
-        // p=0.5 filter alone would produce Tops often enough to blur the two arms.
+        // Four types on the one typed individual, so a typed draw empties the
+        // premise only 1 time in 16; fewer and the p=0.5 filter blurs the arms.
         Set<OWLClassExpression> baseSet = new LinkedHashSet<>();
         for (int i = 0; i < 5; i++) {
             OWLClass c = df.getOWLClass(iri("C" + i));
@@ -343,8 +328,7 @@ public class ABoxInducedSamplerTest {
         assertEquals(1, weighted.premisePopulationSize(),
                 "the weighted one draws only from the typed individuals");
 
-        // ~95% against ~6%: 20 draws in 21 land on an untyped individual and
-        // leave the premise empty, which the weighted arm cannot do at all.
+        // ~95% against ~6%: 20 draws in 21 land on an untyped individual.
         assertTrue(tops(unweighted, 400) > 300,
                 "unweighted must reach the untyped individuals");
         assertTrue(tops(weighted, 400) < 100,

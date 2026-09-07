@@ -25,6 +25,7 @@
 #   delta=0.1          PAC delta
 #   cache=shared       shared cache.sqlite3, or fresh, or a path of its own
 #   precomp=true       run learner.precomputation() before the loop
+#                      (reuse = run it once, then replay it across the repeats)
 #   eval=baris|none    Macro/Micro Precision/Recall after the loop
 #   budget=global      or per-round -- see MEETING-2026-08-18.md section 8
 #   sampler=weighted   or unweighted (both ABox-induced), or pac (uniform)
@@ -40,6 +41,10 @@
 # precomp is the readable direction of the Java flag, which is skipPrecomputation:
 # precomp=false means skip it. eval names the evaluator rather than saying true,
 # because "baris" is what the report is called; none turns it off.
+#
+# precomp=reuse is precomp=true plus EXACTLEARNER_PRECOMP_REUSE: the first repeat
+# records the n(n-1) pass to results/ontologies/precomp_<config>.txt -- untagged,
+# since the record is what the repeats SHARE -- and the rest replay it.
 #
 # sampler names the candidate source in the equivalence-query loop, the fourth
 # axis. weighted (the default, and every run before 2026-09-07) and unweighted are
@@ -88,6 +93,7 @@ parse_run_args() {
   CACHE_MODE=shared
   REPEATS=1
   local precomp="" evaluate="" resume="" positional=0
+  PRECOMP_LABEL=""
 
   local arg key value
   for arg in "$@"; do
@@ -106,7 +112,18 @@ parse_run_args() {
     case "$key" in
       eps|epsilon) EPSILON="$value" ;;
       delta)       DELTA="$value" ;;
-      precomp)     precomp="$(parse_run_bool "$key" "$value")" ;;
+      precomp)
+        # reuse is precomputation ON, so it sets the same argv as true and adds
+        # the environment variable on top.
+        case "$(run_args_lower "$value")" in
+          reuse|shared|once)
+            precomp=true
+            export EXACTLEARNER_PRECOMP_REUSE=true
+            PRECOMP_LABEL=reuse
+            ;;
+          *) precomp="$(parse_run_bool "$key" "$value")" ;;
+        esac
+        ;;
       eval)
         case "$(run_args_lower "$value")" in
           baris|true|on|yes) evaluate=true ;;
@@ -200,7 +217,7 @@ parse_run_args() {
   # left out is the launcher's own default, and this file does not know it.
   RUN_ARGS_SUMMARY="eps=$EPSILON delta=$DELTA"
   [[ "$CACHE_MODE" != shared ]] && RUN_ARGS_SUMMARY+=" cache=$CACHE_MODE"
-  [[ -n "$precomp"  ]] && RUN_ARGS_SUMMARY+=" precomp=$precomp"
+  [[ -n "$precomp"  ]] && RUN_ARGS_SUMMARY+=" precomp=${PRECOMP_LABEL:-$precomp}"
   [[ "$evaluate" == true  ]] && RUN_ARGS_SUMMARY+=" eval=baris"
   [[ "$evaluate" == false ]] && RUN_ARGS_SUMMARY+=" eval=none"
   [[ -n "${EXACTLEARNER_SAMPLER:-}"      ]] && RUN_ARGS_SUMMARY+=" sampler=$EXACTLEARNER_SAMPLER"
@@ -212,7 +229,7 @@ parse_run_args() {
   return 0
 }
 
-RUN_ARGS_USAGE="eps= delta= precomp=true|false eval=baris|none cache=shared|fresh|<path> sampler=weighted|unweighted|pac budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
+RUN_ARGS_USAGE="eps= delta= precomp=true|false|reuse eval=baris|none cache=shared|fresh|<path> sampler=weighted|unweighted|pac budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
 
 # Called by run_experiment.sh only, once the job id is known. cache=fresh gets a
 # file of its own per job, so the run pays for every query it asks and its timings

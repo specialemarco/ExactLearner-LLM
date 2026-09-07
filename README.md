@@ -138,7 +138,7 @@ Everything after the config is `name=value`, in any order, all optional:
 | Parameter | Meaning |
 |---|---|
 | `eps=0.2` `delta=0.1` | PAC epsilon and delta |
-| `precomp=true\|false` | run `learner.precomputation()` before the loop |
+| `precomp=true\|false\|reuse` | run `learner.precomputation()` before the loop; `reuse` runs it once and replays it across repeats |
 | `eval=baris\|none` | Macro/Micro Precision/Recall after the loop |
 | `cache=shared\|fresh\|<path>` | query cache; `fresh` gives the job its own file |
 | `sampler=weighted\|unweighted\|pac` | where the loop's candidate axioms come from (default `weighted`) |
@@ -209,6 +209,78 @@ Two caveats when comparing against `sampler=pac`:
 Outputs are kept apart automatically: a non-default arm puts its own name in
 `EXACTLEARNER_RUN_TAG` and in the log folder, so `sampler=unweighted seed=3`
 does not overwrite `sampler=weighted seed=3` in `results/ontologies/`.
+
+#### Reusing one precomputation across repeats
+
+`precomputation()` walks every ordered pair of classes — 131 classes on the
+OWL2Bench targets, so 17,030 pairs, each an ELK entailment on H and a query on T
+— and there is no randomness in it. Every repeat of one experiment therefore
+recomputes an identical result.
+
+```bash
+scripts/submit.sh mistral-7b owl2bench/c2-nlp-advanced precomp=reuse repeats=10
+```
+
+The first repeat to finish the pass writes
+`results/ontologies/precomp_<config>_<model>_<format>_<system>.txt` and the rest
+replay it. That path carries **no run tag** — being shared across the repeats is
+the whole point — and the file is written to a temp name and moved into place, so
+repeats starting together cannot read a half-written record.
+
+What replays is the *step sequence*, not a saved hypothesis. Precomputation also
+builds the `ConceptRelation` that `decompose()` and `AxiomSimplifier` read, and
+nothing else populates it; restoring a hypothesis `.owl` alone would leave it
+empty and quietly change how the loop decomposes.
+`PrecomputationReplayTest` pins both halves.
+
+With `repeats=N`, `submit.sh` chains repeats 2..N behind repeat 1 with
+`--dependency=afterany`, because otherwise the flag mostly does nothing: the
+record is written by whichever job finishes precomputation first, and every job
+that started before that computes the whole pass itself. Submitted flat, ten
+repeats can perform ten precomputations.
+
+```
+Submitting 10 repeats, seeds 1..10
+  precomp=reuse: repeat 1 records the precomputation and repeats 2..10 wait for it
+  seed=1 ... -> Submitted batch job 4200001
+  seed=2 ... -> Submitted batch job 4200002 (after 4200001)
+```
+
+Three things about the chain:
+
+- The dependents wait on repeat 1 **alone**, so they run in parallel with each
+  other — but they wait for the whole of it, not just its precomputation phase.
+  Slurm cannot depend on a phase. That serialisation is the price, and it is why
+  the chain is tied to `precomp=reuse` rather than applied to every sweep.
+- `afterany`, not `afterok`, deliberately. Repeat 1 records within its first phase
+  but runs for hours afterwards, and a job killed at walltime exits non-zero —
+  under `afterok` that would cancel all nine dependents over a run that had
+  already done the one thing they were waiting for. Under `afterany` they start
+  regardless: replaying if the record is there, computing if it is not, which is
+  exactly the unchained behaviour.
+- `scancel` on repeat 1 does **not** cancel the dependents; they start on its
+  termination and each recompute. Cancel them too.
+
+Off by default, and worth knowing why: it makes one repeat's output an input to
+the others. The record is fingerprinted against the target's class IRIs and a
+mismatch recomputes rather than replaying, but if you change the model or the
+target, delete the file or run one repeat with `precomp=true` first.
+
+#### Evaluating before and after the loop
+
+When `eval` is on and precomputation runs, the Baris evaluation now runs
+**twice** — once straight after precomputation, once after the loop:
+
+```
+=== BARIS EVALUATION (Macro/Micro Precision/Recall) after precomputation (A-induced), hypothesis has N logical axioms ===
+...
+=== BARIS EVALUATION (Macro/Micro Precision/Recall) after learning (A-induced), hypothesis has M logical axioms ===
+```
+
+The pair separates what the exhaustive pass already knew from what the sampler
+went on to add — previously recoverable only by running `TestPrecomputationOnly`
+as a second job against the same target. With `precomp=false` there is nothing to
+report at the first point, so only the second line appears.
 
 `scripts/run_args.sh` is the parser and the reference. Both `submit.sh` and the
 job source it, so a misspelled parameter fails at submission rather than 20

@@ -79,13 +79,11 @@ public class LauncherFlagMatrixTest {
         assertEquals(0.1, launcher.delta, 0.0);
     }
 
-    // ---- the sampler axis, added 2026-09-07 --------------------------------
+    // ---- the sampler axis --------------------------------------------------
     //
-    // These pin samplerArm() by override rather than by setting
-    // EXACTLEARNER_SAMPLER, so the assertions say what the arm is regardless of
-    // what the developer's shell happens to export. The three tests above that
-    // call parseExperimentArgs() on the real classes do read the environment,
-    // deliberately: they are the ones asserting the DEFAULTS.
+    // Pinned by override rather than by setting EXACTLEARNER_SAMPLER, so these
+    // hold whatever the developer's shell exports. The tests above read the
+    // environment deliberately: they are the ones asserting the defaults.
 
     private static LaunchLLMLearner uniformLauncherClaiming(LaunchLLMLearner.SamplerArm arm) {
         return new LaunchLLMLearner() {
@@ -105,11 +103,7 @@ public class LauncherFlagMatrixTest {
                 "an unset EXACTLEARNER_SAMPLER must keep running what every run so far ran");
     }
 
-    /**
-     * run_experiment.sh maps sampler= to the launcher class, so the two can only
-     * disagree in a hand-written java invocation. That has to fail before the
-     * model loads rather than run the wrong arm for 24 hours.
-     */
+    /** Only reachable from a hand-written java invocation, and it must fail early. */
     @Test
     public void anAboxArmOnTheUniformLauncherIsRefused() {
         for (LaunchLLMLearner.SamplerArm arm : new LaunchLLMLearner.SamplerArm[] {
@@ -134,7 +128,7 @@ public class LauncherFlagMatrixTest {
         assertEquals(" (uniform PAC, via the A-induced launcher)", launcher.experimentLabel());
     }
 
-    /** The banner names the arm, and the weighted one keeps the string the logs have. */
+    /** The weighted arm keeps the string every log so far carries. */
     @Test
     public void theLabelNamesTheArm() {
         assertEquals(" (A-induced)", new LaunchLLMLearnerAInduced() {

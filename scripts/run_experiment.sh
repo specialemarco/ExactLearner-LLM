@@ -241,6 +241,11 @@ export EXACTLEARNER_MODEL="${EXACTLEARNER_MODEL:-${MODEL_NAME:-}}"
 export EXACTLEARNER_SAMPLER_SEED="${EXACTLEARNER_SAMPLER_SEED:-0}"
 export EXACTLEARNER_PAC_SEED="${EXACTLEARNER_PAC_SEED:-0}"
 
+# Reuse one precomputation across the repeats of an experiment; set with
+# `precomp=reuse`. Off by default because it makes one repeat's output an input to
+# the others -- fingerprinted against the target's classes, but the coupling is real.
+export EXACTLEARNER_PRECOMP_REUSE="${EXACTLEARNER_PRECOMP_REUSE:-false}"
+
 # Which sampler feeds the equivalence-query loop. Defaults to weighted, which is
 # the sampler every run before 2026-09-07 used, so leaving it alone reproduces
 # them. Set with `sampler=` (scripts/run_args.sh), which validates the spelling.
@@ -300,6 +305,7 @@ fi
 echo "Run parameters: $RUN_ARGS_SUMMARY"
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | resume=$EXACTLEARNER_RESUME"
 echo "Sampler: $EXACTLEARNER_SAMPLER ($LEARNER_MAIN_CLASS)"
+echo "Precomputation reuse: $EXACTLEARNER_PRECOMP_REUSE"
 echo "Sampling budget: $EXACTLEARNER_BUDGET_MODE"
 echo "Seeds: sampler=$EXACTLEARNER_SAMPLER_SEED pac=$EXACTLEARNER_PAC_SEED"
 echo "ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"

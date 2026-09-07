@@ -218,9 +218,8 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
         System.out.println("skipPrecomputation = " + skipPrecomputation);
         System.out.println("evaluateAfterRun = " + evaluateAfterRun);
-        // Printed by both arms, and checked here rather than at first use: an
-        // EXACTLEARNER_SAMPLER the launcher class cannot honour has to fail
-        // before the model is loaded, not two hours into the loop.
+        // Checked here, not at first use: an arm the launcher class cannot
+        // honour must fail before the model loads, not two hours into the loop.
         System.out.println("sampler = " + samplerArm() + " (" + SAMPLER_ENV + ")");
         if (samplerArm() != SamplerArm.PAC && !(this instanceof LaunchLLMLearnerAInduced)) {
             throw new IllegalStateException(SAMPLER_ENV + "=" + samplerArm()
@@ -283,19 +282,10 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     /**
-     * Which candidate sampler the equivalence-query loop draws from. The fourth
-     * experiment axis, added 2026-09-07 beside precomputation / sampler /
-     * evaluation: scripts/run_args.sh's `sampler=` sets it.
-     *
-     *   pac         Pac.getRandomStatement() -- uniform over the statement
-     *               space built from the signature, never looks at the ABox
-     *   weighted    ABoxInducedSubsumptionSampler, premise individual drawn
-     *               proportionally to 2^|C(a,K0)|  (what every run so far used)
-     *   unweighted  the same sampler, premise individual drawn uniformly
-     *
-     * Unset means the launcher class's own default, so the two production
-     * invocations are unchanged. See ABoxInducedSubsumptionSampler.Weighting
-     * for what the last two do and do not share.
+     * Which candidate sampler the loop draws from: pac
+     * (Pac.getRandomStatement(), never looks at the ABox), weighted, or
+     * unweighted. The last two are ABoxInducedSubsumptionSampler.Weighting.
+     * Unset means the launcher class's own default.
      */
     public static final String SAMPLER_ENV = "EXACTLEARNER_SAMPLER";
 
@@ -309,10 +299,9 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     /**
-     * Deliberately throws on an unrecognised value rather than defaulting.
-     * run_args.sh validates first, so reaching here means the variable was set
-     * by hand -- and the failure mode this guards against is a 24 h job that
-     * quietly runs a different arm than the one asked for.
+     * Throws on an unrecognised value rather than defaulting: run_args.sh
+     * validates first, so reaching here means it was set by hand, and the
+     * failure mode is a 24 h job running a different arm than the one asked for.
      */
     protected SamplerArm samplerArm() {
         if (samplerArm != null) {
@@ -335,6 +324,19 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
     }
 
+    /**
+     * Reuse one precomputation across the repeats of an experiment. The pass is
+     * deterministic and seed-independent -- 17,030 ordered class pairs on the
+     * 131-class OWL2Bench targets -- so every repeat recomputes the same thing.
+     * Set, the first repeat records it and the rest replay it.
+     */
+    public static final String PRECOMP_REUSE_ENV = "EXACTLEARNER_PRECOMP_REUSE";
+
+    protected boolean precomputationReuse() {
+        String raw = System.getenv(PRECOMP_REUSE_ENV);
+        return raw != null && raw.trim().equalsIgnoreCase("true");
+    }
+
     /** Names the arm in the run banner, e.g. " (A-induced)". */
     protected String experimentLabel() {
         return "";
@@ -344,17 +346,25 @@ public class LaunchLLMLearner extends LaunchLearner {
     protected void beforeModelRun() {
     }
 
-    /** Post-run hook; by default the optional Baris evaluation. */
-    protected void afterLearningExperiment() {
+    /**
+     * Called twice when precomputation is on -- after it and after the loop --
+     * which is what separates the exhaustive pass's contribution from the
+     * sampler's.
+     */
+    protected void evaluateIfRequested(String phase) {
         if (!evaluateAfterRun) {
             return;
         }
         try {
-            evaluateWithBaris();
+            evaluateWithBaris(phase);
         } catch (Exception ex) {
-            System.out.println("Error during evaluateWithBaris: " + ex.getMessage());
-            ex.printStackTrace();
+            System.out.println("Error during evaluateWithBaris (" + phase + "): " + ex.getMessage());
         }
+    }
+
+    /** Post-run hook; by default the optional Baris evaluation. */
+    protected void afterLearningExperiment() {
+        evaluateIfRequested("after learning");
     }
 
     /**
@@ -418,18 +428,42 @@ public class LaunchLLMLearner extends LaunchLearner {
      * correctly without them.
      */
     protected void evaluateWithBaris() throws Exception {
+        evaluateWithBaris("after learning");
+    }
+
+    /** `phase` goes in the banner: two evaluations in one log are otherwise indistinguishable. */
+    protected void evaluateWithBaris(String phase) throws Exception {
         PacloDataset dataset = pacloDataset();
         if (dataset == null) {
             System.out.println("Baris evaluation unavailable: initialOntology.owl or baseSet not found beside " + targetFile);
             return;
         }
-        OWLReasoner expertReasoner = new ElkReasonerFactory().createReasoner(groundTruthOntology);
-        expertReasoner.precomputeInferences(
-                InferenceType.CLASS_HIERARCHY, InferenceType.CLASS_ASSERTIONS,
-                InferenceType.OBJECT_PROPERTY_HIERARCHY, InferenceType.OBJECT_PROPERTY_ASSERTIONS);
-        System.out.println("=== BARIS EVALUATION (Macro/Micro Precision/Recall)"
-                + (experimentLabel().isEmpty() ? " \u2014 uniform PAC" : experimentLabel()) + " ===");
-        new Evaluation().evaluate(hypothesisOntology, expertReasoner, dataset.baseSet(), dataset.initialReasoner());
+        System.out.println("=== BARIS EVALUATION (Macro/Micro Precision/Recall) " + phase
+                + (experimentLabel().isEmpty() ? " \u2014 uniform PAC" : experimentLabel())
+                + ", hypothesis has "
+                + (hypothesisOntology == null ? 0 : hypothesisOntology.getLogicalAxiomCount())
+                + " logical axioms ===");
+        new Evaluation().evaluate(hypothesisOntology, expertReasoner(), dataset.baseSet(),
+                dataset.initialReasoner());
+    }
+
+    /**
+     * The classified ground truth, cached per (ontology, model) since
+     * evaluateWithBaris() now runs twice. Precomputes the object property
+     * hierarchy and assertions too, unlike the dataset's own reasoner: without
+     * them the existential-restriction concepts in the C2/C3 baseSets classify
+     * wrongly.
+     */
+    private OWLReasoner expertReasoner;
+
+    protected OWLReasoner expertReasoner() {
+        if (expertReasoner == null) {
+            expertReasoner = new ElkReasonerFactory().createReasoner(groundTruthOntology);
+            expertReasoner.precomputeInferences(
+                    InferenceType.CLASS_HIERARCHY, InferenceType.CLASS_ASSERTIONS,
+                    InferenceType.OBJECT_PROPERTY_HIERARCHY, InferenceType.OBJECT_PROPERTY_ASSERTIONS);
+        }
+        return expertReasoner;
     }
 
     protected void createWorkCounter(String ontologyShortName, String model) {
@@ -474,6 +508,7 @@ public class LaunchLLMLearner extends LaunchLearner {
             this.currentModel = model;
             this.pacloDataset = null;
             this.pacloDatasetLoaded = false;
+            this.expertReasoner = null;
             myMetrics = new Metrics(myRenderer);
             System.out.println("Trying to load groundTruthOntology");
             loadTargetOntology(ontology);
@@ -665,6 +700,92 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     /**
+     * Runs precomputation, or replays an earlier identical one. Never fails the
+     * run: a missing, stale or unreadable record falls back to computing.
+     */
+    protected void runPrecomputation() throws Exception {
+        if (!precomputationReuse()) {
+            learner.precomputation();
+            return;
+        }
+        String fingerprint = precomputationFingerprint();
+        List<String> steps = readPrecomputationRecord(fingerprint);
+        if (steps != null) {
+            System.out.println("Replaying precomputation from " + precomputationRecordPath
+                    + " (" + steps.size() + " steps) — set " + PRECOMP_REUSE_ENV
+                    + "=false to recompute it.");
+            learner.replayPrecomputation(steps, learner.precomputationClassCount());
+            return;
+        }
+        learner.precomputation();
+        writePrecomputationRecord(fingerprint);
+    }
+
+    /**
+     * The filename already carries ontology, model, format and system; this
+     * catches what it cannot -- the same dataset edited under a saved record.
+     */
+    private String precomputationFingerprint() {
+        List<String> iris = new ArrayList<>();
+        for (OWLClass c : elQueryEngineForH.getClassesInSignature()) {
+            iris.add(c.getIRI().toString());
+        }
+        java.util.Collections.sort(iris);
+        return iris.size() + ":" + Integer.toHexString(String.join("\n", iris).hashCode());
+    }
+
+    /** The recorded steps, or null when there is nothing usable to replay. */
+    private List<String> readPrecomputationRecord(String fingerprint) {
+        File file = new File(precomputationRecordPath);
+        if (!file.isFile()) {
+            return null;
+        }
+        try {
+            List<String> lines = java.nio.file.Files.readAllLines(file.toPath());
+            if (lines.isEmpty() || !lines.get(0).equals("# " + fingerprint)) {
+                System.out.println("Ignoring " + precomputationRecordPath
+                        + ": it was recorded against a different target ontology."
+                        + " Recomputing and replacing it.");
+                return null;
+            }
+            return lines.subList(1, lines.size());
+        } catch (IOException e) {
+            System.out.println("Could not read " + precomputationRecordPath + " (" + e
+                    + "); recomputing.");
+            return null;
+        }
+    }
+
+    private void writePrecomputationRecord(String fingerprint) {
+        List<String> steps = learner.precomputationSteps();
+        if (steps == null) {
+            return;
+        }
+        File file = new File(precomputationRecordPath);
+        try {
+            if (file.getParentFile() != null) {
+                file.getParentFile().mkdirs();
+            }
+            List<String> out = new ArrayList<>(steps.size() + 1);
+            out.add("# " + fingerprint);
+            out.addAll(steps);
+            // Temp file then move: a half-written record read by a concurrent
+            // repeat would be replayed as if it were the whole pass.
+            File tmp = new File(file.getParentFile(),
+                    file.getName() + ".tmp-" + ProcessHandle.current().pid());
+            java.nio.file.Files.write(tmp.toPath(), out);
+            java.nio.file.Files.move(tmp.toPath(), file.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            System.out.println("Recorded precomputation to " + precomputationRecordPath
+                    + " (" + steps.size() + " steps); later repeats will replay it.");
+        } catch (IOException e) {
+            System.out.println("Could not write " + precomputationRecordPath + " (" + e
+                    + "); later repeats will recompute.");
+        }
+    }
+
+    /**
      * Restores loop position from a previous job's checkpoint, returning the
      * counterexample number to continue from (0 for a fresh run).
      *
@@ -722,7 +843,12 @@ public class LaunchLLMLearner extends LaunchLearner {
         int seed = pacSeed();
         if (isPrecomputationEnabled()) {
             // Computes inclusions of the form A implies B
-            learner.precomputation();
+            runPrecomputation();
+            // Evaluated here as well as after the loop, so the two figures
+            // separate what the exhaustive pass already knew from what the
+            // sampling loop went on to add. Same evaluator, same ground truth;
+            // only the hypothesis differs, because it is the one at this point.
+            evaluateIfRequested("after precomputation");
         } else {
             int startingAxioms = hypothesisOntology == null ? 0 : hypothesisOntology.getLogicalAxiomCount();
             System.out.println("SKIPPING precomputation() — the loop starts from "

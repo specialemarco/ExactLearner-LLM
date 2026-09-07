@@ -162,10 +162,13 @@ echo "logs -> $LOG_DIR/"
 # executes, so account, GPUs and walltime can only be set from the command line.
 # SBATCH_EXTRA stays last so it still wins: it is the escape hatch for a site
 # whose limits the model file cannot know about.
+# --parsable, so the caller gets the id to chain the next job behind. The caller
+# prints the human line.
 submit_one() {
-  sbatch --account="$SBATCH_ACCOUNT" --gpus-per-node="$GPUS" \
+  sbatch --parsable --account="$SBATCH_ACCOUNT" --gpus-per-node="$GPUS" \
      ${WALLTIME:+--time="$WALLTIME"} \
      ${MEMORY:+--mem="$MEMORY"} \
+     ${DEPENDENCY:+--dependency="$DEPENDENCY"} \
      --output="$LOG_DIR/%x-%j.log" \
      "${SBATCH_EXTRA[@]+"${SBATCH_EXTRA[@]}"}" \
      "$SCRIPT_DIR/run_experiment.sh" "$CONFIG" "$@"
@@ -173,9 +176,11 @@ submit_one() {
 
 # Called, not exec'd: exec replaces the shell with an external program and cannot
 # run a function, so `exec submit_one` fails with "not found".
+DEPENDENCY=""
 if [[ "${REPEATS:-1}" -le 1 ]]; then
-  submit_one "$@"
-  exit $?
+  job_id="$(submit_one "$@")"
+  printf 'Submitted batch job %s\n' "${job_id%%;*}"
+  exit 0
 fi
 
 # --- repeats: one job per seed ------------------------------------------------
@@ -202,7 +207,29 @@ base_seed="${EXACTLEARNER_SAMPLER_SEED:-1}"
 # pairing seed 10 with pacseed 1 and making the tag a half-truth.
 base_pac="${EXACTLEARNER_PAC_SEED:-$base_seed}"
 
+# Without this, precomp=reuse mostly does nothing: every repeat that starts before
+# some other has FINISHED precomputing finds no record and computes the pass
+# itself, so ten flat repeats can perform ten precomputations.
+#
+# afterany, NOT afterok: repeat 1 records within its first phase but runs for
+# hours after, and a walltime kill exits non-zero -- afterok would then cancel
+# nine dependents over a run that had already done the one thing they wait for.
+# Under afterany they replay if the record is there and compute if it is not,
+# which is the unchained behaviour, so the chain can only help.
+#
+# They wait on repeat 1 alone, so they still run in parallel with each other --
+# but for the whole of it, since Slurm cannot depend on a phase. That cost is why
+# this is tied to precomp=reuse rather than applied to every sweep.
+CHAIN_REPEATS=""
+if [[ "${EXACTLEARNER_PRECOMP_REUSE:-false}" == true && "$REPEATS" -gt 1 ]]; then
+  CHAIN_REPEATS=true
+fi
+
 echo "Submitting $REPEATS repeats, seeds $base_seed..$(( base_seed + REPEATS - 1 ))"
+if [[ -n "$CHAIN_REPEATS" ]]; then
+  echo "  precomp=reuse: repeat 1 records the precomputation and repeats 2..$REPEATS wait for it"
+  echo "  (they start when repeat 1 ENDS, not when it finishes precomputing -- Slurm has no phase dependency)"
+fi
 for (( i = 0; i < REPEATS; i++ )); do
   seed=$(( base_seed + i ))
   pacseed=$(( base_pac + i ))
@@ -212,5 +239,16 @@ for (( i = 0; i < REPEATS; i++ )); do
   # Appended after "$@", so these win over any seed= the user also gave -- that
   # one is the base the repeats count up from, not a value to apply to each.
   printf '  seed=%s pacseed=%s tag=%s -> ' "$seed" "$pacseed" "$EXACTLEARNER_RUN_TAG"
-  submit_one "$@" "seed=$seed" "pacseed=$pacseed"
+  # --parsable gives "id" or "id;cluster" on a federated setup.
+  job_id="$(submit_one "$@" "seed=$seed" "pacseed=$pacseed")"
+  job_id="${job_id%%;*}"
+  printf 'Submitted batch job %s%s\n' "$job_id" "${DEPENDENCY:+ (after $first_job)}"
+  if [[ -n "$CHAIN_REPEATS" && $i -eq 0 ]]; then
+    first_job="$job_id"
+    DEPENDENCY="afterany:$job_id"
+  fi
 done
+if [[ -n "$CHAIN_REPEATS" ]]; then
+  echo "Cancelling job $first_job would leave the rest queued; scancel them too, or they"
+  echo "will start on its termination and each recompute the precomputation."
+fi

@@ -39,6 +39,8 @@ public class Learner implements BaseLearner {
     private int speculationRounds = 0;
     private int speculationRestarts = 0;
 
+    private List<String> precomputationSteps;
+
     public Learner(BaseEngine elEngineForT, BaseEngine elEngineForH, Metrics metrics) {
         this(elEngineForT, elEngineForH, metrics, new ConceptRelation<>());
     }
@@ -769,10 +771,73 @@ public class Learner implements BaseLearner {
 
     }
 
+    /**
+     * The last precomputation()'s addHypothesis() calls, as "H|T <subIRI> <supIRI>";
+     * null until it runs.
+     *
+     * Order is the artefact, not the set: precomputation asks
+     * myEngineForH.entailed() against H as it grows, and relation.addEdge()
+     * merges nodes. Replaying in any other order reproduces neither.
+     */
+    public List<String> precomputationSteps() {
+        return precomputationSteps == null ? null : Collections.unmodifiableList(precomputationSteps);
+    }
+
+    public int precomputationClassCount() {
+        return myEngineForT.getClassesInSignature().size();
+    }
+
+    /**
+     * The state precomputation() would have left, without asking either engine
+     * anything. Valid only for a record from the same target and model.
+     *
+     * Rebuilds `relation` as well as the hypothesis. A saved hypothesis .owl
+     * carries only the latter, and nothing but precomputation populates
+     * `relation`, which decompose() and AxiomSimplifier read.
+     */
+    public void replayPrecomputation(List<String> steps, int classCount) {
+        Map<String, OWLClass> byIri = new HashMap<>();
+        for (OWLClass c : myEngineForT.getClassesInSignature()) {
+            byIri.put(c.getIRI().toString(), c);
+        }
+        myMetrics.setMembCount(myMetrics.getMembCount() + classCount * (classCount - 1));
+        precomputationSteps = new ArrayList<>(steps);
+
+        int addedFromH = 0;
+        int addedFromT = 0;
+        Set<String> pairs = new HashSet<>();
+        for (String step : steps) {
+            String[] parts = step.split(" ");
+            if (parts.length != 3) {
+                throw new IllegalArgumentException("malformed precomputation step: " + step);
+            }
+            OWLClass sub = byIri.get(parts[1]);
+            OWLClass sup = byIri.get(parts[2]);
+            if (sub == null || sup == null) {
+                throw new IllegalArgumentException("precomputation record names a class this"
+                        + " ontology does not have: " + step);
+            }
+            OWLSubClassOfAxiom axiom = myEngineForT.getSubClassAxiom(sub, sup);
+            if ("T".equals(parts[0])) {
+                relation.addEdge(sub, sup);
+                addedFromT++;
+            } else {
+                addedFromH++;
+            }
+            addHypothesis(axiom);
+            pairs.add(parts[1] + " " + parts[2]);
+        }
+        System.out.println("PRECOMPUTATION (replayed): " + pairs.size() + " of "
+                + (classCount * (classCount - 1)) + " ordered class pairs contributed an axiom ("
+                + classCount + " classes); entailed by H: " + addedFromH
+                + ", entailed by T: " + addedFromT);
+    }
+
     @Override
     public void precomputation() {
         int i = myEngineForT.getClassesInSignature().size();
         myMetrics.setMembCount(myMetrics.getMembCount() + i * (i - 1));
+        precomputationSteps = new ArrayList<>();
         // How much of the final hypothesis precomputation is responsible for.
         // Without this the exhaustive O(n^2) pass is invisible in the log and
         // its contribution cannot be separated from the sampling loop's.
@@ -791,12 +856,14 @@ public class Learner implements BaseLearner {
                 boolean added = false;
                 if (myEngineForH.entailed(addedAxiom)) {
                     addHypothesis(addedAxiom);
+                    precomputationSteps.add("H " + cl1.getIRI() + " " + cl2.getIRI());
                     addedFromH++;
                     added = true;
                 }
                 if (myEngineForT.entailed(addedAxiom)) {
                     relation.addEdge(cl1, cl2);
                     addHypothesis(addedAxiom);
+                    precomputationSteps.add("T " + cl1.getIRI() + " " + cl2.getIRI());
                     addedFromT++;
                     added = true;
                 }

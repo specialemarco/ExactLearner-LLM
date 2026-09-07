@@ -60,6 +60,8 @@ public abstract class LaunchLearner {
     protected Metrics myMetrics = new Metrics(myRenderer);
 
     protected ConceptRelation<OWLClass> conceptRelation;
+    /** Set by setUpOntologyFolders(). */
+    protected String precomputationRecordPath;
 
     protected void validation() throws Exception {
         // validateLearnedOntology();
@@ -489,6 +491,9 @@ public abstract class LaunchLearner {
         String targetName = runTag().isEmpty() ? name : name + "_" + runTag();
         ontologyFolder = "results" + fileSeparator + "ontologies" + fileSeparator + "target_" + targetName + ".owl";
         ontologyFolderH = "results" + fileSeparator + "ontologies" + fileSeparator + infoString(name, model, format, system) + ".owl";
+        // Shared across the repeats of one experiment, so deliberately NOT tagged.
+        precomputationRecordPath = "results" + fileSeparator + "ontologies" + fileSeparator
+                + "precomp_" + untaggedInfoString(name, model, format, system) + ".txt";
     }
 
     /**
@@ -520,13 +525,22 @@ public abstract class LaunchLearner {
     }
 
     protected String infoString(String ontology, String model, String format, String system) {
+        String tag = runTag();
+        String name = untaggedInfoString(ontology, model, format, system);
+        return tag.isEmpty() ? name : name + "_" + tag;
+    }
+
+    /**
+     * infoString() without the run tag. Only for artefacts shared BETWEEN the
+     * repeats of one experiment; anything per-repeat must use infoString(), or
+     * the repeats collide.
+     */
+    protected String untaggedInfoString(String ontology, String model, String format, String system) {
         String systemType = "advanced";
         if (system.trim().equals("Answer with only True or False.")) {
             systemType = "base";
         }
-        String name = ontology + "_" + model + "_" + format + "_" + systemType;
-        String tag = runTag();
-        return tag.isEmpty() ? name : name + "_" + tag;
+        return ontology + "_" + model + "_" + format + "_" + systemType;
     }
 
     protected void computeConceptAndRoleNumbers() throws IOException {

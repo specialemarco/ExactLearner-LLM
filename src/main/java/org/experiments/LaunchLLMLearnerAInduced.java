@@ -92,11 +92,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     }
 
     /**
-     * This class is the ABox-induced arm, so an unset EXACTLEARNER_SAMPLER means
-     * the weighted sampler -- what every run before 2026-09-07 used. sampler=pac
-     * is still honoured here (getCounterExample falls straight through to the
-     * inherited uniform loop) so that a hand-run java invocation of this class
-     * cannot silently contradict the variable.
+     * sampler=pac is still honoured here, falling through to the inherited
+     * uniform loop, so a hand-run java invocation cannot contradict the variable.
      */
     @Override
     protected SamplerArm defaultSamplerArm() {
@@ -125,11 +122,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         evaluateAfterRun = true;
     }
 
-    /**
-     * " (A-induced)" for the weighted arm is the string every log so far
-     * carries and LauncherFlagMatrixTest pins, so it stays exactly that; only
-     * the two arms added on 2026-09-07 say more.
-     */
+    /** " (A-induced)" stays exactly that: every log so far carries it. */
     @Override
     protected String experimentLabel() {
         switch (samplerArm()) {
@@ -360,8 +353,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
      * individual carries a base-set type -- see checkSamplerIsUsable().
      */
     private void initAboxSampler() throws Exception {
-        // sampler=pac reaches here only through restoreSamplerPosition(), whose
-        // checkpointed draw count is 0 for that arm anyway.
+        // Reached under PAC only via restoreSamplerPosition(), whose checkpointed
+        // draw count is 0 for that arm anyway.
         if (samplerArm() == SamplerArm.PAC) {
             return;
         }
@@ -379,9 +372,8 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         // "PACLO dataset" line above is printed by whichever arm loads the
         // dataset; this one prints only for A-induced, and only once the sampler
         // is built and has passed the check above.
-        // Both counts, because the two arms draw from different populations:
-        // WEIGHTED from the typed individuals, UNWEIGHTED from the whole
-        // signature. Printing only one would misreport whichever arm is running.
+        // Both counts: the arms draw from different populations, so either one
+        // alone misreports the other.
         System.out.println("A-induced sampler ready: " + aboxSampler.weighting()
                 + " premise draw over " + aboxSampler.premisePopulationSize() + " individuals"
                 + " (" + aboxSampler.typedIndividualCount() + " typed of "
@@ -420,10 +412,14 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                 + " not that the run is finished. Fix the dataset rather than rerunning.");
     }
 
-    /** Reports what the loop cost before the inherited evaluation runs. */
+    /**
+     * Reports what the loop cost before the inherited evaluation runs. Overrides
+     * the phase-aware method: overriding the no-arg one would silently stop
+     * printing, since both calls arrive here.
+     */
     @Override
-    protected void evaluateWithBaris() throws Exception {
+    protected void evaluateWithBaris(String phase) throws Exception {
         System.out.println("Counterexamples found during this run: " + counterExampleCount);
-        super.evaluateWithBaris();
+        super.evaluateWithBaris(phase);
     }
 }

@@ -64,44 +64,25 @@ import org.semanticweb.owlapi.reasoner.OWLReasoner;
 public class ABoxInducedSubsumptionSampler {
 
     /**
-     * Which of paclo's two ABox-induced samplers this instance is. Checked
-     * against https://github.com/sertkaya/paclo/tree/main on 2026-09-07, in
-     * src/main/java/ontology/learning/sampler/.
+     * Which of paclo's two ABox-induced samplers this is, checked against
+     * https://github.com/sertkaya/paclo/tree/main on 2026-09-07. They differ in
+     * samplePremise() only, in the population as well as the weights:
      *
-     * WEIGHTED is WeightedABoxInducedSubsumptionSampler. UNWEIGHTED is the plain
-     * ABoxInducedSubsumptionSampler. They differ in samplePremise(), in two ways
-     * that go together and are NOT separable -- both are one line of upstream:
+     *   WEIGHTED    WeightedABoxInducedSubsumptionSampler: individuals with at
+     *               least one base-set type, drawn proportionally to 2^|C(a,K0)|.
+     *   UNWEIGHTED  ABoxInducedSubsumptionSampler: every individual in the
+     *               signature, uniformly. An untyped draw gives the empty
+     *               premise (owl:Thing on the left) -- not a defect, and the
+     *               reason the weighted one exists. Do not "fix" it by
+     *               restricting to typed individuals; that was tried, and it is
+     *               an arm upstream has no counterpart for.
      *
-     *   WEIGHTED    instanceNames, i.e. individuals carrying at least one
-     *               base-set type, drawn with probability proportional to
-     *               2^|C(a,K0)| (Boley et al. two-step method).
-     *   UNWEIGHTED  every individual in the ontology's signature, drawn
-     *               uniformly. Upstream's `individuals` array is
-     *               getIndividualsInSignature(), and its premise loop is
-     *               guarded by individualTypes.containsKey(ind) -- so drawing
-     *               an untyped individual yields the EMPTY premise, i.e.
-     *               owl:Thing on the left. That is not a defect to be fixed; it
-     *               is what the plain sampler does, and the reason the weighted
-     *               one exists.
-     *
-     * So the two arms differ in the population as well as the weights, because
-     * upstream does. An earlier version of this enum restricted UNWEIGHTED to
-     * typed individuals to keep the comparison single-axis; that was this file's
-     * invention, not paclo's, and it is gone.
-     *
-     * NOT reproduced from the plain sampler: its sampleConclusion() builds
-     * `types` from a HashSet difference and then indexes noninstanceCounts by
-     * position in THAT array, while the counts are indexed by position in
-     * baseConcepts -- so the weight applied to a concept is some other
-     * concept's. Both upstream classes compute the same intended quantity
-     * (|K0| minus the concept's instance count), and the weighted one keys it
-     * correctly, so this is a bug in the plain class rather than a property of
-     * the arm. Both modes here use the correctly keyed version. Reproducing the
-     * misalignment would make the two arms differ in a second, accidental way.
-     *
-     * Also NOT ported: upstream's `uniformConclusions` constructor flag, which
-     * both classes carry and which replaces the rarity weighting with a uniform
-     * pick. It is a third axis, and nothing here asks for it yet.
+     * NOT reproduced: the plain class indexes noninstanceCounts by position in a
+     * HashSet difference while the counts are indexed by position in
+     * baseConcepts, so a concept gets another concept's weight. Both upstream
+     * classes intend the same quantity and the weighted one keys it correctly,
+     * so both modes here use that. Nor is upstream's uniformConclusions flag: a
+     * third axis, unasked for.
      */
     public enum Weighting { WEIGHTED, UNWEIGHTED }
 
@@ -126,11 +107,8 @@ public class ABoxInducedSubsumptionSampler {
     private Map<OWLNamedIndividual, ArrayList<OWLClassExpression>> instanceTypes;
 
     private OWLNamedIndividual[] instanceNames;
-    // Every individual in the signature, in a fixed order: the population
-    // UNWEIGHTED draws from, which is upstream's `individuals` array. Set in the
-    // constructor and never refreshed, exactly as upstream sets it there and
-    // update_sampler leaves it alone -- and for the same reason numberOfInstances
-    // is frozen: it is the instance space K0.
+    // The population UNWEIGHTED draws from, i.e. upstream's `individuals`. Set in
+    // the constructor and never refreshed, as upstream does and as K0 requires.
     private final OWLNamedIndividual[] allIndividuals;
     private BigInteger[] instanceWeights;
     private BigInteger cumulativeInstanceWeight = BigInteger.ZERO;
@@ -174,9 +152,7 @@ public class ABoxInducedSubsumptionSampler {
         // come back 0 and every conclusion weight would go negative.
         List<OWLNamedIndividual> signature =
                 new ArrayList<>(reasoner.getRootOntology().getIndividualsInSignature());
-        // Upstream leaves this in the reasoner's hash order. Sorting is this
-        // file's reproducibility requirement and does not touch the
-        // distribution: the draw over it is uniform.
+        // Sorted for reproducibility; the draw over it is uniform either way.
         Collections.sort(signature);
         this.allIndividuals = signature.toArray(new OWLNamedIndividual[0]);
         this.numberOfInstances = allIndividuals.length;
@@ -258,24 +234,18 @@ public class ABoxInducedSubsumptionSampler {
         }
         do {
             premise.clear();
-            // Where the two arms part, and the only place they do. See the
-            // Weighting javadoc: the population differs as well as the weights,
-            // because it does upstream.
-            //
-            // The two modes consume different amounts of `random` per sample, so
-            // their streams diverge from the first draw even under one seed --
-            // which is why fastForwardTo() replays through the mode it was built
-            // with, and why a resumed run must not switch modes.
+            // Where the two arms part, and the only place they do. They consume
+            // different amounts of `random` per sample, so their streams diverge
+            // from the first draw under one seed -- a resumed run must not switch
+            // modes, or fastForwardTo() replays the wrong stream.
             OWLNamedIndividual ind;
             if (weighting == Weighting.WEIGHTED) {
                 ind = instanceNames[randomIndexBig(instanceWeights, cumulativeInstanceWeight)];
             } else {
                 ind = allIndividuals[random.nextInt(allIndividuals.length)];
             }
-            // null for an individual carrying no base-set type. Reachable only
-            // under UNWEIGHTED, and the empty premise it leaves -- owl:Thing on
-            // the left -- is the plain sampler's behaviour, not a hole in it:
-            // upstream guards the same loop with individualTypes.containsKey().
+            // null for an untyped individual, reachable only under UNWEIGHTED.
+            // Upstream guards the same loop with individualTypes.containsKey().
             List<OWLClassExpression> types = instanceTypes.get(ind);
             if (types != null) {
                 for (OWLClassExpression expr : types) {
@@ -299,9 +269,7 @@ public class ABoxInducedSubsumptionSampler {
             //
             // It cannot spin: escaping needs an individual typed with the whole
             // base set AND nextBoolean() true for every one of those types, so
-            // the retry probability is at most 2^-|baseSet| per iteration. Under
-            // UNWEIGHTED an untyped individual leaves the premise empty, which
-            // exits immediately for any non-empty base set.
+            // the retry probability is at most 2^-|baseSet| per iteration.
         } while (premise.size() == baseSet.size());
         return premise;
     }
@@ -361,16 +329,15 @@ public class ABoxInducedSubsumptionSampler {
     }
 
     /**
-     * Individuals carrying at least one base-set type. Under WEIGHTED this is
-     * the population samplePremise() draws from; under UNWEIGHTED it is the
-     * subset of the population that can produce a non-empty premise. Zero means
-     * every premise degenerates to owl:Thing in BOTH modes; see hasIndividuals().
+     * Individuals carrying at least one base-set type: WEIGHTED's whole
+     * population, and the only part of UNWEIGHTED's that yields a non-empty
+     * premise. Zero means every premise is owl:Thing in both; see hasIndividuals().
      */
     public int typedIndividualCount() {
         return instanceNames == null ? 0 : instanceNames.length;
     }
 
-    /** How many individuals this mode's premise draw actually chooses among. */
+    /** How many individuals this mode's premise draw chooses among. */
     public int premisePopulationSize() {
         return weighting == Weighting.WEIGHTED
                 ? typedIndividualCount()
@@ -386,7 +353,6 @@ public class ABoxInducedSubsumptionSampler {
         return numberOfInstances;
     }
 
-    /** Which arm this sampler is; reported in the run log. */
     public Weighting weighting() {
         return weighting;
     }
