@@ -160,6 +160,9 @@ scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=true
 # a run whose timings must stand alone: its own cache, so it pays for every query
 scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false cache=fresh
 
+# ten repeats sharing ONE precomputation, each with its own cache, scored twice
+scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=reuse cache=fresh repeats=10
+
 # the sampler axis: the same experiment under each of the three candidate sources
 scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false sampler=weighted
 scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced precomp=false sampler=unweighted
@@ -212,14 +215,40 @@ does not overwrite `sampler=weighted seed=3` in `results/ontologies/`.
 
 #### Reusing one precomputation across repeats
 
-`precomputation()` walks every ordered pair of classes — 131 classes on the
-OWL2Bench targets, so 17,030 pairs, each an ELK entailment on H and a query on T
-— and there is no randomness in it. Every repeat of one experiment therefore
-recomputes an identical result.
+**The use case:** you want precomputation *on*, but the pass done *once* — then
+ten independent learning runs off it, each with its own seed and cache, and
+precision/recall at both ends.
 
 ```bash
-scripts/submit.sh mistral-7b owl2bench/c2-nlp-advanced precomp=reuse repeats=10
+scripts/submit.sh mistral-7b owl2bench/c2-nlp-advanced precomp=reuse cache=fresh repeats=10
 ```
+
+What that gives you:
+
+| Job | What it does |
+|---|---|
+| Repeat 1 | runs the precomputation, records it, evaluates, learns, evaluates again |
+| Repeats 2–10 | wait for repeat 1, replay its record, evaluate, learn under their own seed, evaluate again |
+
+One precomputation, ten independent learning runs, two evaluations per job.
+
+It works because `precomputation()` walks every ordered pair of classes — 131
+classes on the OWL2Bench targets, so 17,030 pairs, each an ELK entailment on H
+and a query on T — with no randomness in it. Every repeat would otherwise
+recompute an identical result.
+
+Two things to weigh before running exactly that command:
+
+- **`cache=fresh` and `precomp=reuse` interact.** Repeat 1 pays 17,030 *cold*
+  LLM calls for the precomputation; repeats 2–10 pay none, because they replay.
+  Their learning phases are still cold and comparable with each other, but
+  repeat 1's total time is not comparable with theirs. Drop `cache=fresh` if you
+  want the ten wall-clock figures to mean the same thing.
+- **Precomputation charges all 17,030 pairs to the membership count.** The C2
+  mistral sweep spent ~31,880 membership queries with `precomp=false`, so turning
+  it on roughly doubles the reported query cost — and that half is identical
+  across all ten repeats. Worth deciding whether you want it in the denominator
+  of your rates.
 
 The first repeat to finish the pass writes
 `results/ontologies/precomp_<config>_<model>_<format>_<system>.txt` and the rest
@@ -284,8 +313,7 @@ report at the first point, so only the second line appears.
 
 `scripts/run_args.sh` is the parser and the reference. Both `submit.sh` and the
 job source it, so a misspelled parameter fails at submission rather than 20
-minutes later on a compute node. `scripts/run_experiment.sh` runs
-`LaunchLLMLearnerAInduced`; edit that line to run the uniform arm from Slurm.
+minutes later on a compute node. `scripts/run_experiment.sh` picks the launcher class from `sampler=`.
 
 > `precomp` is the readable direction of the Java flag, which is
 > `skipPrecomputation`. `precomp=false` is what makes it **skip**. The script
