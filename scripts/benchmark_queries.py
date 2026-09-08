@@ -187,7 +187,9 @@ def main():
     ap.add_argument("--n", type=int, default=100,
                     help="Number of queries to time (default 100).")
     ap.add_argument("--url", default="http://localhost:11434",
-                    help="Base URL of a running llm_server.py.")
+                    help="Base URL of a running llm_server.py. A job's port is "
+                         "derived from its job id, so take it from that job's "
+                         "\"Server port:\" line rather than this default.")
     ap.add_argument("--base-set",
                     default="data_paclo/owl2bench-1-el-class_names/baseSet",
                     help="Class names, one IRI per line.")

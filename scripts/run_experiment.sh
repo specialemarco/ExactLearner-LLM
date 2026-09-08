@@ -73,7 +73,42 @@ HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-30}"
 TENSOR_PARALLEL="${TENSOR_PARALLEL:-4}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"                # KV cache cap; prompts are ~50 tokens
 USER_SITE="${USER_SITE:-0}"                           # 1 re-enables ~/.local (holds a py3.11 accelerate)
-PORT="${PORT:-11434}"
+# One port per job, not one per cluster. Slurm packs several of these onto a
+# node -- ten repeats of one experiment are submitted together and land together
+# -- and llm_server.py binds before the model loads, so with a fixed port the
+# first job to start wins and the rest die ~2 minutes in on "OSError: [Errno 98]
+# Address already in use", having already paid their queue wait. Jobs
+# 4132334-4132337 went that way after 8 hours queued.
+#
+# Job ids increment, so consecutive submissions get consecutive ports; two jobs
+# collide only if their ids differ by an exact multiple of PORT_SPAN, which is
+# far more submissions apart than can be running at once. Off Slurm there is one
+# run at a time, so the old fixed port stands.
+PORT_BASE="${PORT_BASE:-20000}"                       # under the 32768+ ephemeral range
+PORT_SPAN="${PORT_SPAN:-10000}"
+if [[ -z "${PORT:-}" ]]; then
+  if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    PORT=$(( PORT_BASE + SLURM_JOB_ID % PORT_SPAN ))
+  else
+    PORT=11434
+  fi
+fi
+
+# Safety net for the case the job id cannot rule out: a port held by something
+# already on the node -- a previous job's orphaned server, or an unrelated
+# service. Connecting is the test; a refused connection means nothing is
+# listening. Steps forward rather than failing, since the exact port is
+# arbitrary and only has to be free and agreed on with the Java side.
+free_port() {
+  local port=$1 tries=0
+  while (( tries < 64 )); do
+    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null || { printf '%s' "$port"; return 0; }
+    exec 3<&- 3>&-
+    warn "port $port is already in use on $(hostname -s); trying $(( port + 1 ))"
+    port=$(( port + 1 )); tries=$(( tries + 1 ))
+  done
+  die "no free port in ${1}-$(( port - 1 )) on $(hostname -s). Something is holding the whole range; check for orphaned llm_server.py processes."
+}
 
 CONFIG="${1:?usage: sbatch scripts/run_experiment.sh <config> [name=value ...]}"
 shift
@@ -184,6 +219,10 @@ assert torch.cuda.is_available(), "torch reports no CUDA: a CPU-only build, or n
 ' || die "Python environment unusable -- see above"
 
 # --- model server ------------------------------------------------------------
+# Probed here rather than at the default above so the check sits as close to the
+# launch as it can while still preceding the URL the Java side is given.
+PORT=$(free_port "$PORT")
+echo "Server port: $PORT"
 export EXACTLEARNER_OLLAMA_URL="http://localhost:${PORT}/api/generate"
 
 # Batching, all default ON here rather than on the sbatch line: a job once burned
