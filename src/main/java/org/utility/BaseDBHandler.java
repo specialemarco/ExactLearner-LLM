@@ -1,6 +1,7 @@
 package org.utility;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.*;
 import java.util.*;
@@ -20,50 +21,51 @@ public abstract class BaseDBHandler {
 
     protected abstract File[] getUpdateFiles();
 
-    protected void setupSchema() throws SQLException {
-        Statement statement = connection.createStatement();
-        statement.executeUpdate("CREATE TABLE IF NOT EXISTS tbl_updates (update_title TEXT NOT NULL UNIQUE);");
-        statement.close();
-
-        ResultSet rs = connection.prepareStatement("SELECT update_title FROM tbl_updates;").executeQuery();
-        Set<String> updated = new HashSet<>();
-        while (rs.next()) {
-            updated.add(rs.getString(1));
+    protected void setupSchema() throws SQLException, IOException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = 600000;");
+            statement.execute("BEGIN IMMEDIATE;");
+            boolean applied;
+            try {
+                statement.executeUpdate("CREATE TABLE IF NOT EXISTS tbl_updates (update_title TEXT NOT NULL UNIQUE);");
+                applied = applyUpdates(statement);
+                statement.execute("COMMIT;");
+            } catch (SQLException | IOException | RuntimeException e) {
+                statement.execute("ROLLBACK;");
+                throw e;
+            }
+            // After the commit: SQLite refuses VACUUM inside a transaction.
+            if (applied) {
+                statement.execute("VACUUM;");
+            }
         }
-        File[] updateFiles = getUpdateFiles();
-        boolean vacuum = false;
-        for (File file : Arrays.stream(updateFiles).sorted().toList()) {
+    }
+
+    /** Applies the update files not yet in tbl_updates; true if any were. */
+    private boolean applyUpdates(Statement statement) throws SQLException, IOException {
+        Set<String> updated = new HashSet<>();
+        try (ResultSet rs = statement.executeQuery("SELECT update_title FROM tbl_updates;")) {
+            while (rs.next()) {
+                updated.add(rs.getString(1));
+            }
+        }
+        boolean applied = false;
+        for (File file : Arrays.stream(getUpdateFiles()).sorted().toList()) {
             if (updated.contains(file.getName())) {
                 continue;
             }
-            vacuum = true;
-            try {
-                statement = connection.createStatement();
-                List<String> updates = Arrays.stream(Files.readString(file.toPath()).split(";"))
-                        .map(String::strip)
-                        .filter(s -> !s.isEmpty())
-                        .map(s -> s + ";")
-                        .toList();
-                for (String update : updates) {
-                    statement.executeUpdate(update);
+            for (String update : Files.readString(file.toPath()).split(";")) {
+                if (!update.isBlank()) {
+                    statement.executeUpdate(update.strip() + ";");
                 }
-                statement.close();
-                PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO tbl_updates (update_title) VALUES (?);");
-                preparedStatement.setString(1, file.getName());
-                preparedStatement.executeUpdate();
-                preparedStatement.close();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
-        }
-        if (vacuum) {
-            try {
-                PreparedStatement preparedStatement = connection.prepareStatement("VACUUM;");
-                preparedStatement.executeUpdate();
-                preparedStatement.close();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO tbl_updates (update_title) VALUES (?);")) {
+                insert.setString(1, file.getName());
+                insert.executeUpdate();
             }
+            applied = true;
         }
+        return applied;
     }
 }

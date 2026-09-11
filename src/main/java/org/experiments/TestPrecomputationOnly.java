@@ -8,7 +8,7 @@ import org.apache.logging.log4j.LogManager;
  * without ever entering the equivalence-query loop.
  *
  * This is the complement of running LaunchLLMLearnerAInduced with precomputation
- * off (pass "true" as the 4th CLI arg; there used to be a
+ * off (pass "true" as the 2nd CLI arg; there used to be a
  * LaunchLLMLearnerAInducedNoPre subclass for it): that runs the A-induced loop
  * with precomputation off, this runs precomputation with the loop off. Together
  * they decompose the learned ontology into the part the

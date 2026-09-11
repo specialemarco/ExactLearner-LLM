@@ -66,33 +66,31 @@ public class CacheManager extends BaseDBHandler {
         return null;
     }
 
-    // Same defect Cache.resultString had, mirrored: the close() sat after an
-    // early return, so the lookup leaked its statement whenever the row already
-    // existed -- which is the common case. Only called twice per run, so this
-    // is tidiness rather than a measurable win, but leaving one copy of the bug
-    // next to the fixed one invites it back.
     private int getOrCreateId(String table, String text) throws SQLException {
+        Integer id = findId(table, text);
+        if (id == null) {
+            // OR IGNORE: another job on the same cache file can insert it between
+            // the lookup and here, and the UNIQUE constraint would then kill this one.
+            try (PreparedStatement insert_ps = connection.prepareStatement(
+                    "INSERT OR IGNORE INTO tbl_" + table + " VALUES (?)")) {
+                insert_ps.setString(1, text);
+                insert_ps.executeUpdate();
+            }
+            id = findId(table, text);
+        }
+        if (id == null) {
+            throw new SQLException("Failed find an id");
+        }
+        return id;
+    }
+
+    private Integer findId(String table, String text) throws SQLException {
         try (PreparedStatement query_ps = connection.prepareStatement(
                 "SELECT ROWID FROM tbl_" + table + " WHERE " + table + "_text = ?")) {
             query_ps.setString(1, text);
             try (ResultSet rs = query_ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
+                return rs.next() ? rs.getInt(1) : null;
             }
         }
-
-        try (PreparedStatement insert_ps = connection.prepareStatement(
-                "INSERT INTO tbl_" + table + " VALUES (?)")) {
-            insert_ps.setString(1, text);
-            insert_ps.executeUpdate();
-
-            try (ResultSet keys = insert_ps.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getInt(1);
-                }
-            }
-        }
-        throw new SQLException("Failed find an id");
     }
 }
