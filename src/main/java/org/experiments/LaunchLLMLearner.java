@@ -532,8 +532,12 @@ public class LaunchLLMLearner extends LaunchLearner {
     // logic, unchanged. Making it protected allows LaunchLLMLearnerAInduced
     // (a subclass in the same package) to call it directly from its own
     // overridden run() method, instead of duplicating this logic.
+    /** Start of the timed span "Total time (ms)" reports; runLearner() splits it. */
+    private long learningStartMillis;
+
     protected void runLearningExperiment(String[] args, int hypothesisSize, String model) throws Throwable {
         long timeStart = System.currentTimeMillis();
+        learningStartMillis = timeStart;
         prewarmPrecomputationCache(model);
         runLearner(hypothesisSize);
         long timeEnd = System.currentTimeMillis();
@@ -844,11 +848,17 @@ public class LaunchLLMLearner extends LaunchLearner {
         if (isPrecomputationEnabled()) {
             // Computes inclusions of the form A implies B
             runPrecomputation();
+            // Both inside "Total time (ms)", so logged for taking back out: the
+            // precomputation from the start of that span, pre-warm included.
+            long precomputedAt = System.currentTimeMillis();
+            System.out.println("Precomputation time (ms): " + (precomputedAt - learningStartMillis));
             // Evaluated here as well as after the loop, so the two figures
             // separate what the exhaustive pass already knew from what the
             // sampling loop went on to add. Same evaluator, same ground truth;
             // only the hypothesis differs, because it is the one at this point.
             evaluateIfRequested("after precomputation");
+            System.out.println("Precomputation evaluation time (ms): "
+                    + (System.currentTimeMillis() - precomputedAt));
         } else {
             int startingAxioms = hypothesisOntology == null ? 0 : hypothesisOntology.getLogicalAxiomCount();
             System.out.println("SKIPPING precomputation() — the loop starts from "
