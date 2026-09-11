@@ -16,8 +16,8 @@
 #   org/configurations/exp3/medical/*.yml      -> directory does not exist
 #
 # The WORK it did is not lost, only this entry point: PAC sampling now lives in org.pac.Pac,
-# driven by org.experiments.LaunchLLMLearnerAInduced (which takes the same epsilon/delta the
-# args below pass as 0.2 / 0.1). scripts/run_experiment.sh is the current, maintained path.
+# driven by org.experiments.LaunchLLMLearnerAInduced (which reads epsilon/delta from its
+# config, 0.2 / 0.1 as the args below pass). scripts/run_experiment.sh is the current, maintained path.
 # Kept as a record of the exp3 workflow; reviving it means rewriting against those classes.
 if [ $# -lt 2 ]
 then

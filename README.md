@@ -137,7 +137,6 @@ Everything after the config is `name=value`, in any order, all optional:
 
 | Parameter | Meaning |
 |---|---|
-| `eps=0.2` `delta=0.1` | PAC epsilon and delta |
 | `precomp=true\|false\|reuse` | run `learner.precomputation()` before the loop; `reuse` runs it once and replays it across repeats |
 | `eval=baris\|none` | Macro/Micro Precision/Recall after the loop |
 | `cache=shared\|fresh\|<path>` | query cache; `fresh` gives the job its own file |
@@ -434,8 +433,11 @@ experiment, not a noisier version of this one.
 Build once, then invoke the launcher directly. The flags are **positional**:
 
 ```
-<config> [epsilon] [delta] [skipPrecomputation] [evaluateAfterRun]
+<config> [skipPrecomputation] [evaluateAfterRun]
 ```
+
+PAC epsilon and delta come from the config (`epsilon:` and `delta:`, 0.2 and 0.1
+when left out). They size the sample budget for every sampler, not just uniform PAC.
 
 ```bash
 mvn -DskipTests compile
@@ -446,14 +448,14 @@ CP="target/classes:$(cat cp.txt)"
 CFG=src/main/java/org/configurations/experiments/owl2bench
 
 # THE MAIN ARM — A-induced, precomputation off, evaluation on.
-# The 4th argument is skipPrecomputation, so "off" is spelled true.
-java -cp "$CP" org.experiments.LaunchLLMLearnerAInduced $CFG/c2-nlp-advanced.yml 0.2 0.1 true true
+# The 2nd argument is skipPrecomputation, so "off" is spelled true.
+java -cp "$CP" org.experiments.LaunchLLMLearnerAInduced $CFG/c2-nlp-advanced.yml true true
 
 # A-induced with precomputation, to measure what it contributes
-java -cp "$CP" org.experiments.LaunchLLMLearnerAInduced $CFG/c2-nlp-advanced.yml 0.2 0.1 false true
+java -cp "$CP" org.experiments.LaunchLLMLearnerAInduced $CFG/c2-nlp-advanced.yml false true
 
 # uniform PAC baseline, with the Baris evaluation
-java -cp "$CP" org.experiments.LaunchLLMLearner $CFG/c2-nlp-advanced.yml 0.2 0.1 false true
+java -cp "$CP" org.experiments.LaunchLLMLearner $CFG/c2-nlp-advanced.yml false true
 ```
 
 `EXACTLEARNER_MODEL` is required for the `owl2bench/` configs, since they name no
@@ -462,7 +464,7 @@ configs still carry their own and need nothing.
 
 Because the arguments are positional, **`evaluateAfterRun` cannot be given
 without `skipPrecomputation` ahead of it**. Pass `false` for it if you only want
-to set the evaluation. Note the 4th argument is `skipPrecomputation`, not
+to set the evaluation. Note the 2nd argument is `skipPrecomputation`, not
 `precomp` — the inversion only exists in the shell scripts. Omitting an argument
 leaves the launcher's own default, which is not the same for both classes.
 

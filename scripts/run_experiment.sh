@@ -131,7 +131,7 @@ RUN_ARGS_LIB="${RUN_ARGS_LIB:-$SCRIPT_DIR/run_args.sh}"
 CONFIG="$(resolve_config "$CONFIG")"
 parse_run_args "$@"
 resolve_cache_path   # cache=fresh needs $SLURM_JOB_ID, which only exists here
-LEARNER_ARGS=("$CONFIG" "$EPSILON" "$DELTA" ${LEARNER_FLAG_ARGS[@]+"${LEARNER_FLAG_ARGS[@]}"})
+LEARNER_ARGS=("$CONFIG" ${LEARNER_FLAG_ARGS[@]+"${LEARNER_FLAG_ARGS[@]}"})
 
 
 module purge

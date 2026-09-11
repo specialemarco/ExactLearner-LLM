@@ -1,5 +1,8 @@
 ontologies:
   - "data_paclo/owl2bench-1-el-class_names/expertOntology.owl"
+# PAC epsilon and delta: they size the sample budget every sampler draws against.
+epsilon: 0.2
+delta: 0.1
 system: >
   Answer with only True or False.
 queryFormat: >

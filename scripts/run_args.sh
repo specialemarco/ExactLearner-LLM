@@ -21,8 +21,6 @@
 # full path keeps working. It is resolved relative to the working directory,
 # which both scripts already require to be the repository root.
 #
-#   eps=0.2            PAC epsilon
-#   delta=0.1          PAC delta
 #   cache=shared       shared cache.sqlite3, or fresh, or a path of its own
 #   precomp=true       run learner.precomputation() before the loop
 #                      (reuse = run it once, then replay it across the repeats)
@@ -34,9 +32,9 @@
 #   pacseed=0          uniform PAC sampler
 #   repeats=1          submit this many jobs, seeds seed..seed+N-1 (submit.sh only)
 #
-# Order does not matter and every one is optional; omitting all of them is the
-# arm every run so far has used. Bare numbers are still read as epsilon then
-# delta, so the old positional form keeps working.
+# Order does not matter and every one is optional. Each takes exactly the
+# spellings above, lowercase. PAC epsilon and delta are set in the config
+# (epsilon:, delta:), not here.
 #
 # precomp is the readable direction of the Java flag, which is skipPrecomputation:
 # precomp=false means skip it. eval names the evaluator rather than saying true,
@@ -57,8 +55,9 @@
 # run_experiment.sh turns this into the launcher class, since the class is what
 # the arm has always been.
 #
-# Sets: EPSILON, DELTA, LEARNER_FLAG_ARGS (the trailing argv for the launcher),
-# RUN_ARGS_SUMMARY (what was asked for, echoed back), and exports
+# Sets: PRECOMP (true unless precomp=false), LEARNER_FLAG_ARGS
+# (the trailing argv for the launcher), RUN_ARGS_SUMMARY (what was asked for,
+# echoed back), and exports
 # EXACTLEARNER_BUDGET_MODE / _SAMPLER / _SAMPLER_SEED / _PAC_SEED / _RESUME
 # when given.
 
@@ -88,115 +87,37 @@ resolve_config() {
 }
 
 parse_run_args() {
-  EPSILON=""
-  DELTA=""
   CACHE_MODE=shared
   REPEATS=1
-  local precomp="" evaluate="" resume="" positional=0
   PRECOMP_LABEL=""
+  local precomp="" evaluate="" arg value
 
-  local arg key value
   for arg in "$@"; do
-    if [[ "$arg" != *=* ]]; then
-      # Legacy positional form: epsilon, then delta.
-      case $((positional++)) in
-        0) EPSILON="$arg" ;;
-        1) DELTA="$arg" ;;
-        *) die "unexpected argument '$arg'. Use name=value: $RUN_ARGS_USAGE" ;;
-      esac
-      continue
-    fi
-
-    key="${arg%%=*}"
     value="${arg#*=}"
-    case "$key" in
-      eps|epsilon) EPSILON="$value" ;;
-      delta)       DELTA="$value" ;;
-      precomp)
-        # reuse is precomputation ON, so it sets the same argv as true and adds
-        # the environment variable on top.
-        case "$(run_args_lower "$value")" in
-          reuse|shared|once)
-            precomp=true
-            export EXACTLEARNER_PRECOMP_REUSE=true
-            PRECOMP_LABEL=reuse
-            ;;
-          *) precomp="$(parse_run_bool "$key" "$value")" ;;
-        esac
-        ;;
-      eval)
-        case "$(run_args_lower "$value")" in
-          baris|true|on|yes) evaluate=true ;;
-          none|false|off|no) evaluate=false ;;
-          *) die "eval=$value: expected baris or none" ;;
-        esac
-        ;;
-      budget)
-        case "$(run_args_lower "$value")" in
-          global|per-round|perround|round) export EXACTLEARNER_BUDGET_MODE="$value" ;;
-          *) die "budget=$value: expected global or per-round" ;;
-        esac
-        ;;
-      cache)
-        # fresh is resolved by resolve_cache_path() rather than here: submit.sh
-        # sources this file too, and sbatch exports its environment, so a path
-        # built from the login node's $$ would follow the job and defeat itself.
-        case "$(run_args_lower "$value")" in
-          shared|keep) CACHE_MODE=shared ;;
-          fresh|new|cold) CACHE_MODE=fresh ;;
-          "") die "cache=: expected shared, fresh, or a path" ;;
-          *) CACHE_MODE=path; export EXACTLEARNER_CACHE="$value" ;;
-        esac
-        ;;
-      resume)
-        # Continues from <hypo>.owl + <hypo>-run-state.properties in
-        # results/ontologies/ instead of deleting them and starting empty.
-        # A parameter rather than a bare environment variable so that a typo
-        # fails at submission, and so the run summary records that the numbers
-        # came from more than one job.
-        #
-        # Assigned to a local and exported below rather than exported straight
-        # from the substitution: `export X="$(f)"` takes its exit status from
-        # export, not from f, so die() inside parse_run_bool would NOT trip
-        # set -e -- and resume=ture would then quietly run with resume off,
-        # which deletes the very checkpoint it was asked to continue from.
-        resume="$(parse_run_bool "$key" "$value")"
-        ;;
-      sampler)
-        # Normalised here so the Java side and the class selection in
-        # run_experiment.sh both see one spelling. abox is accepted as a synonym
-        # for weighted because that is what the logs and MEETING notes call the
-        # arm, and plain for unweighted because that is paclo's name for it.
-        case "$(run_args_lower "$value")" in
-          weighted|abox|abox-weighted)   export EXACTLEARNER_SAMPLER=weighted ;;
-          unweighted|abox-unweighted|plain) export EXACTLEARNER_SAMPLER=unweighted ;;
-          pac|uniform)                   export EXACTLEARNER_SAMPLER=pac ;;
-          *) die "sampler=$value: expected weighted, unweighted or pac" ;;
-        esac
-        ;;
-      seed)    parse_run_int "$key" "$value"; export EXACTLEARNER_SAMPLER_SEED="$value" ;;
-      pacseed) parse_run_int "$key" "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
-      repeats)
-        # Acted on by submit.sh, which fires this many jobs. Parsed here too so
-        # that a bare `sbatch run_experiment.sh <config> repeats=5` is not
-        # rejected as an unknown name -- the job itself is always one repeat, and
-        # run_experiment.sh says so rather than silently doing one of five.
-        parse_run_int "$key" "$value"
-        [[ "$value" -ge 1 ]] || die "repeats=$value: expected 1 or more"
-        REPEATS="$value"
-        ;;
-      *) die "unknown parameter '$key'. Use one of: $RUN_ARGS_USAGE" ;;
+    case "$arg" in
+      precomp=true|precomp=false) precomp="$value" ;;
+      precomp=reuse)              precomp=true; PRECOMP_LABEL=reuse
+                                  export EXACTLEARNER_PRECOMP_REUSE=true ;;
+      eval=baris)                 evaluate=true ;;
+      eval=none)                  evaluate=false ;;
+      cache=shared|cache=fresh)   CACHE_MODE="$value" ;;
+      cache=?*)                   CACHE_MODE=path; export EXACTLEARNER_CACHE="$value" ;;
+      budget=global|budget=per-round)                  export EXACTLEARNER_BUDGET_MODE="$value" ;;
+      # Exported only when given, so run_experiment.sh's own default stands.
+      resume=true|resume=false)                        export EXACTLEARNER_RESUME="$value" ;;
+      sampler=weighted|sampler=unweighted|sampler=pac) export EXACTLEARNER_SAMPLER="$value" ;;
+      seed=*)    parse_run_int seed "$value";    export EXACTLEARNER_SAMPLER_SEED="$value" ;;
+      pacseed=*) parse_run_int pacseed "$value"; export EXACTLEARNER_PAC_SEED="$value" ;;
+      # Acted on by submit.sh; the job itself is always one repeat.
+      repeats=*) parse_run_int repeats "$value"; REPEATS="$value" ;;
+      *) die "bad parameter '$arg'. Use: $RUN_ARGS_USAGE" ;;
     esac
   done
+  [[ "$REPEATS" -ge 1 ]] || die "repeats=$REPEATS: expected 1 or more"
 
-  # Exported only when asked for, so an unset resume leaves run_experiment.sh's
-  # own default (false) in place rather than overriding an inherited value.
-  [[ -n "$resume" ]] && export EXACTLEARNER_RESUME="$resume"
-
-  EPSILON="${EPSILON:-0.2}"
-  DELTA="${DELTA:-0.1}"
-  parse_run_num epsilon "$EPSILON"
-  parse_run_num delta   "$DELTA"
+  # Whether precomputation runs, for naming the log folder. Unset is the
+  # launcher's default, skipPrecomputation=false, so it runs.
+  PRECOMP="${precomp:-true}"
 
   # The launcher reads these positionally, so eval cannot be passed without
   # precomp ahead of it. false is skipPrecomputation's own default, so filling it
@@ -215,7 +136,7 @@ parse_run_args() {
 
   # Echoed back by both scripts. Only what was actually asked for: a parameter
   # left out is the launcher's own default, and this file does not know it.
-  RUN_ARGS_SUMMARY="eps=$EPSILON delta=$DELTA"
+  RUN_ARGS_SUMMARY=""
   [[ "$CACHE_MODE" != shared ]] && RUN_ARGS_SUMMARY+=" cache=$CACHE_MODE"
   [[ -n "$precomp"  ]] && RUN_ARGS_SUMMARY+=" precomp=${PRECOMP_LABEL:-$precomp}"
   [[ "$evaluate" == true  ]] && RUN_ARGS_SUMMARY+=" eval=baris"
@@ -226,10 +147,12 @@ parse_run_args() {
   [[ -n "${EXACTLEARNER_SAMPLER_SEED:-}" ]] && RUN_ARGS_SUMMARY+=" seed=$EXACTLEARNER_SAMPLER_SEED"
   [[ -n "${EXACTLEARNER_PAC_SEED:-}"     ]] && RUN_ARGS_SUMMARY+=" pacseed=$EXACTLEARNER_PAC_SEED"
   [[ "$REPEATS" -gt 1 ]] && RUN_ARGS_SUMMARY+=" repeats=$REPEATS"
+  RUN_ARGS_SUMMARY="${RUN_ARGS_SUMMARY# }"
+  RUN_ARGS_SUMMARY="${RUN_ARGS_SUMMARY:-defaults}"
   return 0
 }
 
-RUN_ARGS_USAGE="eps= delta= precomp=true|false|reuse eval=baris|none cache=shared|fresh|<path> sampler=weighted|unweighted|pac budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
+RUN_ARGS_USAGE="precomp=true|false|reuse eval=baris|none cache=shared|fresh|<path> sampler=weighted|unweighted|pac budget=global|per-round resume=true|false seed=N pacseed=N repeats=N"
 
 # Called by run_experiment.sh only, once the job id is known. cache=fresh gets a
 # file of its own per job, so the run pays for every query it asks and its timings
@@ -241,21 +164,6 @@ resolve_cache_path() {
   export EXACTLEARNER_CACHE="cache-fresh-${SLURM_JOB_ID:-$$}.sqlite3"
 }
 
-# bash 3.2 on a mac has no ${x,,}, and these scripts get edited there.
-run_args_lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
-
-parse_run_bool() {
-  case "$(run_args_lower "$2")" in
-    true|on|yes)  printf true ;;
-    false|off|no) printf false ;;
-    *) die "$1=$2: expected true or false" ;;
-  esac
-}
-
 parse_run_int() {
   [[ "$2" =~ ^-?[0-9]+$ ]] || die "$1=$2: expected an integer"
-}
-
-parse_run_num() {
-  [[ "$2" =~ ^[0-9]*\.?[0-9]+$ ]] || die "$1=$2: expected a number"
 }

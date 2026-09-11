@@ -172,6 +172,10 @@ public class LaunchLLMLearner extends LaunchLearner {
         queryFormat = config.getQueryFormat();
         ontologies = config.getOntologies();
         maxTokens = config.getMaxTokens();
+        // They size the PAC sample budget, which every sampler draws against.
+        if (config.getEpsilon() != null) epsilon = config.getEpsilon();
+        if (config.getDelta() != null) delta = config.getDelta();
+        System.out.println("epsilon = " + epsilon + ", delta = " + delta);
         hypothesisSizes = ontologies.stream().map(OntologyManipulator::computeOntologySize).collect(Collectors.toList());
     }
 
@@ -180,9 +184,9 @@ public class LaunchLLMLearner extends LaunchLearner {
     // One launcher covers what used to be four classes, because the three
     // things that varied are independent of each other and of the loop:
     //
-    //   precomputation  BEFORE the loop  -- skipPrecomputation, args[3]
+    //   precomputation  BEFORE the loop  -- skipPrecomputation, args[1]
     //   sampler         INSIDE the loop  -- getCounterExample(), overridden
-    //   evaluation      AFTER the loop   -- evaluateAfterRun, args[4]
+    //   evaluation      AFTER the loop   -- evaluateAfterRun, args[2]
     //
     // The loop itself is identical in every arm, so it exists once, in
     // runLearner() below. LaunchLLMLearnerAInducedNoPre (which only set
@@ -190,31 +194,27 @@ public class LaunchLLMLearner extends LaunchLearner {
     // evaluateAfterRun) were removed on 2026-08-27 in favour of these flags.
 
     /**
-     * Optional 4th CLI arg. Disables learner.precomputation() in runLearner(),
+     * Optional 2nd CLI arg. Disables learner.precomputation() in runLearner(),
      * for experiments isolating the sampling loop's contribution from
      * precomputation's.
      */
     protected boolean skipPrecomputation = false;
 
     /**
-     * Optional 5th CLI arg. Runs Baris's Macro/Micro Precision/Recall evaluation
+     * Optional 3rd CLI arg. Runs Baris's Macro/Micro Precision/Recall evaluation
      * after each model finishes. Off here so the plain PAC arm is unchanged;
      * LaunchLLMLearnerAInduced defaults it on, as it always evaluated.
      */
     protected boolean evaluateAfterRun = false;
 
+    // <config> [skipPrecomputation] [evaluateAfterRun]. Epsilon and delta come
+    // from the config (loadConfiguration).
     protected void parseExperimentArgs(String[] args) {
         if (args.length > 1) {
-            epsilon = Double.parseDouble(args[1]);
+            skipPrecomputation = Boolean.parseBoolean(args[1]);
         }
         if (args.length > 2) {
-            delta = Double.parseDouble(args[2]);
-        }
-        if (args.length > 3) {
-            skipPrecomputation = Boolean.parseBoolean(args[3]);
-        }
-        if (args.length > 4) {
-            evaluateAfterRun = Boolean.parseBoolean(args[4]);
+            evaluateAfterRun = Boolean.parseBoolean(args[2]);
         }
         System.out.println("skipPrecomputation = " + skipPrecomputation);
         System.out.println("evaluateAfterRun = " + evaluateAfterRun);

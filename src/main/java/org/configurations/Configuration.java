@@ -14,6 +14,25 @@ public class Configuration {
     private List<String> systems;
     private List<QueryFormat> queryFormats;
     private String queryFormat;
+    // PAC epsilon and delta; null when the config leaves them out.
+    private Double epsilon;
+    private Double delta;
+
+    public Double getEpsilon() {
+        return epsilon;
+    }
+
+    public void setEpsilon(Double epsilon) {
+        this.epsilon = epsilon;
+    }
+
+    public Double getDelta() {
+        return delta;
+    }
+
+    public void setDelta(Double delta) {
+        this.delta = delta;
+    }
 
     public String getType() {
         return type;
@@ -73,6 +92,8 @@ public class Configuration {
                 ", system='" + system + '\'' +
                 ", maxTokens=" + maxTokens +
                 ", queryFormat=" + queryFormat +
+                ", epsilon=" + epsilon +
+                ", delta=" + delta +
                 ", type='" + type + '\'' +
                 '}';
     }

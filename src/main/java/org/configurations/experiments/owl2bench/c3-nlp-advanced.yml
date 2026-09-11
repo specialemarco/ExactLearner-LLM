@@ -1,5 +1,8 @@
 ontologies:
   - "data_paclo/owl2bench-1-el-class_names_exists_partial/expertOntology.owl"
+# PAC epsilon and delta: they size the sample budget every sampler draws against.
+epsilon: 0.2
+delta: 0.1
 system: >
   You need to classify the following statements as True or False. The statement will be provided in either Manchester OWL syntax or natural language. Strictly follow these guidelines:
     1. answer with only True or False;
