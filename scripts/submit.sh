@@ -13,8 +13,9 @@
 # The flat names used before 2026-09-01 still resolve; they hard-code the model.
 # A path that exists is used as given.
 #
-# The run parameters are name=value in any order and all optional -- eps, delta,
-# precomp, eval, sampler, budget, seed, pacseed, repeats. scripts/run_args.sh documents them
+# The run parameters are name=value in any order and all optional -- precomp,
+# eval, cache, sampler, budget, resume, seed, pacseed, repeats; epsilon and delta
+# are set in the config. scripts/run_args.sh documents them
 # and is sourced here as well as in the job, so a typo fails now rather than after
 # the model has loaded on a compute node.
 #
@@ -141,10 +142,14 @@ fi
 # rather than on top of them. The collision is real and silent: results/ontologies/
 # is keyed by (dataset, run tag), not by sampler, so weighted and unweighted at
 # one seed would otherwise write the same hypothesis, trajectory and run-state.
+# Precomputation joins the same way, as -precomp before the model when it runs:
+# every run before 2026-09-11 had precomp=false, so those folders keep their names.
 ARM_TAG=""
 [[ "${EXACTLEARNER_SAMPLER:-weighted}" == weighted ]] || ARM_TAG="${EXACTLEARNER_SAMPLER}"
+PRECOMP_TAG=""
+[[ "$PRECOMP" == false ]] || PRECOMP_TAG=precomp
 
-LOG_DIR="logs/$(basename "$CONFIG" .yml)-$MODEL_NAME${ARM_TAG:+-$ARM_TAG}"
+LOG_DIR="logs/$(basename "$CONFIG" .yml)${PRECOMP_TAG:+-$PRECOMP_TAG}-$MODEL_NAME${ARM_TAG:+-$ARM_TAG}"
 mkdir -p "$LOG_DIR"
 export EXACTLEARNER_LOG_DIR="$LOG_DIR"
 
@@ -235,7 +240,7 @@ for (( i = 0; i < REPEATS; i++ )); do
   pacseed=$(( base_pac + i ))
   # Exported, not passed: sbatch forwards the submitting environment, and the
   # launcher reads this rather than taking it as an argument.
-  export EXACTLEARNER_RUN_TAG="${ARM_TAG:+${ARM_TAG}-}seed${seed}"
+  export EXACTLEARNER_RUN_TAG="${PRECOMP_TAG:+${PRECOMP_TAG}-}${ARM_TAG:+${ARM_TAG}-}seed${seed}"
   # Appended after "$@", so these win over any seed= the user also gave -- that
   # one is the base the repeats count up from, not a value to apply to each.
   printf '  seed=%s pacseed=%s tag=%s -> ' "$seed" "$pacseed" "$EXACTLEARNER_RUN_TAG"
