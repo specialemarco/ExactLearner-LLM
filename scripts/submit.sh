@@ -57,11 +57,24 @@ source "$EXACTLEARNER_MODEL_ENV"
 set -u
 #[[ -n "${MODEL_ROOT:-}" ]] || die "MODEL_ROOT is not set in $EXACTLEARNER_ENV"
 
-# Logs go to logs/<model>/<arm>/<config>/, and the run tag <arm>-seed<N> names the
-# per-run files in results/ontologies/ and statistics/.
+# Logs go to logs/<model>/<arm>/<config>/, and the run tag <arm>-seed<N>[-eps<E>]
+# names the per-run files in results/ontologies/ and statistics/.
 ARM="${EXACTLEARNER_SAMPLER}_precomp"
 if [[ "$EXACTLEARNER_PRECOMP" == false ]]; then
   ARM="${EXACTLEARNER_SAMPLER}_noprecomp"
+fi
+
+# Epsilon is set in the config, and a *-eps<E> config name gives it its own log
+# folder, but not its own results/ and statistics/ files: those are named without
+# the config, so a non-default epsilon (the launcher's is 0.2) tags the run.
+EPSILON=$(awk '$1 == "epsilon:" { print $2 }' "$CONFIG")
+EPS_TAG=""
+if [[ -n "$EPSILON" ]] && awk -v e="$EPSILON" 'BEGIN { exit !(e + 0 != 0.2) }'; then
+  EPS_TAG="-eps$EPSILON"
+fi
+NAMED_EPS=$(basename "$CONFIG" .yml | sed -n 's/.*-eps\([0-9.]*\)$/\1/p')
+if [[ -n "$NAMED_EPS" ]] && ! awk -v a="$NAMED_EPS" -v b="${EPSILON:-0.2}" 'BEGIN { exit !(a + 0 == b + 0) }'; then
+  die "$CONFIG is named eps$NAMED_EPS but sets epsilon: ${EPSILON:-(unset, 0.2)}"
 fi
 export EXACTLEARNER_LOG_DIR="logs/$MODEL_NAME/$ARM/$(basename "$CONFIG" .yml)"
 mkdir -p "$EXACTLEARNER_LOG_DIR"   # sbatch does not create it, and the job fails at launch
@@ -80,7 +93,7 @@ submit() {
 }
 
 if [[ "$REPEATS" -eq 1 ]]; then
-  export EXACTLEARNER_RUN_TAG="$ARM-seed${EXACTLEARNER_SEED:-0}"
+  export EXACTLEARNER_RUN_TAG="$ARM-seed${EXACTLEARNER_SEED:-0}$EPS_TAG"
   echo "Submitted batch job $(submit) (tag=$EXACTLEARNER_RUN_TAG)"
   exit 0
 fi
@@ -89,7 +102,7 @@ first_seed="${EXACTLEARNER_SEED:-1}"
 
 for (( seed = first_seed; seed < first_seed + REPEATS; seed++ )); do
   export EXACTLEARNER_SEED=$seed
-  export EXACTLEARNER_RUN_TAG="$ARM-seed$seed"
+  export EXACTLEARNER_RUN_TAG="$ARM-seed$seed$EPS_TAG"
 
   job=$(submit)
   echo "Submitted batch job $job (seed=$seed tag=$EXACTLEARNER_RUN_TAG${DEPENDENCY:+, after ${DEPENDENCY#afterany:}})"
