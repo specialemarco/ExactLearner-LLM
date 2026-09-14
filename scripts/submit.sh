@@ -1,259 +1,103 @@
 #!/bin/bash
-# Submit one model x one config to Slurm.
+# Submit one model x one config to Slurm. Run from the repository root.
 #
 #   scripts/submit.sh <model> <config> [name=value ...]
+#   scripts/submit.sh mistral-7b owl2bench/c2-nlp-advanced sampler=unweighted repeats=10
 #
-# <config> is a name under src/main/java/org/configurations/experiments -- that
-# directory and the .yml are both optional. The OWL2Bench configs sit in owl2bench/
-# and name no model: <model> supplies it, so one config serves every model.
+# <model> is scripts/models/<model>.env. <config> is a path, or a name under
+# src/main/java/org/configurations/experiments without the .yml. Parameters,
+# first value the default:
 #
-#   scripts/submit.sh deepseek-r1-32b owl2bench/c2-nlp-advanced
-#   scripts/submit.sh mistral-7b      owl2bench/c2-nlp-advanced
+#   precomp=true|false|reuse    reuse: repeats replay the first one's precomputation
+#   eval=baris|none             evaluation after the loop; default off for sampler=pac
+#   cache=shared|fresh|<path>   fresh: a new cache file for this job
+#   sampler=weighted|unweighted|pac
+#   budget=global|per-round     
+#   resume=false|true           continue from the previous job's checkpoint
+#   seed=N                      sampler seed, for whichever sampler runs
+#   repeats=N                   N jobs with seeds seed..seed+N-1
 #
-# The flat names used before 2026-09-01 still resolve; they hard-code the model.
-# A path that exists is used as given.
-#
-# The run parameters are name=value in any order and all optional -- precomp,
-# eval, cache, sampler, budget, resume, seed, pacseed, repeats; epsilon and delta
-# are set in the config. scripts/run_args.sh documents them
-# and is sourced here as well as in the job, so a typo fails now rather than after
-# the model has loaded on a compute node.
-#
-# repeats=N submits N jobs whose seeds run seed..seed+N-1, for a confidence
-# interval over the sampler's randomness. Each is tagged by its seed so their
-# outputs do not collide.
-#
-# <model> is a file in scripts/models/ without the .env. It carries everything
-# that travels with the weights -- path, tensor parallelism, GPU count, token
-# budget, batch size, walltime -- and is tracked, so a model runs the same way
-# for both of us. scripts/experiment.env is yours alone: MODEL_ROOT and the
-# account.
-#
-# The model file is sourced after the personal one and wins, because it states
-# facts about the model rather than preferences. To vary a setting, copy the
-# file under a new name; that name is then what labels the result.
-#
-# Submit from the repository ROOT -- several code paths resolve relative to the
-# working directory.
+# They reach the job as EXACTLEARNER_* variables, which sbatch passes on.
 set -euo pipefail
 
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+die() { echo "ERROR: $*" >&2; exit 1; }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "$SCRIPT_DIR/run_args.sh"
-
-MODEL="${1-}"
-CONFIG="${2-}"
-if [[ -z "$MODEL" || -z "$CONFIG" ]]; then
-  die "usage: scripts/submit.sh <model> <config> [name=value ...]
-       models: $(ls "$SCRIPT_DIR"/models/*.env 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.env$//' | tr '\n' ' ')
-       params: $RUN_ARGS_USAGE
-       configs: $CONFIG_DIR/ -- drop that directory and the .yml, but KEEP any
-                subfolder: owl2bench/c2-nlp-advanced"
-fi
+MODEL="$1"
+CONFIG="src/main/java/org/configurations/experiments/$2.yml"
 shift 2
 
-# Bare name, or a path as given. Resolved here so what reaches sbatch, the model
-# name check below, and the log all refer to the same file.
-CONFIG="$(resolve_config "$CONFIG")"
-
-# Validate only -- the job re-parses these itself. Exits here on a bad name.
-parse_run_args "$@"
-
-EXACTLEARNER_ENV="${EXACTLEARNER_ENV:-$SCRIPT_DIR/experiment.env}"
-EXACTLEARNER_MODEL_ENV="$SCRIPT_DIR/models/$MODEL.env"
-[[ -f "$EXACTLEARNER_ENV" ]] ||
-  die "no personal config at $EXACTLEARNER_ENV -- cp scripts/experiment.env.example scripts/experiment.env and fill it in."
-[[ -f "$EXACTLEARNER_MODEL_ENV" ]] || die "no such model: $EXACTLEARNER_MODEL_ENV"
-
-set +u; . "$EXACTLEARNER_ENV"; . "$EXACTLEARNER_MODEL_ENV"; set -u
-
-[[ -n "${MODEL_ROOT:-}"     ]] || die "MODEL_ROOT is not set in $EXACTLEARNER_ENV"
-[[ -n "${SBATCH_ACCOUNT:-}" ]] || die "SBATCH_ACCOUNT is not set in $EXACTLEARNER_ENV"
-
-# WALLTIME belongs with the model because how long a run needs follows the
-# weights: a 32B at 45 tok/s does not fit in what a 7B needs. Unset falls back to
-# the #SBATCH --time directive in run_experiment.sh. Checked here because sbatch
-# rejects a malformed one only after the rest of the line has been accepted, and
-# the error does not name the file it came from.
-if [[ -n "${WALLTIME:-}" ]]; then
-  [[ "$WALLTIME" =~ ^([0-9]+(:[0-9]{1,2}){0,2}|[0-9]+-[0-9]{1,2}(:[0-9]{1,2}){0,2}|UNLIMITED|INFINITE)$ ]] ||
-    die "WALLTIME=\"$WALLTIME\" in $EXACTLEARNER_MODEL_ENV is not a Slurm time.
-       Use minutes, MM:SS, HH:MM:SS, D-HH, D-HH:MM or D-HH:MM:SS -- e.g. 24:00:00 or 2-00:00:00."
-fi
-
-# MEMORY belongs with the model for the same reason WALLTIME does: the host-side
-# footprint follows the weights and the tensor-parallel width. Unset falls back to
-# the #SBATCH --mem directive. Same reason for checking it here -- sbatch reports a
-# malformed --mem without naming the file it came from.
-if [[ -n "${MEMORY:-}" ]]; then
-  [[ "$MEMORY" =~ ^[0-9]+[KMGTkmgt]?$ ]] ||
-    die "MEMORY=\"$MEMORY\" in $EXACTLEARNER_MODEL_ENV is not a Slurm size.
-       Use a number with an optional K/M/G/T suffix -- e.g. 64G. 0 means the whole node."
-
-  # The learner's heap is carved out of this allocation, and so is vLLM's host
-  # side, so MEMORY at or below JAVA_HEAP cannot work. Only that -- the certain
-  # misconfiguration -- is checked. vLLM's footprint is the other half and it is
-  # model-dependent: ~50 GiB was measured on a 32B at TP=4, while job 4094190
-  # (7B, TP=1) touched 15.0 GiB for the whole job, so there is no one threshold
-  # to test against. The message carries the number instead.
-  mem_g=${MEMORY%[KMGTkmgt]}
-  case "$MEMORY" in
-    *[Kk]) mem_g=$(( mem_g / 1024 / 1024 )) ;;
-    *[Mm]) mem_g=$(( mem_g / 1024 )) ;;
-    *[Tt]) mem_g=$(( mem_g * 1024 )) ;;
+REPEATS=1
+export EXACTLEARNER_SAMPLER=weighted EXACTLEARNER_PRECOMP=true
+for arg in "$@"; do
+  value="${arg#*=}"
+  case "$arg" in
+    precomp=true|precomp=false)     export EXACTLEARNER_PRECOMP="$value" ;;
+    precomp=reuse)                  export EXACTLEARNER_PRECOMP=true EXACTLEARNER_PRECOMP_REUSE=true ;;
+    eval=baris)                     export EXACTLEARNER_EVAL=true ;;
+    eval=none)                      export EXACTLEARNER_EVAL=false ;;
+    cache=shared)                   ;;
+    cache=?*)                       export EXACTLEARNER_CACHE="$value" ;;   # the job names a fresh one
+    budget=global|budget=per-round) export EXACTLEARNER_BUDGET_MODE="$value" ;;
+    resume=true|resume=false)       export EXACTLEARNER_RESUME="$value" ;;
+    sampler=weighted|sampler=unweighted|sampler=pac) export EXACTLEARNER_SAMPLER="$value" ;;
+    seed=*)                         export EXACTLEARNER_SEED="$value" ;;
+    repeats=*)                      REPEATS="$value" ;;
+    *) die "bad parameter: $arg" ;;
   esac
-  heap_g=${JAVA_HEAP:-64g}
-  heap_g=${heap_g%[Gg]}
-  if [[ "$MEMORY" != 0 && "$heap_g" =~ ^[0-9]+$ ]] && (( mem_g <= heap_g )); then
-    warn "MEMORY=$MEMORY leaves $(( mem_g - heap_g ))G once the ${heap_g}g JVM heap is taken.
-         vLLM's host side has to fit in what is left -- ~50 GiB on a 32B at TP=4,
-         far less on a 7B. Raise MEMORY or lower JAVA_HEAP in $EXACTLEARNER_MODEL_ENV."
-  fi
+done
+
+# Exported because the job sources both again: the variables they set are not.
+export EXACTLEARNER_ENV="scripts/experiment.env"
+export EXACTLEARNER_MODEL_ENV="scripts/models/$MODEL.env"
+
+# The model file comes second, so it wins.
+set +u
+source "$EXACTLEARNER_ENV"
+source "$EXACTLEARNER_MODEL_ENV"
+set -u
+#[[ -n "${MODEL_ROOT:-}" ]] || die "MODEL_ROOT is not set in $EXACTLEARNER_ENV"
+
+# Logs go to logs/<model>/<arm>/<config>/, and the run tag <arm>-seed<N> names the
+# per-run files in results/ontologies/ and statistics/.
+ARM="${EXACTLEARNER_SAMPLER}_precomp"
+if [[ "$EXACTLEARNER_PRECOMP" == false ]]; then
+  ARM="${EXACTLEARNER_SAMPLER}_noprecomp"
 fi
+export EXACTLEARNER_LOG_DIR="logs/$MODEL_NAME/$ARM/$(basename "$CONFIG" .yml)"
+mkdir -p "$EXACTLEARNER_LOG_DIR"   # sbatch does not create it, and the job fails at launch
 
-# The cache is keyed by the model name, so the weights and that name must agree.
-# Running one model's weights under another's name writes its answers into that
-# model's cache and every later run replays them, silently.
-#
-# A config that names no model is the normal case now: run_experiment.sh exports
-# EXACTLEARNER_MODEL from MODEL_NAME, so the name comes from the same file as the
-# weights and cannot disagree with them. One that DOES name a model is checked, as
-# it always was -- those are the older per-model configs, and a mismatch there is
-# far more likely to be the wrong config than a deliberate choice.
-# `|| true` is load-bearing under `set -euo pipefail`: a model-agnostic config has
-# no models: line, so grep exits 1, pipefail propagates it, and the assignment
-# takes the whole script down -- with no message at all, since nothing has been
-# echoed yet. An empty result is the expected answer here, not a failure.
-yml_model=$(grep -A2 '^models:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"') || true
-if [[ -z "$yml_model" ]]; then
-  : # model-agnostic config; MODEL_NAME supplies it
-elif [[ "$yml_model" != "$MODEL_NAME" ]]; then
-  die "$CONFIG asks for \"$yml_model\" but $MODEL.env serves \"$MODEL_NAME\". That name is the cache key -- mixing them corrupts it."
-fi
+echo "$MODEL_NAME ($MODEL) | $CONFIG | ${GPUS} tp=${TENSOR_PARALLEL} batch=${EXACTLEARNER_BATCH_SIZE} time=$WALLTIME mem=$MEMORY"
+echo "logs -> $EXACTLEARNER_LOG_DIR/"
 
-# One directory per config and model. Thirty repeats otherwise put ninety files
-# -- job log, server status, trace -- in one flat logs/, and the job log's name
-# says only the job id. Created here because sbatch does NOT create the --output
-# directory: it fails the job at launch instead, before anything is logged.
-# The arm joins the log folder and the run tag below, but ONLY when it is not
-# the weighted default -- so every path a run produced before 2026-09-07 is
-# byte-for-byte the path it produced then, and the new arms land beside those
-# rather than on top of them. The collision is real and silent: results/ontologies/
-# is keyed by (dataset, run tag), not by sampler, so weighted and unweighted at
-# one seed would otherwise write the same hypothesis, trajectory and run-state.
-# Precomputation joins the same way, as -precomp before the model when it runs:
-# every run before 2026-09-11 had precomp=false, so those folders keep their names.
-ARM_TAG=""
-[[ "${EXACTLEARNER_SAMPLER:-weighted}" == weighted ]] || ARM_TAG="${EXACTLEARNER_SAMPLER}"
-PRECOMP_TAG=""
-[[ "$PRECOMP" == false ]] || PRECOMP_TAG=precomp
-
-LOG_DIR="logs/$(basename "$CONFIG" .yml)${PRECOMP_TAG:+-$PRECOMP_TAG}-$MODEL_NAME${ARM_TAG:+-$ARM_TAG}"
-mkdir -p "$LOG_DIR"
-export EXACTLEARNER_LOG_DIR="$LOG_DIR"
-
-# Absolute, and on the shared filesystem: the job may run from a spool copy of
-# run_experiment.sh, where a relative scripts/ does not resolve.
-RUN_ARGS_LIB="$SCRIPT_DIR/run_args.sh"
-
-export EXACTLEARNER_ENV EXACTLEARNER_MODEL_ENV RUN_ARGS_LIB
-
-echo "$MODEL_NAME ($MODEL) | $CONFIG | ${GPUS} tp=${TENSOR_PARALLEL} batch=${EXACTLEARNER_BATCH_SIZE} time=${WALLTIME:-<script default>} mem=${MEMORY:-<script default>}"
-echo "$RUN_ARGS_SUMMARY"
-echo "logs -> $LOG_DIR/"
-
-# sbatch reads the #SBATCH directives inside run_experiment.sh before that script
-# executes, so account, GPUs and walltime can only be set from the command line.
-# SBATCH_EXTRA stays last so it still wins: it is the escape hatch for a site
-# whose limits the model file cannot know about.
-# --parsable, so the caller gets the id to chain the next job behind. The caller
-# prints the human line.
-submit_one() {
+# The other Slurm options are the #SBATCH lines in run_experiment.sh.
+DEPENDENCY=""
+submit() {
   sbatch --parsable --account="$SBATCH_ACCOUNT" --gpus-per-node="$GPUS" \
-     ${WALLTIME:+--time="$WALLTIME"} \
-     ${MEMORY:+--mem="$MEMORY"} \
-     ${DEPENDENCY:+--dependency="$DEPENDENCY"} \
-     --output="$LOG_DIR/%x-%j.log" \
-     "${SBATCH_EXTRA[@]+"${SBATCH_EXTRA[@]}"}" \
-     "$SCRIPT_DIR/run_experiment.sh" "$CONFIG" "$@"
+    --time="$WALLTIME" --mem="$MEMORY" \
+    ${DEPENDENCY:+--dependency="$DEPENDENCY"} \
+    --output="$EXACTLEARNER_LOG_DIR/%x-%j.log" \
+    scripts/run_experiment.sh "$CONFIG"
 }
 
-# Called, not exec'd: exec replaces the shell with an external program and cannot
-# run a function, so `exec submit_one` fails with "not found".
-DEPENDENCY=""
-if [[ "${REPEATS:-1}" -le 1 ]]; then
-  job_id="$(submit_one "$@")"
-  printf 'Submitted batch job %s\n' "${job_id%%;*}"
+if [[ "$REPEATS" -eq 1 ]]; then
+  export EXACTLEARNER_RUN_TAG="$ARM-seed${EXACTLEARNER_SEED:-0}"
+  echo "Submitted batch job $(submit) (tag=$EXACTLEARNER_RUN_TAG)"
   exit 0
 fi
 
-# --- repeats: one job per seed ------------------------------------------------
-# A repeat differs from the run before it ONLY in the seeds, so what the spread
-# across them measures is the sampler's randomness -- which candidate axioms got
-# proposed, and in what order. The model's answers are NOT a source of variance
-# here: llm_server.py decodes at temperature 0, so the same question returns the
-# same answer whether it is re-asked or replayed from the cache. That also makes
-# the shared cache the right choice for repeats rather than the wrong one: the
-# later seeds re-ask many of the same questions and get them free.
-#
-# Separate jobs rather than a loop inside one: they run in parallel on different
-# nodes, one failing does not take the others with it, and N runs would not fit
-# a single job's walltime anyway.
-#
-# EXACTLEARNER_RUN_TAG is what keeps them apart on disk. Without it every repeat
-# writes the same hypothesis, trajectory, run-state and statistics files, and
-# racing on the target copy can hand one repeat the other's half-written file.
-# It is named for the seed, not the repeat's position, so re-running seed 3 later
-# overwrites seed 3 rather than landing beside it under a new number.
-base_seed="${EXACTLEARNER_SAMPLER_SEED:-1}"
-# Follows the sampler seed unless pacseed= was given explicitly, so that
-# `repeats=3 seed=10` yields the pairs (10,10) (11,11) (12,12) rather than
-# pairing seed 10 with pacseed 1 and making the tag a half-truth.
-base_pac="${EXACTLEARNER_PAC_SEED:-$base_seed}"
+first_seed="${EXACTLEARNER_SEED:-1}"
 
-# Without this, precomp=reuse mostly does nothing: every repeat that starts before
-# some other has FINISHED precomputing finds no record and computes the pass
-# itself, so ten flat repeats can perform ten precomputations.
-#
-# afterany, NOT afterok: repeat 1 records within its first phase but runs for
-# hours after, and a walltime kill exits non-zero -- afterok would then cancel
-# nine dependents over a run that had already done the one thing they wait for.
-# Under afterany they replay if the record is there and compute if it is not,
-# which is the unchained behaviour, so the chain can only help.
-#
-# They wait on repeat 1 alone, so they still run in parallel with each other --
-# but for the whole of it, since Slurm cannot depend on a phase. That cost is why
-# this is tied to precomp=reuse rather than applied to every sweep.
-CHAIN_REPEATS=""
-if [[ "${EXACTLEARNER_PRECOMP_REUSE:-false}" == true && "$REPEATS" -gt 1 ]]; then
-  CHAIN_REPEATS=true
-fi
+for (( seed = first_seed; seed < first_seed + REPEATS; seed++ )); do
+  export EXACTLEARNER_SEED=$seed
+  export EXACTLEARNER_RUN_TAG="$ARM-seed$seed"
 
-echo "Submitting $REPEATS repeats, seeds $base_seed..$(( base_seed + REPEATS - 1 ))"
-if [[ -n "$CHAIN_REPEATS" ]]; then
-  echo "  precomp=reuse: repeat 1 records the precomputation and repeats 2..$REPEATS wait for it"
-  echo "  (they start when repeat 1 ENDS, not when it finishes precomputing -- Slurm has no phase dependency)"
-fi
-for (( i = 0; i < REPEATS; i++ )); do
-  seed=$(( base_seed + i ))
-  pacseed=$(( base_pac + i ))
-  # Exported, not passed: sbatch forwards the submitting environment, and the
-  # launcher reads this rather than taking it as an argument.
-  export EXACTLEARNER_RUN_TAG="${PRECOMP_TAG:+${PRECOMP_TAG}-}${ARM_TAG:+${ARM_TAG}-}seed${seed}"
-  # Appended after "$@", so these win over any seed= the user also gave -- that
-  # one is the base the repeats count up from, not a value to apply to each.
-  printf '  seed=%s pacseed=%s tag=%s -> ' "$seed" "$pacseed" "$EXACTLEARNER_RUN_TAG"
-  # --parsable gives "id" or "id;cluster" on a federated setup.
-  job_id="$(submit_one "$@" "seed=$seed" "pacseed=$pacseed")"
-  job_id="${job_id%%;*}"
-  printf 'Submitted batch job %s%s\n' "$job_id" "${DEPENDENCY:+ (after $first_job)}"
-  if [[ -n "$CHAIN_REPEATS" && $i -eq 0 ]]; then
-    first_job="$job_id"
-    DEPENDENCY="afterany:$job_id"
+  job=$(submit)
+  echo "Submitted batch job $job (seed=$seed tag=$EXACTLEARNER_RUN_TAG${DEPENDENCY:+, after ${DEPENDENCY#afterany:}})"
+
+  # precomp=reuse: the other repeats wait for the first, which records the
+  # precomputation. afterany, not afterok: a walltime kill exits non-zero long
+  # after the record is written. Cancelling the first starts the rest, so scancel all.
+  if [[ "${EXACTLEARNER_PRECOMP_REUSE:-false}" == true && -z "$DEPENDENCY" ]]; then
+    DEPENDENCY="afterany:$job"
   fi
 done
-if [[ -n "$CHAIN_REPEATS" ]]; then
-  echo "Cancelling job $first_job would leave the rest queued; scancel them too, or they"
-  echo "will start on its termination and each recompute the precomputation."
-fi

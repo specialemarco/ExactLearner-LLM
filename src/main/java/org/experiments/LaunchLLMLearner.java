@@ -258,25 +258,21 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     /**
-     * Seed for the uniform PAC sampler. Fixed at 0 by default, as it always has
-     * been, so nothing already measured changes; set it to repeat the uniform arm
-     * independently, which is what comparing the two arms on one dataset needs --
-     * a single uniform run is one draw from a random process, not a baseline.
-     *
-     * Separate from EXACTLEARNER_SAMPLER_SEED, which seeds the A-induced sampler.
-     * The two samplers have independent streams and neither seed governs the other.
+     * Seed for whichever sampler the run uses: the uniform PAC one here, the
+     * A-induced one in the subclass. A run only ever draws from one of them. 0 by
+     * default, as every earlier single run used.
      */
-    public static final String PAC_SEED_ENV = "EXACTLEARNER_PAC_SEED";
+    public static final String SEED_ENV = "EXACTLEARNER_SEED";
 
-    protected int pacSeed() {
-        String raw = System.getenv(PAC_SEED_ENV);
+    protected int seed() {
+        String raw = System.getenv(SEED_ENV);
         if (raw == null || raw.isBlank()) {
             return 0;
         }
         try {
             return Integer.parseInt(raw.trim());
         } catch (NumberFormatException e) {
-            System.out.println("Ignoring " + PAC_SEED_ENV + "=" + raw + " (not a number), using 0");
+            System.out.println("Ignoring " + SEED_ENV + "=" + raw + " (not a number), using 0");
             return 0;
         }
     }
@@ -299,7 +295,7 @@ public class LaunchLLMLearner extends LaunchLearner {
     }
 
     /**
-     * Throws on an unrecognised value rather than defaulting: run_args.sh
+     * Throws on an unrecognised value rather than defaulting: submit.sh
      * validates first, so reaching here means it was set by hand, and the
      * failure mode is a 24 h job running a different arm than the one asked for.
      */
@@ -844,7 +840,7 @@ public class LaunchLLMLearner extends LaunchLearner {
      */
     protected void runLearner(int hypothesisSize) throws Throwable {
         int numberOfCounterExamples = 0;
-        int seed = pacSeed();
+        int seed = seed();
         if (isPrecomputationEnabled()) {
             // Computes inclusions of the form A implies B
             runPrecomputation();
@@ -868,7 +864,7 @@ public class LaunchLLMLearner extends LaunchLearner {
         }
         Pac pac = new Pac(parser.getClasses().get(), parser.getObjectProperties(), epsilon, delta, hypothesisSize, seed);
         pac.setBudgetMode(Pac.budgetModeFromEnv());
-        System.out.println("  PAC seed = " + seed + " (set " + PAC_SEED_ENV + " to vary it across repeats)");
+        System.out.println("  PAC seed = " + seed + " (" + SEED_ENV + ")");
         long totalPacSamples = pac.getNumberOfSamples();
         System.out.println("  PAC sample budget (numberOfSamples) = " + totalPacSamples
                 + " per " + (pac.getBudgetMode() == Pac.BudgetMode.PER_ROUND ? "equivalence query" : "run")

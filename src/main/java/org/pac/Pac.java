@@ -139,12 +139,6 @@ public class Pac {
         double x = computeInstanceSpaceSize();
         this.numberOfSamples = Math.round((hypothesisSize*Math.log(x) - Math.log(delta)) / epsilon);
         this.numberOfAxioms = x;
-        System.out.println("PAC-SIZE-DEBUG: classes.size()=" + classes.size()
-            + " objectProperties.size()=" + objectProperties.size()
-            + " hypothesisSize=" + hypothesisSize
-            + " epsilon=" + epsilon + " delta=" + delta
-            + " x(instanceSpaceSize)=" + x
-            + " numberOfSamples=" + this.numberOfSamples);
         this.seed = seed;
         this.factory = OWLManager.getOWLDataFactory();
 

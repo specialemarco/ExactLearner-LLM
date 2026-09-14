@@ -68,30 +68,6 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     private boolean batchedLoopDisabled = false;
 
     /**
-     * Seed for the A-induced sampler, from the environment. Fixed by default so
-     * a rerun repeats the previous run's draws exactly; override it to get an
-     * independent repeat of the same experiment.
-     *
-     * Note this is NOT the `seed` local in runLearner, which belongs to Pac and
-     * has never governed A-induced sampling.
-     */
-    public static final String SAMPLER_SEED_ENV = "EXACTLEARNER_SAMPLER_SEED";
-
-    private long samplerSeed() {
-        String raw = System.getenv(SAMPLER_SEED_ENV);
-        if (raw == null || raw.isBlank()) {
-            return ABoxInducedSubsumptionSampler.DEFAULT_SEED;
-        }
-        try {
-            return Long.parseLong(raw.trim());
-        } catch (NumberFormatException e) {
-            System.out.println("Ignoring " + SAMPLER_SEED_ENV + "=" + raw + " (not a number), using "
-                    + ABoxInducedSubsumptionSampler.DEFAULT_SEED);
-            return ABoxInducedSubsumptionSampler.DEFAULT_SEED;
-        }
-    }
-
-    /**
      * sampler=pac is still honoured here, falling through to the inherited
      * uniform loop, so a hand-run java invocation cannot contradict the variable.
      */
@@ -362,7 +338,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
         if (dataset == null) {
             return;
         }
-        long seed = samplerSeed();
+        long seed = seed();
         aboxSampler = new ABoxInducedSubsumptionSampler(
                 dataset.baseSet(), dataset.initialReasoner(), OWLManager.getOWLDataFactory(),
                 seed, samplerWeighting());
@@ -379,7 +355,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
                 + " (" + aboxSampler.typedIndividualCount() + " typed of "
                 + aboxSampler.instanceUniverseSize() + " in the signature)"
                 + ", baseSet " + dataset.baseSet().size() + ", seed " + seed
-                + " (set " + SAMPLER_SEED_ENV + " to vary it across repeats)");
+                + " (" + SEED_ENV + ")");
     }
 
     /**
