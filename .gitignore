@@ -14,6 +14,7 @@ table3.tex
 results/axiomsQuerying
 results/classesQuerying
 results/old
+OliviaPython/
 #results/ontologies/**/*.owl
 results/ontologies/*.owl
 warnings.txt
