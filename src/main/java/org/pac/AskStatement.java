@@ -9,8 +9,7 @@ import org.experiments.task.Task;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
 import org.utility.YAMLConfigLoader;
-import org.experiments.workload.OllamaWorkload;
-import org.experiments.workload.OpenAIWorkload;
+import org.experiments.workload.BaseWorkload;
 
 
 public class AskStatement {
@@ -40,16 +39,9 @@ public class AskStatement {
         Pac pac = new Pac(parser.getClasses().get(), parser.getObjectProperties(), 0.05, 0.1, 2, seed);
         for (int i = 1; i <= pac.getNumberOfSamples(); i++) {
             System.out.println("Training samples done: " + i + "/" + pac.getNumberOfSamples());
-            Runnable work;
             var s = pac.getRandomStatement();
             var statement = new ManchesterOWLSyntaxOWLObjectRendererImpl().render(s);
-            if (OllamaWorkload.supportedModels.contains(model)) {
-                work = new OllamaWorkload(model, system, statement, maxTokens);
-            } else if (OpenAIWorkload.supportedModels.contains(model)) {
-                work = new OpenAIWorkload(model, system, statement, maxTokens);
-            } else {
-                throw new IllegalStateException("Invalid model.");
-            }
+            Runnable work = BaseWorkload.forModel(model, system, statement, maxTokens, null);
             Task task = new ExperimentTask(type, model, queryFormat, ontology, statement, system, work);
             Environment.run(task);
         }

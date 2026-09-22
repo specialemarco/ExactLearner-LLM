@@ -6,19 +6,12 @@ import org.experiments.logger.SmartLogger;
 
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.List;
 
 public class OllamaWorkload implements BaseWorkload {
     private final String model;
     private final String system;
     private final String query;
     private final int maxTokens;
-    // Not a capability list: llm_server.py serves whatever weights it was started
-    // with and only echoes the name back, so an entry here is what routes the name
-    // to the Ollama path at all. A model missing from it dies in
-    // WorkloadManagerImpl with "Invalid model", after the pre-warm has been paid
-    // for -- deepseek-r1-14b cost jobs 4130779/4130781 6.1 hours that way.
-    public static final List<String> supportedModels = List.of("mistral", "deepseek-r1-14b", "deepseek-r1-32b", "mixtral", "llama2", "llama2:13b","llama2:70b","megadolphin","llama3","llama3.1","llama3.1:70b", "llava-llama3","llama3:70b","llama3-chatqa","dolphin-llama3", "qordmlwls/llama3.1-medical-v2");
     public static final int timeout = 1000 * 60; // 1 minute
     public final Cache cache;
 

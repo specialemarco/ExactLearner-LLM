@@ -31,16 +31,7 @@ public class WorkloadManagerImpl implements WorkloadManager {
     }
 
     public boolean runWorkload(String message) {
-        Runnable work;
-        if (OllamaWorkload.supportedModels.contains(model)) {
-            work = new OllamaWorkload(model, system, message, maxTokens, cache);
-        } else if (OpenAIWorkload.supportedModels.contains(model)) {
-            work = new OpenAIWorkload(model, system, message, maxTokens, cache);
-        } else if (model.equals("false")) {
-            work = new FalseWorkload(cache, message);
-        } else {
-            throw new IllegalStateException("Invalid model " + model);
-        }
+        Runnable work = BaseWorkload.forModel(model, system, message, maxTokens, cache);
         Task task = new ExperimentTask("statementsQuerying", model, queryFormat, ontologyName, message, system, work);
         Environment.run(task, cache);
         if (workLoadCounter != null) {
