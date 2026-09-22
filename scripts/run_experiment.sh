@@ -83,6 +83,9 @@ command -v curl >/dev/null ||
 [[ -d target/classes ]] || die "target/classes missing: mvn -o -DskipTests compile"
 [[ -d "$MODEL_PATH" ]]  || die "no model at $MODEL_PATH"
 
+curl -H "Exact Learner: $MODEL_NAME" -d "experiment started" ntfy.sh/exact-llm
+
+
 # Without initialOntology.owl and baseSet beside it, the learner silently falls
 # back to uniform PAC sampling. `|| true`: a grep miss would kill the job under pipefail.
 ONTOLOGY=$(grep -A2 '^ontologies:' "$CONFIG" | grep -o '"[^"]*"' | head -1 | tr -d '"') || true
