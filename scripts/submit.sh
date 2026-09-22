@@ -115,6 +115,10 @@ submit() {
     scripts/run_experiment.sh "$CONFIG"
 }
 
+#------------------------- Notification ----------------------------------------------
+
+curl -H "Exact Learner: $MODEL_NAME" -d "Experiment submitted" https://ntfy.sh/exact-llm
+
 #------------------------- Single Run ------------------------------------------------
 
 # Seed 0 unless seed= was given
@@ -144,7 +148,4 @@ for (( seed = first_seed; seed < first_seed + REPEATS; seed++ )); do
   fi
 done
 
-#------------------------- Notification ----------------------------------------------
-
-curl -H "Exact Learner: $MODEL_NAME" -d "Experiment submitted" ntfy.sh/exact-llm
 
