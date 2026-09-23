@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Pins the launcher flag matrix created on 2026-08-27, when four launcher classes
@@ -15,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * is used INSIDE it, and evaluation happens AFTER it. These tests assert the
  * defaults each old class used to hard-code, so the merge stays behaviour-preserving:
  *
- *   LaunchLLMLearnerAInducedNoPre   == AInduced + args[3]="true"
- *   LaunchLLMLearnerWithBarisEval   == LaunchLLMLearner + args[4]="true"
+ *   LaunchLLMLearnerAInducedNoPre   == AInduced, EXACTLEARNER_PRECOMP unset
+ *   LaunchLLMLearnerWithBarisEval   == LaunchLLMLearner + args[1]="true"
  *
  * Written against JUnit 5: JUnit 4 tests are silently skipped in this project (no
  * vintage engine on the JUnit Platform provider).
@@ -33,7 +34,6 @@ public class LauncherFlagMatrixTest {
     @Test
     public void uniformArmDefaultsAreUnchanged() {
         LaunchLLMLearner launcher = new LaunchLLMLearner();
-        assertTrue(launcher.isPrecomputationEnabled(), "precomputation on by default");
         assertFalse(launcher.evaluateAfterRun, "uniform arm did not evaluate by default");
         assertTrue(launcher.shouldPrintAverageStats(), "uniform arm printed average stats");
         assertEquals("", launcher.experimentLabel());
@@ -42,7 +42,6 @@ public class LauncherFlagMatrixTest {
     @Test
     public void aInducedArmDefaultsAreUnchanged() {
         LaunchLLMLearnerAInduced launcher = new LaunchLLMLearnerAInduced();
-        assertTrue(launcher.isPrecomputationEnabled(), "precomputation on unless args[3] says otherwise");
         assertTrue(launcher.evaluateAfterRun, "A-induced always ran evaluateWithBaris()");
         assertFalse(launcher.shouldPrintAverageStats(),
                 "A-induced has never printed average stats: printAverageStats() is private "
@@ -50,33 +49,29 @@ public class LauncherFlagMatrixTest {
         assertEquals(" (A-induced)", launcher.experimentLabel());
     }
 
-    /** What LaunchLLMLearnerAInducedNoPre used to do, now the 4th CLI arg. */
+    /** Precomputation runs only when asked for; run_experiment.sh asks by default. */
     @Test
-    public void fourthArgReproducesTheNoPreSubclass() {
-        LaunchLLMLearnerAInduced launcher = new LaunchLLMLearnerAInduced();
-        launcher.parseExperimentArgs(args("0.2", "0.1", "true"));
-        assertFalse(launcher.isPrecomputationEnabled(), "precomputation must be off");
-        assertTrue(launcher.evaluateAfterRun, "everything else inherited unchanged");
+    public void precomputationIsOffWhenTheVariableIsUnset() {
+        assumeTrue(System.getenv(LaunchLLMLearner.PRECOMP_ENV) == null,
+                LaunchLLMLearner.PRECOMP_ENV + " is exported in this shell");
+        assertFalse(new LaunchLLMLearner().isPrecomputationEnabled());
+        assertFalse(new LaunchLLMLearnerAInduced().isPrecomputationEnabled());
     }
 
-    /** What LaunchLLMLearnerWithBarisEval used to do, now the 5th CLI arg. */
+    /** What LaunchLLMLearnerWithBarisEval used to do, now the 2nd CLI arg. */
     @Test
-    public void fifthArgReproducesTheBarisEvalSubclass() {
+    public void secondArgReproducesTheBarisEvalSubclass() {
         LaunchLLMLearner launcher = new LaunchLLMLearner();
-        launcher.parseExperimentArgs(args("0.2", "0.1", "false", "true"));
-        assertTrue(launcher.isPrecomputationEnabled(), "uniform PAC, precomputation on");
+        launcher.parseExperimentArgs(args("true"));
         assertTrue(launcher.evaluateAfterRun, "Baris evaluation requested");
     }
 
-    /** The live run_experiment.sh invocation passes only three args. */
+    /** The config-only invocation keeps each arm's evaluation default. */
     @Test
-    public void threeArgInvocationKeepsProductionDefaults() {
+    public void configOnlyInvocationKeepsProductionDefaults() {
         LaunchLLMLearnerAInduced launcher = new LaunchLLMLearnerAInduced();
-        launcher.parseExperimentArgs(args("0.2", "0.1"));
-        assertTrue(launcher.isPrecomputationEnabled(), "precomputation stays on");
+        launcher.parseExperimentArgs(args());
         assertTrue(launcher.evaluateAfterRun, "evaluation stays on");
-        assertEquals(0.2, launcher.epsilon, 0.0);
-        assertEquals(0.1, launcher.delta, 0.0);
     }
 
     // ---- the sampler axis --------------------------------------------------
@@ -110,7 +105,7 @@ public class LauncherFlagMatrixTest {
                 LaunchLLMLearner.SamplerArm.WEIGHTED, LaunchLLMLearner.SamplerArm.UNWEIGHTED }) {
             LaunchLLMLearner launcher = uniformLauncherClaiming(arm);
             assertThrows(IllegalStateException.class,
-                    () -> launcher.parseExperimentArgs(args("0.2", "0.1")),
+                    () -> launcher.parseExperimentArgs(args()),
                     arm + " cannot run on LaunchLLMLearner");
         }
     }
@@ -124,7 +119,7 @@ public class LauncherFlagMatrixTest {
                 return SamplerArm.PAC;
             }
         };
-        launcher.parseExperimentArgs(args("0.2", "0.1"));
+        launcher.parseExperimentArgs(args());
         assertEquals(" (uniform PAC, via the A-induced launcher)", launcher.experimentLabel());
     }
 
@@ -149,14 +144,17 @@ public class LauncherFlagMatrixTest {
     /** The axes must not interfere: precomputation off must not disable evaluation. */
     @Test
     public void axesAreIndependent() {
-        LaunchLLMLearnerAInduced launcher = new LaunchLLMLearnerAInduced();
-        launcher.parseExperimentArgs(args("0.2", "0.1", "true", "false"));
-        assertFalse(launcher.isPrecomputationEnabled());
-        assertFalse(launcher.evaluateAfterRun);
+        LaunchLLMLearnerAInduced launcher = new LaunchLLMLearnerAInduced() {
+            @Override
+            protected boolean isPrecomputationEnabled() {
+                return false;
+            }
+        };
+        launcher.parseExperimentArgs(args());
+        assertTrue(launcher.evaluateAfterRun);
 
         LaunchLLMLearnerAInduced other = new LaunchLLMLearnerAInduced();
-        other.parseExperimentArgs(args("0.2", "0.1", "false", "true"));
-        assertTrue(other.isPrecomputationEnabled());
-        assertTrue(other.evaluateAfterRun);
+        other.parseExperimentArgs(args("false"));
+        assertFalse(other.evaluateAfterRun);
     }
 }
