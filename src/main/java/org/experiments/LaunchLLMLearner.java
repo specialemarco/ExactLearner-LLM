@@ -66,7 +66,7 @@ public class LaunchLLMLearner extends LaunchLearner {
     private PacloDataset pacloDataset;
     private boolean pacloDatasetLoaded;
     // Protected rather than private so LaunchLLMLearnerAInduced can accumulate
-    // into them from its own runLearner override (see skipPrecomputation).
+    // into them from its own runLearner override (see isPrecomputationEnabled).
     protected double totalCE = 0;
     protected double totalMembershipQ = 0;
     protected double totalEquivalenceQ = 0;
@@ -184,9 +184,9 @@ public class LaunchLLMLearner extends LaunchLearner {
     // One launcher covers what used to be four classes, because the three
     // things that varied are independent of each other and of the loop:
     //
-    //   precomputation  BEFORE the loop  -- skipPrecomputation, args[1]
+    //   precomputation  BEFORE the loop  -- EXACTLEARNER_PRECOMP
     //   sampler         INSIDE the loop  -- getCounterExample(), overridden
-    //   evaluation      AFTER the loop   -- evaluateAfterRun, args[2]
+    //   evaluation      AFTER the loop   -- evaluateAfterRun, args[1]
     //
     // The loop itself is identical in every arm, so it exists once, in
     // runLearner() below. LaunchLLMLearnerAInducedNoPre (which only set
@@ -194,29 +194,25 @@ public class LaunchLLMLearner extends LaunchLearner {
     // evaluateAfterRun) were removed on 2026-08-27 in favour of these flags.
 
     /**
-     * Optional 2nd CLI arg. Disables learner.precomputation() in runLearner(),
-     * for experiments isolating the sampling loop's contribution from
-     * precomputation's.
+     * Set to "true" to run learner.precomputation() before the loop; unset or
+     * anything else skips it, isolating the sampling loop's contribution.
      */
-    protected boolean skipPrecomputation = false;
+    public static final String PRECOMP_ENV = "EXACTLEARNER_PRECOMP";
 
     /**
-     * Optional 3rd CLI arg. Runs Baris's Macro/Micro Precision/Recall evaluation
+     * Optional 2nd CLI arg. Runs Baris's Macro/Micro Precision/Recall evaluation
      * after each model finishes. Off here so the plain PAC arm is unchanged;
      * LaunchLLMLearnerAInduced defaults it on, as it always evaluated.
      */
     protected boolean evaluateAfterRun = false;
 
-    // <config> [skipPrecomputation] [evaluateAfterRun]. Epsilon and delta come
-    // from the config (loadConfiguration).
+    // <config> [evaluateAfterRun]. Epsilon and delta come from the config
+    // (loadConfiguration), precomputation from EXACTLEARNER_PRECOMP.
     protected void parseExperimentArgs(String[] args) {
         if (args.length > 1) {
-            skipPrecomputation = Boolean.parseBoolean(args[1]);
+            evaluateAfterRun = Boolean.parseBoolean(args[1]);
         }
-        if (args.length > 2) {
-            evaluateAfterRun = Boolean.parseBoolean(args[2]);
-        }
-        System.out.println("skipPrecomputation = " + skipPrecomputation);
+        System.out.println("precomputation = " + isPrecomputationEnabled() + " (" + PRECOMP_ENV + ")");
         System.out.println("evaluateAfterRun = " + evaluateAfterRun);
         // Checked here, not at first use: an arm the launcher class cannot
         // honour must fail before the model loads, not two hours into the loop.
@@ -696,7 +692,8 @@ public class LaunchLLMLearner extends LaunchLearner {
      * answers nothing will read when precomputation is off.
      */
     protected boolean isPrecomputationEnabled() {
-        return !skipPrecomputation;
+        String raw = System.getenv(PRECOMP_ENV);
+        return raw != null && raw.trim().equalsIgnoreCase("true");
     }
 
     /**

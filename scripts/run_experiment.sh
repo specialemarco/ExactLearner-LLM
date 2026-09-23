@@ -14,7 +14,8 @@
 # defaults for the job. The model file (scripts/models/<model>.env) sets the
 # model-specific defaults. 
 #
-# Run the rebuild script (scripts/rebuild.sh) if you change the Java code or the Python server.
+# Run the rebuild script (scripts/rebuild.sh) if you change the Java code or the 
+# Python server.
 #   scripts/rebuild.sh
 
 #------------------------- SLURM Job Configuration -----------------------------------
@@ -72,6 +73,7 @@ export EXACTLEARNER_ELK_UNLOCK="${EXACTLEARNER_ELK_UNLOCK:-true}"
 export EXACTLEARNER_ELK_UNLOCK_INTERVAL="${EXACTLEARNER_ELK_UNLOCK_INTERVAL:-2000}"
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 export EXACTLEARNER_BUDGET_MODE="${EXACTLEARNER_BUDGET_MODE:-global}"
+export EXACTLEARNER_PRECOMP="${EXACTLEARNER_PRECOMP:-true}"
 export EXACTLEARNER_PRECOMP_REUSE="${EXACTLEARNER_PRECOMP_REUSE:-false}"
 export EXACTLEARNER_SEED="${EXACTLEARNER_SEED:-0}"   # 0 reproduces earlier single runs
 
@@ -83,13 +85,8 @@ if [[ "$EXACTLEARNER_SAMPLER" == pac ]]; then
   LEARNER_MAIN_CLASS=org.experiments.LaunchLLMLearner
 fi
 
-# The launcher takes skipPrecomputation, then evaluate. evaluate is left off when
-# unset, as the two launchers default it differently.
-SKIP_PRECOMP=false
-if [[ "$EXACTLEARNER_PRECOMP" == false ]]; then
-  SKIP_PRECOMP=true
-fi
-LEARNER_ARGS=("$CONFIG" "$SKIP_PRECOMP" ${EXACTLEARNER_EVAL:+"$EXACTLEARNER_EVAL"})
+# evaluate is left off when unset, as the two launchers default it differently.
+LEARNER_ARGS=("$CONFIG" ${EXACTLEARNER_EVAL:+"$EXACTLEARNER_EVAL"})
 
 #------------------------- Load Required Modules -------------------------------------
 
@@ -142,7 +139,7 @@ mkdir -p results/ontologies statistics
 
 echo "Config: $CONFIG"
 echo "Model: $EXACTLEARNER_MODEL ($MODEL_PATH) | run tag: $EXACTLEARNER_RUN_TAG"
-echo "Sampler: $EXACTLEARNER_SAMPLER ($LEARNER_MAIN_CLASS) | seed: $EXACTLEARNER_SEED | budget: $EXACTLEARNER_BUDGET_MODE | resume: $EXACTLEARNER_RESUME | precomp reuse: $EXACTLEARNER_PRECOMP_REUSE"
+echo "Sampler: $EXACTLEARNER_SAMPLER ($LEARNER_MAIN_CLASS) | seed: $EXACTLEARNER_SEED | budget: $EXACTLEARNER_BUDGET_MODE | resume: $EXACTLEARNER_RESUME | precomp: $EXACTLEARNER_PRECOMP | precomp reuse: $EXACTLEARNER_PRECOMP_REUSE"
 echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL"
 
 #------------------------- Server Port -----------------------------------------------

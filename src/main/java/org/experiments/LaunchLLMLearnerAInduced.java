@@ -58,7 +58,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     }
 
     // Precomputation absorbs the easy atomic subsumptions before the loop starts,
-    // so turning it off (args[1], skipPrecomputation on LaunchLLMLearner) is what
+    // so turning it off (EXACTLEARNER_PRECOMP unset or false) is what
     // isolates what the A-induced sampler finds by itself.
 
     // Batched candidate evaluation. Turned off for the rest of the model's run
@@ -93,7 +93,7 @@ public class LaunchLLMLearnerAInduced extends LaunchLLMLearner {
     // A-induced: the sampler (getCounterExample below), the sampler's stream
     // position on resume, and these hooks.
 
-    /** Evaluation defaults on for this arm; args[2]="false" still turns it off. */
+    /** Evaluation defaults on for this arm; args[1]="false" still turns it off. */
     {
         evaluateAfterRun = true;
     }
