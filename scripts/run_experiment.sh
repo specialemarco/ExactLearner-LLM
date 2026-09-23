@@ -159,7 +159,7 @@ export EXACTLEARNER_OLLAMA_URL="http://localhost:$PORT/api/generate"   # Read by
 
 #------------------------- Notification ----------------------------------------------
 
-curl -H "Exact Learner: $MODEL_NAME" -d "Experiment started" https://ntfy.sh/exact-llm
+curl -d "Experiment started: $MODEL_NAME" https://ntfy.sh/exact-llm
 
 #------------------------- Start the Model Server ------------------------------------
 

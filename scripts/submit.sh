@@ -117,7 +117,7 @@ submit() {
 
 #------------------------- Notification ----------------------------------------------
 
-curl -H "Exact Learner: $MODEL_NAME" -d "Experiment submitted" https://ntfy.sh/exact-llm
+curl -d "Experiment submitted: $MODEL_NAME" https://ntfy.sh/exact-llm
 
 #------------------------- Single Run ------------------------------------------------
 
