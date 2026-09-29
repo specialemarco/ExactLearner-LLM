@@ -96,18 +96,24 @@ export PYTHONNOUSERSITE=1
 
 #------------------------- Check vLLM Support ----------------------------------------
 
-# On the login node, before anything is submitted. A new model's file is written
-# only once the check has passed, so an unsupported model leaves nothing behind.
-if [[ -z "${SLURM_JOB_ID:-}" ]]; then
+# Before anything is submitted. A new model's file is written only once the check
+# has passed, so an unsupported model leaves nothing behind. The download job is
+# recognised by its own marker, not SLURM_JOB_ID: that is also set inside an
+# interactive salloc, where this part still has to run.
+check_failed() {
+  [[ "$1" == 1 ]] && die "the cluster's vLLM cannot serve $2; not fetching"
+  die "could not check $2 (see above); not fetching"
+}
+if [[ -z "${EXACTLEARNER_FETCH_JOB:-}" ]]; then
   if $NEW; then
     WRITE=()
     $CHECK_ONLY || WRITE=(--write "$MODEL_ENV" --name "$MODEL")
     python3 scripts/fetch_model.py --repo "$REPO" ${WRITE[@]+"${WRITE[@]}"} ||
-      die "the cluster's vLLM cannot serve $REPO; not fetching"
+      check_failed $? "$REPO"
   else
     python3 scripts/fetch_model.py --config "$MODEL_ROOT/$MODEL_DIR/config.json" \
       --repo "${HF_REPO:?$MODEL_ENV has no HF_REPO to check against}" ${HF_REVISION:+--revision "$HF_REVISION"} ||
-      die "the cluster's vLLM cannot serve $MODEL; not fetching"
+      check_failed $? "$MODEL"
   fi
   if $CHECK_ONLY; then
     exit 0
@@ -125,10 +131,11 @@ fi
 
 #------------------------- Submit ----------------------------------------------------
 
-# Outside a job: submit this script as one, and stop.
-if [[ -z "${SLURM_JOB_ID:-}" ]]; then
+# Outside the download job: submit this script as one, and stop.
+if [[ -z "${EXACTLEARNER_FETCH_JOB:-}" ]]; then
   mkdir -p logs/fetch
   sbatch --account="$SBATCH_ACCOUNT" --time="${FETCH_WALLTIME:-04:00:00}" \
+    --export=ALL,EXACTLEARNER_FETCH_JOB=1 \
     --output="logs/fetch/$MODEL-%j.log" "$0" "$MODEL"
   echo "logs -> logs/fetch/$MODEL-<jobid>.log"
   exit 0

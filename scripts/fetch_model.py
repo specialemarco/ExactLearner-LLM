@@ -1,7 +1,7 @@
 """
 The login-node half of scripts/fetch_model.sh: checks that the cluster's vLLM can
 serve a model and, for a new Hugging Face repository, writes its model file.
-Exits 1 if vLLM cannot serve it.
+Exits 1 if vLLM cannot serve it, 2 on any other failure.
 """
 import argparse
 import datetime
@@ -27,6 +27,11 @@ parser.add_argument("--write", help="model file to generate for a new repository
 args = parser.parse_args()
 
 
+def fail(message):
+    print(f"ERROR: {message}", file=sys.stderr)
+    sys.exit(2)
+
+
 def fetch(filename, revision):
     try:
         return hf_hub_download(args.repo, filename, revision=revision)
@@ -39,7 +44,7 @@ info = HfApi().model_info(args.repo, revision=args.revision, files_metadata=True
 revision = args.revision or info.sha
 source = args.config if args.config and os.path.isfile(args.config) else fetch("config.json", revision)
 if not source:
-    sys.exit(f"ERROR: {args.repo} has no config.json")
+    fail(f"{args.repo} has no config.json")
 config = json.load(open(source))
 
 #------------------------- vLLM support ----------------------------------------------
@@ -65,16 +70,18 @@ if not args.write:
 weights = sum(s.size or 0 for s in info.siblings
               if s.rfilename.endswith(".safetensors")
               and not s.rfilename.startswith(("original/", "consolidated")))
-heads = config.get("num_attention_heads")
-kv_heads = config.get("num_key_value_heads", heads)
+# A multimodal model keeps its language model's settings in text_config.
+text = config.get("text_config") or config
+heads = text.get("num_attention_heads")
+kv_heads = text.get("num_key_value_heads", heads)
 if not weights or not heads:
-    sys.exit("ERROR: no safetensors weights or no num_attention_heads; write the model file by hand")
+    fail("no safetensors weights or no num_attention_heads; write the model file by hand")
 tp = next((t for t in (1, 2, 4)
            if weights / t <= WEIGHTS_PER_GPU and heads % t == 0 and kv_heads % t == 0), None)
 if tp is None:
-    sys.exit(f"ERROR: {weights / GIB:.1f} GiB of weights needs more than one 4-GPU A100 node")
-head_dim = config.get("head_dim") or config["hidden_size"] // heads
-kv_per_token = 2 * config["num_hidden_layers"] * kv_heads * head_dim * 2   # K and V, bf16
+    fail(f"{weights / GIB:.1f} GiB of weights needs more than one 4-GPU A100 node")
+head_dim = text.get("head_dim") or text["hidden_size"] // heads
+kv_per_token = 2 * text["num_hidden_layers"] * kv_heads * head_dim * 2   # K and V, bf16
 
 template = ""
 tokenizer_config = fetch("tokenizer_config.json", revision)
