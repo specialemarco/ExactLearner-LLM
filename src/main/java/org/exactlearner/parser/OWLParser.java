@@ -1,23 +1,47 @@
 package org.exactlearner.parser;
 
-import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapi.model.OWLClass;
-import org.semanticweb.owlapi.model.OWLObjectProperty;
+import org.semanticweb.owlapi.model.*;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.io.File;
+import java.util.*;
 
-public interface OWLParser {
-    List<OWLClass> getOrderedClasses();
+/** The signature of an ontology: its classes and object properties. */
+public class OWLParser {
+    private final OWLOntology owl;
+    private List<OWLClass> orderedClasses;
 
-    Optional<Set<OWLClass>> getClasses();
+    public OWLParser(String pathOfFile, OWLOntologyManager manager) {
+        System.out.println("Parsing file: " + pathOfFile);
+        try {
+            owl = manager.loadOntologyFromOntologyDocument(new File(pathOfFile));
+        } catch (OWLOntologyCreationException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-    Set<String> getClassesNamesAsString();
+    public OWLParser(OWLOntology owl) {
+        this.owl = owl;
+    }
 
-    Set<OWLAxiom> getAxioms();
+    public Optional<Set<OWLClass>> getClasses() {
+        return Optional.ofNullable(owl.getClassesInSignature());
+    }
 
-    Set<OWLObjectProperty> getObjectProperties();
+    public Set<OWLObjectProperty> getObjectProperties() {
+        return owl.getObjectPropertiesInSignature();
+    }
 
-    Set<String> getObjectPropertiesAsString();
+    /**
+     * The classes sorted by IRI fragment, then shuffled with a fixed seed (42).
+     * LLMEngine.getClassesInSignature() returns this list, so it fixes the order
+     * the learner visits classes in, e.g. precomputation's class pairs: keep the
+     * sort and the seed, or runs stop being reproducible against earlier ones.
+     */
+    public List<OWLClass> getOrderedClasses() {
+        if (orderedClasses == null) {
+            orderedClasses = new ArrayList<>(getClasses().get().stream().sorted(Comparator.comparing(c -> c.getIRI().getFragment())).toList());
+            Collections.shuffle(orderedClasses, new Random(42));
+        }
+        return orderedClasses;
+    }
 }

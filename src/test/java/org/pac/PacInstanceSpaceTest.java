@@ -1,7 +1,6 @@
 package org.pac;
 
 import org.exactlearner.parser.OWLParser;
-import org.exactlearner.parser.OWLParserImpl;
 import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLClass;
@@ -54,7 +53,7 @@ public class PacInstanceSpaceTest {
     };
 
     private static Pac pacFor(String ontology) throws Exception {
-        OWLParser parser = new OWLParserImpl(ONTOLOGY_DIR + ontology + ".owl",
+        OWLParser parser = new OWLParser(ONTOLOGY_DIR + ontology + ".owl",
                 OWLManager.createOWLOntologyManager());
         Set<OWLClass> classes = parser.getClasses()
                 .orElseThrow(() -> new AssertionError("failed to load " + ontology + ".owl"));
@@ -67,7 +66,7 @@ public class PacInstanceSpaceTest {
     public void ontologiesHaveTheExpectedSignature() throws Exception {
         for (Object[] o : ONTOLOGIES) {
             String name = (String) o[0];
-            OWLParser parser = new OWLParserImpl(ONTOLOGY_DIR + name + ".owl",
+            OWLParser parser = new OWLParser(ONTOLOGY_DIR + name + ".owl",
                     OWLManager.createOWLOntologyManager());
             assertEquals((int) (Integer) o[1], parser.getClasses().orElseThrow().size(),
                     name + ": class count");

@@ -7,10 +7,10 @@ import org.exactlearner.engine.AxiomSimplifier;
 import org.exactlearner.engine.ELEngine;
 import org.exactlearner.engine.LLMEngine;
 import org.exactlearner.engine.NLPLLMEngine;
+import org.exactlearner.parser.OWLParser;
 import org.exactlearner.learner.ConceptRelation;
 import org.exactlearner.learner.Learner;
 import org.exactlearner.oracle.Oracle;
-import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.utils.Metrics;
 import org.experiments.logger.Cache;
 import org.experiments.logger.CacheManager;
@@ -458,10 +458,10 @@ public class LaunchLLMLearner extends LaunchLearner {
         switch (queryFormat) {
             case "manchester" ->
                     llmQueryEngineForT = new LLMEngine(groundTruthOntology, myManager, workloadManager,
-                            new OWLParserImpl(groundTruthOntology), new AxiomSimplifier(elQueryEngineForH, conceptRelation));
+                            new OWLParser(groundTruthOntology), new AxiomSimplifier(elQueryEngineForH, conceptRelation));
             case "nlp" ->
                     llmQueryEngineForT = new NLPLLMEngine(groundTruthOntology, myManager, workloadManager,
-                            new OWLParserImpl(groundTruthOntology), new AxiomSimplifier(elQueryEngineForH, conceptRelation));
+                            new OWLParser(groundTruthOntology), new AxiomSimplifier(elQueryEngineForH, conceptRelation));
             default -> throw new IllegalStateException("Unexpected value: " + queryFormat);
         }
     }

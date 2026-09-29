@@ -7,13 +7,12 @@ import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 
 public class OWLParserTest {
-    OWLParserImpl parser;
+    OWLParser parser;
     private final static int ANIMAL_CLASSES_NUMBER = 17;
-    private final static int ANIMAL_AXIOMS_NUMBER = 33;
 
     @Before
     public void setUp() throws OWLOntologyCreationException {
-        parser = new OWLParserImpl("src/main/resources/ontologies/small/animals.owl", OWLManager.createOWLOntologyManager());
+        parser = new OWLParser("src/main/resources/ontologies/small/animals.owl", OWLManager.createOWLOntologyManager());
         if (parser.getClasses().isEmpty()) {
             Assert.fail("FAILED TO LOAD ANIMAL.OWL");
         }
@@ -23,19 +22,5 @@ public class OWLParserTest {
     public void getClassesTest() {
         Assert.assertEquals(ANIMAL_CLASSES_NUMBER, parser.getClasses().get().size());
         System.out.println(parser.getClasses().get());
-    }
-
-    @Test
-    public void getClassesNamesAsStringTest() {
-        Assert.assertEquals(ANIMAL_CLASSES_NUMBER, parser.getClassesNamesAsString().size());
-        System.out.println(parser.getClassesNamesAsString());
-    }
-
-    @Test
-    public void getAxiomsTest() {
-        Assert.assertEquals(ANIMAL_AXIOMS_NUMBER, parser.getAxioms().size());
-        parser.getAxioms().forEach(a -> {
-            System.out.println(a.toString() + "\n");
-        });
     }
 }

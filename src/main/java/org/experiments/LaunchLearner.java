@@ -6,7 +6,6 @@ import org.exactlearner.learner.ConceptRelation;
 import org.exactlearner.learner.Learner;
 import org.exactlearner.oracle.Oracle;
 import org.exactlearner.parser.OWLParser;
-import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.utils.Metrics;
 import org.pac.Pac;
 import org.utility.PacloDataset;
@@ -252,7 +251,7 @@ public abstract class LaunchLearner {
             if (axe.isOfType(AxiomType.SUBCLASS_OF) || axe.isOfType(AxiomType.EQUIVALENT_CLASSES)) {
                 axiomsT.add(axe);
             }
-        parser = new OWLParserImpl(groundTruthOntology);
+        parser = new OWLParser(groundTruthOntology);
     }
 
     void saveTargetOntology() throws OWLOntologyStorageException, IOException {

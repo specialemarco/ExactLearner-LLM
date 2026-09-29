@@ -1,7 +1,6 @@
 package org.exactlearner.engine;
 
 import org.exactlearner.parser.OWLParser;
-import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.renderer.AnnotationShorFormProvider;
 import org.experiments.workload.WorkloadManager;
 import org.experiments.workload.WorkloadManagerImpl;
@@ -26,7 +25,7 @@ public class LLMEngine implements BaseEngine {
     public LLMEngine(OWLOntology ontology, String ontologyName, String model, String system, Integer maxTokens, OWLOntologyManager manager) {
         this.ontology = ontology;
         this.manager = manager;
-        this.parser = new OWLParserImpl(ontology);
+        this.parser = new OWLParser(ontology);
         String queryFormat = "";
         this.workloadManager = new WorkloadManagerImpl(model, system, maxTokens, queryFormat, ontologyName, null);
         this.renderer = createRenderer(ontology);
@@ -34,7 +33,7 @@ public class LLMEngine implements BaseEngine {
     }
 
     public LLMEngine(OWLOntology ontology, OWLOntologyManager manager, WorkloadManager workloadManager) {
-        this(ontology, manager, workloadManager, new OWLParserImpl(ontology), null);
+        this(ontology, manager, workloadManager, new OWLParser(ontology), null);
     }
 
     public LLMEngine(OWLOntology ontology, OWLOntologyManager manager, WorkloadManager workloadManager, OWLParser parser, AxiomSimplifier simplifier) {
