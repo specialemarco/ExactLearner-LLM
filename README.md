@@ -134,6 +134,17 @@ scripts/submit.sh <model> <config> [name=value ...]
 `src/main/java/org/configurations/experiments` — the directory and the `.yml`
 are both optional. Submit from the repository root.
 
+The model's weights must be downloaded first, once per machine. This submits a
+small CPU job that puts them where the model file's `MODEL_DIR` expects them,
+under `MODEL_ROOT` from your `scripts/experiment.env`:
+
+```bash
+scripts/fetch_model.sh olmo2-13b      # logs -> logs/fetch/
+```
+
+The model file names the Hugging Face repository (`HF_REPO`) and can pin a
+revision (`HF_REVISION`). A gated model needs `huggingface-cli login` once.
+
 Everything after the config is `name=value`, in any order, all optional:
 
 | Parameter | Meaning |
