@@ -52,6 +52,11 @@ public class StatsPrinter {
         printStat("Total equivalence queries: ", myMetrics.getEquivCount(), verb);
 
         printLearnerStats(baseLearner, verb);
+        // LaunchExactLearner writes to statistics/cache/, which nothing else creates.
+        File statsDir = statsFile.getAbsoluteFile().getParentFile();
+        if (statsDir != null) {
+            statsDir.mkdirs();
+        }
         String statsFileName = statsFile + "_metrics.csv";
         // Add "_sizes.csv" to the stats file name
         String sizesFileName = statsFile + "_sizes.csv";

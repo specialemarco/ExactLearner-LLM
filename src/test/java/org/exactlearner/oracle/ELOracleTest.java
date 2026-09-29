@@ -8,9 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
-import org.utility.OntologyManipulator;
 
-import java.util.HashSet;
 
 public class ELOracleTest {
 
@@ -53,10 +51,6 @@ public class ELOracleTest {
             OWLSubClassOfAxiom newCounterexampleAxiom = baseOracle.branchRight(A, right, 2);
             targetOntology.removeAxiom(axiom);
             System.out.println("Branched: " + axiom);
-            var set = new HashSet<OWLAxiom>();
-            set.add(newCounterexampleAxiom);
-            set.add(axiom);
-            System.out.println(OntologyManipulator.parseAxioms(set));
             Assert.assertEquals(axiom, newCounterexampleAxiom);
         } catch (Exception e) {
             e.printStackTrace();
