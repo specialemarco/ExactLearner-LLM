@@ -502,6 +502,41 @@ not found beside the target ontology.
 The Slurm script additionally echoes `Run parameters: ...`, the batching flags,
 the budget mode and both seeds.
 
+### Comparing sizes with earlier results (changed 2026-09-29)
+
+**Sizes reported before 2026-09-29 are inflated. That includes the numbers behind
+the ECAI 2025 paper, which were produced by the same code. Convert them before
+comparing, or new runs will look as if they learn far less than they do.**
+
+`Metrics` measures an axiom by rendering it in Manchester syntax and counting the
+words. Until 2026-09-29 it removed the `SubClassOf`/`EquivalentTo` keyword but
+split on single spaces, so the gap left behind counted as two extra words in
+**every** axiom (`A SubClassOf B` measured 4, not 2). It also picked axioms by
+matching that keyword in the text, so it counted `EquivalentObjectProperties`
+axioms in the size of T. For nested concepts it counted the renderer's line
+indentation as words too. It now counts the names in the `SubClassOf` and
+`EquivalentClasses` axioms only.
+
+Old figures convert exactly from what the same log or `statistics/*_sizes.csv`
+row already contains:
+
+| Old figure | Comparable value |
+|---|---|
+| Size of H | old − 2 × *Hypothesis TBox logical axioms* |
+| Size of T, small ontologies (`src/main/resources/ontologies/small`) | old − 2 × *Target TBox logical axioms* |
+| Size of T, OWL2Bench (C1–C3) | 592 → **304** (also drops 3 property equivalences at 4 each) |
+| Size of largest counterexample | old − 2 |
+| Size of largest concept in T/H | unchanged, unless a concept is nested and renders over several lines. None is in OWL2Bench; `generations.owl` goes from 16 to 8. |
+
+For example, an old log that reads *Hypothesis TBox logical axioms: 2, Size of H:
+8, Size of largest counterexample: 4* means **Size of H = 4, largest
+counterexample = 2** in today's terms. Anything the table doesn't cover can be
+recomputed from the saved hypothesis in `results/ontologies/` without rerunning.
+
+**Never affected:** what is learned, the hypothesis axiom counts, membership and
+equivalence query counts, the PAC budget (`h` counts axioms, not sizes), and
+precision/recall.
+
 ### Configurations
 
 `src/main/java/org/configurations/experiments/` holds the YAML configs:
