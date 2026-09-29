@@ -61,6 +61,7 @@ public class ELEngine implements BaseEngine {
     // (in entailed(OWLAxiom) below) sit inside that method's commented-out block. Keep
     // this and the commented block together: they are the two halves of the original
     // EQ-decomposition path, superseded by a direct myReasoner.isEntailed(ax) call.
+    @SuppressWarnings("unused")
     private Boolean entailedEQ(OWLSubClassOfAxiom subclassAxiom) {
         Boolean result = myReasoner.isEntailed(subclassAxiom);
         unlocker.afterQueries(1);

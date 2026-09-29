@@ -51,7 +51,7 @@ public class ELOracleTest {
         man.addAxiom(targetOntology, axiom);
         try {
             OWLSubClassOfAxiom newCounterexampleAxiom = baseOracle.branchRight(A, right, 2);
-            man.removeAxiom(targetOntology, axiom);
+            targetOntology.removeAxiom(axiom);
             System.out.println("Branched: " + axiom);
             var set = new HashSet<OWLAxiom>();
             set.add(newCounterexampleAxiom);

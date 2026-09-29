@@ -1,7 +1,6 @@
 package org.utility;
 
 import org.apache.commons.collections4.IteratorUtils;
-import org.apache.jena.atlas.lib.Pair;
 import org.coode.owlapi.manchesterowlsyntax.ManchesterOWLSyntaxEditorParser;
 import org.exactlearner.parser.OWLParserImpl;
 import org.semanticweb.HermiT.Reasoner;
@@ -84,37 +83,6 @@ public class OntologyManipulator {
         parser.setDefaultOntology(rootOntology);
         parser.setOWLEntityChecker(entityChecker);
         return parser;
-    }
-
-    // UNREFERENCED -- no call site anywhere in src/, not even a commented-out one
-    // (unlike the other "never used locally" methods in this codebase). Computes the
-    // transitive-closure violations between true and not-true answer sets. Kept as a
-    // ready-made helper; wire it up or drop it.
-    private static Set<String> checkClosure(Set<String> trueAnswers, Set<String> notTrueAnswers) {
-        Set<Pair<String, String>> truePairs = getPair(trueAnswers);
-        Set<Pair<String, String>> notTruePairs = getPair(notTrueAnswers);
-
-        var result = notTruePairs.stream().filter(pair ->
-                        truePairs.stream()
-                                .anyMatch(first -> first.getLeft().equals(pair.getLeft()) &&
-                                        truePairs.stream()
-                                                .anyMatch(second -> second.getRight().equals(pair.getRight()) &&
-                                                        first.getRight().equals(second.getLeft()))))
-                .map(pair -> pair.getLeft() + " SubClassOf " + pair.getRight())
-                .collect(Collectors.toSet());
-        System.out.println(result);
-        return result;
-    }
-
-    private static Set<Pair<String, String>> getPair(Set<String> answers) {
-        try {
-            return answers.stream().map(a -> {
-                String[] split = a.split(" SubClassOf ");
-                return new Pair<>(split[0].trim(), split[1].trim());
-            }).collect(Collectors.toSet());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public static Set<OWLAxiom> filterUnusedAxioms(Set<OWLAxiom> axioms) {

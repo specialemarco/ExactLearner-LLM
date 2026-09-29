@@ -14,9 +14,6 @@ public class SmartLogger {
     private static final Logger logger = Logger.getLogger(SmartLogger.class.getName());
     private static final String CACHE_DIR = "cache";
     private static final String FILE_EXTENSION = ".csv";
-    private static final String WARNING_FILE = "warnings.txt";
-
-    private static final Set<String> deletionSet = new HashSet<>();
 
     public static String getFullFileName(String filename) {
         return CACHE_DIR + System.getProperty("file.separator") + filename + FILE_EXTENSION;

@@ -1,7 +1,5 @@
 package org.evaluation;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.exactlearner.renderer.AnnotationShorFormProvider;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
@@ -56,7 +54,6 @@ import java.util.stream.Collectors;
  * original evaluation logic.
  */
 public class Evaluation {
-    private Logger logger = LogManager.getLogger("OracleEvaluation");
 
     /**
      * @param resultOntology         the learned hypothesis ontology (TBox only)
@@ -149,7 +146,7 @@ public class Evaluation {
         int allInferredResult = 0;
         int allShared = 0;
         for (OWLClassExpression ce : baseSet) {
-            Set<OWLNamedIndividual> instancesInitialOntology = initialOntologyReasoner.getInstances(ce).getFlattened();
+            @SuppressWarnings("unused") Set<OWLNamedIndividual> instancesInitialOntology = initialOntologyReasoner.getInstances(ce).getFlattened();
             Set<OWLNamedIndividual> inferredIndividuals = expertReasoner.getInstances(ce, false).getFlattened();
             Set<OWLNamedIndividual> inferredIndividualsResult = resultReasoner.getInstances(ce, false).getFlattened();
             if (!inferredIndividuals.isEmpty() || !inferredIndividualsResult.isEmpty()) {

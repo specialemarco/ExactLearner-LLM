@@ -53,7 +53,6 @@ public class ELLearnerTest {
         OWLClass B = df.getOWLClass(IRI.create(":B"));
         OWLClass C = df.getOWLClass(IRI.create(":C"));
         OWLObjectProperty R = df.getOWLObjectProperty(IRI.create(":r"));
-        OWLObjectProperty S = df.getOWLObjectProperty(IRI.create(":s"));
         OWLClass left = A;
         OWLClassExpression right = df.getOWLObjectIntersectionOf(df.getOWLObjectSomeValuesFrom(R, C), df.getOWLObjectSomeValuesFrom(R, B), df.getOWLObjectSomeValuesFrom(R,A));
         OWLSubClassOfAxiom axiom;
@@ -222,7 +221,6 @@ public class ELLearnerTest {
         OWLClass B = df.getOWLClass(IRI.create(":B"));
         OWLClass C = df.getOWLClass(IRI.create(":C"));
         OWLObjectProperty R = df.getOWLObjectProperty(IRI.create(":r"));
-        OWLObjectProperty S = df.getOWLObjectProperty(IRI.create(":s"));
         OWLClass left = A;
         OWLClassExpression right = df.getOWLObjectIntersectionOf(df.getOWLObjectSomeValuesFrom(R, C), df.getOWLObjectSomeValuesFrom(R, B), df.getOWLObjectSomeValuesFrom(R,A));
         OWLSubClassOfAxiom axiom;

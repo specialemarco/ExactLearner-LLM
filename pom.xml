@@ -78,13 +78,6 @@
         </plugins>
     </build>
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/org.apache.jena/apache-jena-libs -->
-        <dependency>
-            <groupId>org.apache.jena</groupId>
-            <artifactId>apache-jena-libs</artifactId>
-            <version>5.0.0</version>
-            <type>pom</type>
-        </dependency>
         <dependency>
             <groupId>io.github.liveontologies</groupId>
             <artifactId>elk-owlapi</artifactId>
@@ -195,5 +188,27 @@
             <version>3.6.1</version>
         </dependency>
 
+        <!-- Used to arrive via apache-jena-libs; OntologyManipulator imports it. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
+        </dependency>
     </dependencies>
+    <!-- Pinned at the versions apache-jena-libs used to pull in; without them Maven
+         falls back to older ones (commons-codec 1.11, jcl-over-slf4j 1.7.29). -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>1.16.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>jcl-over-slf4j</artifactId>
+                <version>2.0.7</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

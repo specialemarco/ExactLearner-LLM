@@ -70,6 +70,7 @@ public abstract class LaunchLearner {
 
     // PARKED -- sole call site is commented out a few lines above.
     // Uncomment there to re-enable post-run validation of the hypothesis ontology.
+    @SuppressWarnings("unused")
     private void validateLearnedOntology() {
         if (!elQueryEngineForH.entailed(axiomsT)) {
             // throw new Exception("Something went horribly wrong!");
@@ -180,8 +181,8 @@ public abstract class LaunchLearner {
     private OWLSubClassOfAxiom computeEssentialLeftCounterexample() throws Exception {
         OWLSubClassOfAxiom axiom = counterExample;
 
-        OWLClass oldClass = null;
-        OWLClassExpression oldExpression = null;
+        @SuppressWarnings("unused") OWLClass oldClass = null;
+        @SuppressWarnings("unused") OWLClassExpression oldExpression = null;
 
         lastExpression = axiom.getSubClass();
         lastName = (OWLClass) axiom.getSuperClass();
@@ -210,8 +211,8 @@ public abstract class LaunchLearner {
         int changed = -1;
         OWLSubClassOfAxiom axiom = counterExample;
 
-        OWLClass oldLeft = null;
-        OWLClassExpression oldRight = null;
+        @SuppressWarnings("unused") OWLClass oldLeft = null;
+        @SuppressWarnings("unused") OWLClassExpression oldRight = null;
         lastName = (OWLClass) axiom.getSubClass();
         lastExpression = axiom.getSuperClass();
 
@@ -654,7 +655,7 @@ public abstract class LaunchLearner {
 
         for (IRI iri : iris) {
             for (OWLAnnotationAssertionAxiom a : groundTruthOntology.getAnnotationAssertionAxioms(iri)) {
-                if (a != null && a.getProperty().isLabel() && a.getValue() instanceof OWLLiteral val) {
+                if (a != null && a.getProperty().isLabel() && a.getValue() instanceof OWLLiteral) {
                     myManager.addAxiom(hypothesisOntology, a);
                 }
             }
