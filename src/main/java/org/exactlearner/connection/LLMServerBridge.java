@@ -1,17 +1,22 @@
 package org.exactlearner.connection;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
+import java.net.URL;
 
 /** Client for scripts/llm_server.py's /api/generate (an Ollama-shaped JSON contract). */
-public class LLMServerBridge extends BasicBridge {
+public class LLMServerBridge {
 
     public static final String URL_ENV = "EXACTLEARNER_LLM_URL";
     // Old name, still exported by job scripts submitted before the rename.
     // Drop once those jobs have run.
     private static final String LEGACY_URL_ENV = "EXACTLEARNER_OLLAMA_URL";
 
-    private int maxTokens = 100;
+    private final String model;
+    private final String url;
+    private final int maxTokens;
 
     /** The /api/generate URL, or null when neither variable is set. */
     public static String serverUrl() {
@@ -27,20 +32,24 @@ public class LLMServerBridge extends BasicBridge {
     }
 
     public LLMServerBridge(String model, int maxTokens) {
-        super();
         String url = serverUrl();
         if (url == null) {
             throw new IllegalStateException(URL_ENV + " is not set; point it at llm_server.py's"
                     + " /api/generate (run_experiment.sh does this).");
         }
-        BasicBridge.model = model;
+        this.model = model;
+        this.url = url;
         this.maxTokens = maxTokens;
-        BasicBridge.url = url;
     }
 
+    public String getUrl() {
+        return url;
+    }
+
+    /** The model's answer, or null when the request fails; the caller retries. */
     public String ask(String message, String system) {
         try {
-            HttpURLConnection connection = getConnection(url);
+            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/json");
             String jsonInputString = "{\"model\": \"" + escapeJson(model) + "\",\n" +
@@ -53,14 +62,26 @@ public class LLMServerBridge extends BasicBridge {
             writer.write(jsonInputString);
             writer.flush();
             writer.close();
-            String jsonResponse = getChatGPTResponse(connection);
-            return extractMessageFromJSON(jsonResponse);
+            return extractMessageFromJSON(readBody(connection));
         } catch (Exception e) {
-            System.out.println(ChatGPTCodes.valueOf(extractErrorCode(e.getMessage())));
+            System.out.println("LLM server request to " + url + " failed: " + e);
             return null;
         }
     }
 
+    private static String readBody(HttpURLConnection connection) throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String line;
+        StringBuilder response = new StringBuilder();
+        while ((line = br.readLine()) != null) {
+            response.append(line);
+        }
+        br.close();
+        return response.toString();
+    }
+
+    // Stops at the first quote, escaped or not: fine for llm_server.py's bare
+    // True/False, wrong for any answer that contains a quote.
     private String extractMessageFromJSON(String json) {
         String key = "\"response\":\"";
         int start = json.indexOf(key) + key.length();
@@ -103,10 +124,5 @@ public class LLMServerBridge extends BasicBridge {
             }
         }
         return sb.toString();
-    }
-
-    @Override
-    public String ask(String message, String key, String system) {
-        return ask(message, system);
     }
 }
