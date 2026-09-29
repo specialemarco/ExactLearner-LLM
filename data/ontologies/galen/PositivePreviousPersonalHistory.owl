@@ -1,0 +1,240 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlPositivePreviousPersonalHistory.owl#"
+     xml:base="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlPositivePreviousPersonalHistory.owl"
+     xmlns:metadata="http://data.bioontology.org/metadata/"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlPositivePreviousPersonalHistory.owl"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Annotation properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://data.bioontology.org/metadata/prefixIRI -->
+
+    <owl:AnnotationProperty rdf:about="http://data.bioontology.org/metadata/prefixIRI"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Attribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#Attribute">
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#DomainAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#DomainAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#Attribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseDomainAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseModalityAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseModalityAttribute">
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModalityAttribute"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseModifierAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModalityAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ModalityAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModifierAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ModifierAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasHistory -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasHistory">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModalityAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isHistoryOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isHistoryOf -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isHistoryOf">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseModalityAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#DomainCategory -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#DomainCategory">
+        <rdfs:label>Domain Category</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#TopCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DomainCategory</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Existentiality -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Existentiality">
+        <rdfs:label>Existentiality</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Modality"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Existentiality</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#History -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#History">
+        <rdfs:label>History</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Modality"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">History</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Modality -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Modality">
+        <rdfs:label>Modality</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierConcept"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Modality</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModifierConcept -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ModifierConcept">
+        <rdfs:label>Modifier Concept</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ModifierConcept</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#PositivePreviousPersonalHistory -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#PositivePreviousPersonalHistory">
+        <rdfs:label>Positive Previous Personal History</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#PreviousPersonalHistory"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#isHistoryOf"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#presence"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#PreviousPersonalHistory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">PositivePreviousPersonalHistory</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#PreviousPersonalHistory -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#PreviousPersonalHistory">
+        <rdfs:label>Previous Personal History</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#History"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">PreviousPersonalHistory</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#TopCategory -->
+
+    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#TopCategory">
+        <rdfs:label>Top Category</rdfs:label>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">TopCategory</metadata:prefixIRI>
+    </rdf:Description>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#presence -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#presence">
+        <rdfs:label>presence</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Existentiality"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">presence</metadata:prefixIRI>
+    </owl:Class>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.8) http://owlapi.sourceforge.net -->
+

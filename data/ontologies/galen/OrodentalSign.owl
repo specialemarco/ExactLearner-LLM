@@ -1,0 +1,459 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlOrodentalSign.owl#"
+     xml:base="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlOrodentalSign.owl"
+     xmlns:metadata="http://data.bioontology.org/metadata/"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlOrodentalSign.owl"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Annotation properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://data.bioontology.org/metadata/prefixIRI -->
+
+    <owl:AnnotationProperty rdf:about="http://data.bioontology.org/metadata/prefixIRI"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Attribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#Attribute">
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ConstructiveAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#DomainAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#DomainAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#Attribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseDomainAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseLocativeAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseLocativeAttribute">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseModifierAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#LocativeAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#LocativeAttribute">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
+        <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: affects</rdfs:comment>
+        <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: involves</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModifierAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ModifierAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isConsultationRolePlayedBy -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isConsultationRolePlayedBy">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#playsConsultationRole"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#playsConsultationRole -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#playsConsultationRole">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#AbstractStructure -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#AbstractStructure">
+        <rdfs:label>Abstract Structure</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedStructure"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">AbstractStructure</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#AnatomicalSystem -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#AnatomicalSystem">
+        <rdfs:label>Anatomical System</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#BodySystem"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">AnatomicalSystem</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#AnatomicalSystemSign -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#AnatomicalSystemSign">
+        <rdfs:label>Anatomical System Sign</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Sign"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#AnatomicalSystem"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Sign"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">AnatomicalSystemSign</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#BodySystem -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#BodySystem">
+        <rdfs:label>Body System</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#System"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BodySystem</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#BodySystemPhenomenon -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#BodySystemPhenomenon">
+        <rdfs:label>Body System Phenomenon</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#BodySystem"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BodySystemPhenomenon</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ClinicalRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ClinicalRole">
+        <rdfs:label>Clinical Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Role"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ClinicalRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ConsultationRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ConsultationRole">
+        <rdfs:label>Consultation Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ClinicalRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ConsultationRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#DomainCategory -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#DomainCategory">
+        <rdfs:label>Domain Category</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#TopCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DomainCategory</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#GeneralisedStructure -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedStructure">
+        <rdfs:label>Generalised Structure</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">GeneralisedStructure</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#LogicalStructure -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#LogicalStructure">
+        <rdfs:label>Logical Structure</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#AbstractStructure"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">LogicalStructure</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModifierConcept -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ModifierConcept">
+        <rdfs:label>Modifier Concept</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ModifierConcept</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#OrodentalSign -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#OrodentalSign">
+        <rdfs:label>Orodental Sign</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Sign"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#OrodentalSystem"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Sign"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">OrodentalSign</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#OrodentalSystem -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#OrodentalSystem">
+        <rdfs:label>Orodental System</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#AnatomicalSystem"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">OrodentalSystem</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#OrodentalSystemPhenomenon -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#OrodentalSystemPhenomenon">
+        <rdfs:label>Orodental System Phenomenon</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#OrodentalSystem"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">OrodentalSystemPhenomenon</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Phenomenon -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon">
+        <rdfs:label>Phenomenon</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Phenomenon</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Role -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Role">
+        <rdfs:label>Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierConcept"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Role</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Sign -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Sign">
+        <rdfs:label>Sign</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsConsultationRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#SignRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Sign</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SignOrSymptomRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SignOrSymptomRole">
+        <rdfs:label>Sign Or Symptom Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ConsultationRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SignOrSymptomRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SignRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SignRole">
+        <rdfs:label>Sign Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#SignOrSymptomRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SignRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SignSymptomOrDiagnosis -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SignSymptomOrDiagnosis">
+        <rdfs:label>Sign Symptom Or Diagnosis</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsConsultationRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#ConsultationRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SignSymptomOrDiagnosis</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#System -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#System">
+        <rdfs:label>System</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#LogicalStructure"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">System</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#TopCategory -->
+
+    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#TopCategory">
+        <rdfs:label>Top Category</rdfs:label>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">TopCategory</metadata:prefixIRI>
+    </rdf:Description>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.8) http://owlapi.sourceforge.net -->
+

@@ -1,0 +1,609 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlSurgicalBiopsyingProcess.owl#"
+     xml:base="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlSurgicalBiopsyingProcess.owl"
+     xmlns:metadata="http://data.bioontology.org/metadata/"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlSurgicalBiopsyingProcess.owl"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Annotation properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://data.bioontology.org/metadata/prefixIRI -->
+
+    <owl:AnnotationProperty rdf:about="http://data.bioontology.org/metadata/prefixIRI"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Attribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#Attribute">
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ConstructiveAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#DomainAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#DomainAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#Attribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseDomainAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseLocativeAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseLocativeAttribute">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseModifierAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#LocativeAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#LocativeAttribute">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
+        <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: affects</rdfs:comment>
+        <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: involves</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModifierAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ModifierAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasCausalLinkTo -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasCausalLinkTo">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseLocativeAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isCausallyLinkedTo"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasConsequence -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasConsequence">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasCausalLinkTo"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isConsequenceOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasImmediateConsequence -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasImmediateConsequence">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasConsequence"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isImmediateConsequenceOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasSpecificConsequence -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasSpecificConsequence">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasConsequence"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isSpecificConsequenceOf"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isSpecificallyFollowedBy"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasSpecificImmediateConsequence -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasSpecificImmediateConsequence">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasImmediateConsequence"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasSpecificConsequence"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isSpecificImmediateConsequenceOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedProcess -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedProcess">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedStructure"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isSpecificImmediateConsequenceOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedStructure -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedStructure">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasSpecificImmediateConsequence"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isCausallyLinkedTo -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isCausallyLinkedTo">
+        <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: causallyInvolves</rdfs:comment>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#LocativeAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isClinicalRolePlayedBy -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isClinicalRolePlayedBy">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isConsequenceOf -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isConsequenceOf">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isCausallyLinkedTo"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isImmediateConsequenceOf -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isImmediateConsequenceOf">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isConsequenceOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isSpecificConsequenceOf -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isSpecificConsequenceOf">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isConsequenceOf"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#specificallyFollows"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isSpecificImmediateConsequenceOf -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isSpecificImmediateConsequenceOf">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isImmediateConsequenceOf"/>
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isSpecificConsequenceOf"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#isSpecificallyFollowedBy -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isSpecificallyFollowedBy">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+        <owl:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#specificallyFollows"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#playsClinicalRole -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#playsClinicalRole">
+        <rdfs:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#specificallyFollows -->
+
+    <owl:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#specificallyFollows">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Biopsy -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Biopsy">
+        <rdfs:label>Biopsy</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#BiopsyRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Biopsy</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#BiopsyRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#BiopsyRole">
+        <rdfs:label>Biopsy Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#SampleRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BiopsyRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#BiopsyingProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#BiopsyingProcess">
+        <rdfs:label>Biopsying Process</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#RemovingProcess"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedStructure"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#Biopsy"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#RemovingProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BiopsyingProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ClinicalInterventionProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ClinicalInterventionProcess">
+        <rdfs:label>Clinical Intervention Process</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#ClinicalInterventionRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ClinicalInterventionProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ClinicalInterventionRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ClinicalInterventionRole">
+        <rdfs:label>Clinical Intervention Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ClinicalRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ClinicalInterventionRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ClinicalProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ClinicalProcess">
+        <rdfs:label>Clinical Process</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#ClinicalRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ClinicalProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ClinicalRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ClinicalRole">
+        <rdfs:label>Clinical Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Role"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ClinicalRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#DomainCategory -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#DomainCategory">
+        <rdfs:label>Domain Category</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#TopCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DomainCategory</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#GeneralisedProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedProcess">
+        <rdfs:label>Generalised Process</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">GeneralisedProcess</metadata:prefixIRI>
+        <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: Process</rdfs:comment>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#GenericProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#GenericProcess">
+        <rdfs:label>Generic Process</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">GenericProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ModifierConcept -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ModifierConcept">
+        <rdfs:label>Modifier Concept</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ModifierConcept</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Phenomenon -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon">
+        <rdfs:label>Phenomenon</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Phenomenon</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#PhysiologicalRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#PhysiologicalRole">
+        <rdfs:label>Physiological Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Role"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">PhysiologicalRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#RemovingProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#RemovingProcess">
+        <rdfs:label>Removing Process</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ResourceManagementProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">RemovingProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#ResourceManagementProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#ResourceManagementProcess">
+        <rdfs:label>Resource Management Process</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GenericProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ResourceManagementProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#Role -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#Role">
+        <rdfs:label>Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierConcept"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Role</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SampleRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SampleRole">
+        <rdfs:label>Sample Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#PhysiologicalRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SampleRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SurgicalBiopsyingProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SurgicalBiopsyingProcess">
+        <rdfs:label>Surgical Biopsying Process</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#RemovingProcess"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasUniqueAssociatedStructure"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#Biopsy"/>
+                    </owl:Restriction>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#SurgicalRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#RemovingProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SurgicalBiopsyingProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SurgicalDeed -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SurgicalDeed">
+        <rdfs:label>Surgical Deed</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#SurgicalRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SurgicalDeed</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SurgicalRemovingProcess -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SurgicalRemovingProcess">
+        <rdfs:label>Surgical Removing Process</rdfs:label>
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#RemovingProcess"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsClinicalRole"/>
+                        <owl:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#SurgicalRole"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#RemovingProcess"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SurgicalRemovingProcess</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#SurgicalRole -->
+
+    <owl:Class rdf:about="http://www.co-ode.org/ontologies/galen#SurgicalRole">
+        <rdfs:label>Surgical Role</rdfs:label>
+        <rdfs:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ClinicalInterventionRole"/>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SurgicalRole</metadata:prefixIRI>
+    </owl:Class>
+    
+
+
+    <!-- http://www.co-ode.org/ontologies/galen#TopCategory -->
+
+    <rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#TopCategory">
+        <rdfs:label>Top Category</rdfs:label>
+        <metadata:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">TopCategory</metadata:prefixIRI>
+    </rdf:Description>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 3.4.8) http://owlapi.sourceforge.net -->
+

@@ -1,0 +1,443 @@
+<rdf:RDF xmlns:ns1="http://www.w3.org/2002/07/owl#" xmlns:ns2="http://www.w3.org/2000/01/rdf-schema#" xmlns:ns3="http://data.bioontology.org/metadata/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xml:base="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlZopiclone.owl">
+	<ns1:Ontology rdf:about="/Users/matteomagnini/Documents/repositories/technologies/ExactLearner/src/main/resources/ontologies/galen.owlZopiclone.owl" />
+	<ns1:AnnotationProperty rdf:about="http://data.bioontology.org/metadata/prefixIRI" />
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#Attribute">
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute" />
+		<ns2:label>Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute" />
+		<ns2:label>Constructive Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ContainmentAttribute">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty" />
+		<ns2:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: contains</ns2:comment>
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DelimitingAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseContainmentAttribute" />
+		<ns2:label>Containment Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#DelimitingAttribute">
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDelimitingAttribute" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#StructuralAttribute" />
+		<ns2:label>Delimiting Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#DomainAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#Attribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute" />
+		<ns2:label>Domain Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#HasDivision">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#IsDivisionOf" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#StructuralPartitiveAttribute" />
+		<ns2:label>Has Division</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseAttribute">
+		<ns2:label>Inverse Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute" />
+		<ns2:label>Inverse Constructive Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseContainmentAttribute">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty" />
+		<ns2:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Synonym: isContainedIn</ns2:comment>
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDelimitingAttribute" />
+		<ns2:label>Inverse Containment Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseDelimitingAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseStructuralAttribute" />
+		<ns2:label>Inverse Delimiting Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseAttribute" />
+		<ns2:label>Inverse Domain Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseDomainAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute" />
+		<ns2:label>Inverse Modifier Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InversePartitiveAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#PartitiveAttribute" />
+		<ns2:label>Inverse Partitive Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute" />
+		<ns2:label>Inverse Role Designating Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseStatusAttribute">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseModifierAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#StatusAttribute" />
+		<ns2:label>Inverse Status Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseStructuralAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ConstructiveAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#StructuralAttribute" />
+		<ns2:label>Inverse Structural Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#InverseStructuralPartitiveAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InversePartitiveAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#StructuralPartitiveAttribute" />
+		<ns2:label>Inverse Structural Partitive Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#IsDivisionOf">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseStructuralPartitiveAttribute" />
+		<ns2:label>Is Division Of</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#ModifierAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainAttribute" />
+		<ns2:label>Modifier Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#PartitiveAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute" />
+		<ns2:label>Partitive Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute" />
+		<ns2:label>Role Designating Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#StatusAttribute">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierAttribute" />
+		<ns2:label>Status Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#StructuralAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseConstructiveAttribute" />
+		<ns2:label>Structural Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#StructuralPartitiveAttribute">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#PartitiveAttribute" />
+		<ns2:label>Structural Partitive Attribute</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasChemicalSubgroup">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasMixedThroughout" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isChemicalSubgroupOf" />
+		<ns2:label>has Chemical Subgroup</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasCountability">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#StatusAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isCountabilityOf" />
+		<ns2:label>has Countability</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasMixedThroughout">
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isMixedThroughout" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#partitivelyContains" />
+		<ns2:label>has Mixed Throughout</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#hasStructuralComponent">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#HasDivision" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#isStructuralComponentOf" />
+		<ns2:label>has Structural Component</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isChemicalSubgroupOf">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isMixedThroughout" />
+		<ns2:label>is Chemical Subgroup Of</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isCountabilityOf">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#InverseFunctionalProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseStatusAttribute" />
+		<ns2:label>is Countability Of</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isMixedThroughout">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isPartitivelyContainedIn" />
+		<ns2:label>is Mixed Throughout</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isPartitivelyContainedIn">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseContainmentAttribute" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#isStructuralComponentOf" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#partitivelyContains" />
+		<ns2:label>is Partitively Contained In</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isPhysiologicalRolePlayedBy">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#InverseRoleDesignatingAttribute" />
+		<ns1:inverseOf rdf:resource="http://www.co-ode.org/ontologies/galen#playsPhysiologicalRole" />
+		<ns2:label>is Physiological Role Played By</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#isStructuralComponentOf">
+		<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#IsDivisionOf" />
+		<ns2:label>is Structural Component Of</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#partitivelyContains">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#ContainmentAttribute" />
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#hasStructuralComponent" />
+		<ns2:label>partitively Contains</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:ObjectProperty rdf:about="http://www.co-ode.org/ontologies/galen#playsPhysiologicalRole">
+		<ns2:subPropertyOf rdf:resource="http://www.co-ode.org/ontologies/galen#RoleDesignatingAttribute" />
+		<ns2:label>plays Physiological Role</ns2:label>
+	</ns1:ObjectProperty>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ActiveDrugAdditiveRole">
+		<ns2:label>Active Drug Additive Role</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DrugAdditiveRole" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ActiveDrugAdditiveRole</ns3:prefixIRI>
+		<ns2:label>Active Drug Additive Role</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ActiveDrugChemicalIngredient">
+		<ns2:label>Active Drug Chemical Ingredient</ns2:label>
+		<ns1:equivalentClass>
+			<ns1:Class>
+				<ns1:intersectionOf rdf:parseType="Collection">
+					<rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#ChemicalSubstance" />
+					<ns1:Restriction>
+						<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsPhysiologicalRole" />
+						<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#ActiveDrugAdditiveRole" />
+					</ns1:Restriction>
+				</ns1:intersectionOf>
+			</ns1:Class>
+		</ns1:equivalentClass>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ChemicalSubstance" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ActiveDrugChemicalIngredient</ns3:prefixIRI>
+		<ns2:label>Active Drug Chemical Ingredient</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ActiveDrugIngredient">
+		<ns2:label>Active Drug Ingredient</ns2:label>
+		<ns1:equivalentClass>
+			<ns1:Class>
+				<ns1:intersectionOf rdf:parseType="Collection">
+					<rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#Substance" />
+					<ns1:Restriction>
+						<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsPhysiologicalRole" />
+						<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#ActiveDrugAdditiveRole" />
+					</ns1:Restriction>
+				</ns1:intersectionOf>
+			</ns1:Class>
+		</ns1:equivalentClass>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Substance" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ActiveDrugIngredient</ns3:prefixIRI>
+		<ns2:label>Active Drug Ingredient</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#Aspect">
+		<ns2:label>Aspect</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierConcept" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Aspect</ns3:prefixIRI>
+		<ns2:label>Aspect</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#BiochemicalRole">
+		<ns2:label>Biochemical Role</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#PhysiologicalRole" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">BiochemicalRole</ns3:prefixIRI>
+		<ns2:label>Biochemical Role</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ChemicalGroup">
+		<ns2:label>Chemical Group</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ChemicalStructure" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ChemicalGroup</ns3:prefixIRI>
+		<ns2:label>Chemical Group</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ChemicalStructure">
+		<ns2:label>Chemical Structure</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#PhysicalStructure" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ChemicalStructure</ns3:prefixIRI>
+		<ns2:label>Chemical Structure</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ChemicalSubstance">
+		<ns2:label>Chemical Substance</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Substance" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ChemicalSubstance</ns3:prefixIRI>
+		<ns2:label>Chemical Substance</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#CountabilityStatus">
+		<ns2:label>Countability Status</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#StructuralStatus" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">CountabilityStatus</ns3:prefixIRI>
+		<ns2:label>Countability Status</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#CyclopyrroloneChemical">
+		<ns2:label>Cyclopyrrolone Chemical</ns2:label>
+		<ns1:equivalentClass>
+			<ns1:Class>
+				<ns1:intersectionOf rdf:parseType="Collection">
+					<rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#ChemicalSubstance" />
+					<ns1:Restriction>
+						<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasChemicalSubgroup" />
+						<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#CyclopyrroloneGroup" />
+					</ns1:Restriction>
+				</ns1:intersectionOf>
+			</ns1:Class>
+		</ns1:equivalentClass>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ChemicalSubstance" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">CyclopyrroloneChemical</ns3:prefixIRI>
+		<ns2:label>Cyclopyrrolone Chemical</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#CyclopyrroloneChemicalAsDrug">
+		<ns2:label>Cyclopyrrolone Chemical As Drug</ns2:label>
+		<ns1:equivalentClass>
+			<ns1:Class>
+				<ns1:intersectionOf rdf:parseType="Collection">
+					<rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#CyclopyrroloneChemical" />
+					<ns1:Restriction>
+						<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#playsPhysiologicalRole" />
+						<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#ActiveDrugAdditiveRole" />
+					</ns1:Restriction>
+				</ns1:intersectionOf>
+			</ns1:Class>
+		</ns1:equivalentClass>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#CyclopyrroloneChemical" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">CyclopyrroloneChemicalAsDrug</ns3:prefixIRI>
+		<ns2:label>Cyclopyrrolone Chemical As Drug</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#CyclopyrroloneGroup">
+		<ns2:label>Cyclopyrrolone Group</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ChemicalGroup" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">CyclopyrroloneGroup</ns3:prefixIRI>
+		<ns2:label>Cyclopyrrolone Group</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#DiscreteStructure">
+		<ns2:label>Discrete Structure</ns2:label>
+		<ns1:equivalentClass>
+			<ns1:Class>
+				<ns1:intersectionOf rdf:parseType="Collection">
+					<rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedStructure" />
+					<ns1:Restriction>
+						<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasCountability" />
+						<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#discrete" />
+					</ns1:Restriction>
+				</ns1:intersectionOf>
+			</ns1:Class>
+		</ns1:equivalentClass>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedStructure" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DiscreteStructure</ns3:prefixIRI>
+		<ns2:label>Discrete Structure</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#DomainCategory">
+		<ns2:label>Domain Category</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#TopCategory" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DomainCategory</ns3:prefixIRI>
+		<ns2:label>Domain Category</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#DrugAdditiveRole">
+		<ns2:label>Drug Additive Role</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#BiochemicalRole" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">DrugAdditiveRole</ns3:prefixIRI>
+		<ns2:label>Drug Additive Role</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedStructure">
+		<ns2:label>Generalised Structure</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">GeneralisedStructure</ns3:prefixIRI>
+		<ns2:label>Generalised Structure</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#GeneralisedSubstance">
+		<ns2:label>Generalised Substance</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">GeneralisedSubstance</ns3:prefixIRI>
+		<ns2:label>Generalised Substance</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#ModifierConcept">
+		<ns2:label>Modifier Concept</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">ModifierConcept</ns3:prefixIRI>
+		<ns2:label>Modifier Concept</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#NAMEDActiveDrugIngredient">
+		<ns2:label>NAMED Active Drug Ingredient</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ActiveDrugChemicalIngredient" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">NAMEDActiveDrugIngredient</ns3:prefixIRI>
+		<ns2:label>NAMED Active Drug Ingredient</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#Phenomenon">
+		<ns2:label>Phenomenon</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#DomainCategory" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Phenomenon</ns3:prefixIRI>
+		<ns2:label>Phenomenon</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#PhysicalStructure">
+		<ns2:label>Physical Structure</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedStructure" />
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#SubstanceOrPhysicalStructure" />
+		<ns2:subClassOf>
+			<ns1:Restriction>
+				<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasCountability" />
+				<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#discrete" />
+			</ns1:Restriction>
+		</ns2:subClassOf>
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">PhysicalStructure</ns3:prefixIRI>
+		<ns2:label>Physical Structure</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#PhysiologicalRole">
+		<ns2:label>Physiological Role</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Role" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">PhysiologicalRole</ns3:prefixIRI>
+		<ns2:label>Physiological Role</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#Role">
+		<ns2:label>Role</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#ModifierConcept" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Role</ns3:prefixIRI>
+		<ns2:label>Role</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#Status">
+		<ns2:label>Status</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Aspect" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Status</ns3:prefixIRI>
+		<ns2:label>Status</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#StructuralStatus">
+		<ns2:label>Structural Status</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Status" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">StructuralStatus</ns3:prefixIRI>
+		<ns2:label>Structural Status</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#Substance">
+		<ns2:label>Substance</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#GeneralisedSubstance" />
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#SubstanceOrPhysicalStructure" />
+		<ns2:subClassOf>
+			<ns1:Restriction>
+				<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasCountability" />
+				<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#infinitelyDivisible" />
+			</ns1:Restriction>
+		</ns2:subClassOf>
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Substance</ns3:prefixIRI>
+		<ns2:label>Substance</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#SubstanceOrPhysicalStructure">
+		<ns2:label>Substance Or Physical Structure</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#Phenomenon" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">SubstanceOrPhysicalStructure</ns3:prefixIRI>
+		<ns2:label>Substance Or Physical Structure</ns2:label>
+	</ns1:Class>
+	<rdf:Description rdf:about="http://www.co-ode.org/ontologies/galen#TopCategory">
+		<ns2:label>Top Category</ns2:label>
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">TopCategory</ns3:prefixIRI>
+	</rdf:Description>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#Zopiclone">
+		<ns2:label>Zopiclone</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#NAMEDActiveDrugIngredient" />
+		<ns2:subClassOf>
+			<ns1:Restriction>
+				<ns1:onProperty rdf:resource="http://www.co-ode.org/ontologies/galen#hasChemicalSubgroup" />
+				<ns1:someValuesFrom rdf:resource="http://www.co-ode.org/ontologies/galen#CyclopyrroloneGroup" />
+			</ns1:Restriction>
+		</ns2:subClassOf>
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Zopiclone</ns3:prefixIRI>
+		<ns2:label>Zopiclone</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#discrete">
+		<ns2:label>discrete</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#CountabilityStatus" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">discrete</ns3:prefixIRI>
+		<ns2:label>discrete</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#infinitelyDivisible">
+		<ns2:label>infinitely Divisible</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#mass" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">infinitelyDivisible</ns3:prefixIRI>
+		<ns2:label>infinitely Divisible</ns2:label>
+	</ns1:Class>
+	<ns1:Class rdf:about="http://www.co-ode.org/ontologies/galen#mass">
+		<ns2:label>mass</ns2:label>
+		<ns2:subClassOf rdf:resource="http://www.co-ode.org/ontologies/galen#CountabilityStatus" />
+		<ns3:prefixIRI rdf:datatype="http://www.w3.org/2001/XMLSchema#string">mass</ns3:prefixIRI>
+		<ns2:label>mass</ns2:label>
+	</ns1:Class>
+</rdf:RDF>

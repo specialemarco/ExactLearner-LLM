@@ -20,14 +20,13 @@ results/ontologies/*.owl
 warnings.txt
 logging_file_name.txt
 results.sqlite3
-src/main/resources/ontologies/new/
+data/ontologies/new/
 .ipynb_checkpoints/
 nohup.out
 __pychache__
 cache.sqlite3
 results.sqlite
 results.sqlite3
-src/main/resources/ontologies/new
 analysis/old
 analysis/*.txt
 results/*.txt

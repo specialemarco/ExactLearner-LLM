@@ -59,7 +59,7 @@ public final class PacloDataset {
     /**
      * Maps a configured ontology path onto the local data_paclo copy. Paths
      * that already resolve are returned untouched, which leaves the small
-     * ontologies under src/main/resources alone; only <dataset>/<file> is
+     * ontologies under data/ontologies alone; only <dataset>/<file> is
      * carried across, since that much is identical everywhere.
      */
     public static String resolve(String configured) {
@@ -112,7 +112,7 @@ public final class PacloDataset {
      * one: their files are all called expertOntology.owl and differ only by
      * folder, so without a tag each run overwrites the previous one's saved
      * hypothesis. Everything else -- the small ontologies under
-     * src/main/resources -- already has a unique name and keeps it.
+     * data/ontologies -- already has a unique name and keeps it.
      *
      * The test is the presence of a baseSet file beside the ontology, the same
      * condition loadBeside() uses, so the two can never disagree about what is a
