@@ -1,147 +1,51 @@
 package org.configurations;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.utility.PacloDataset;
 
+/**
+ * The YAML schema, bound by SnakeYAML through the setters: every key a config
+ * uses needs a setter here, and an unknown key fails the load.
+ */
 public class Configuration {
-
     private List<String> models;
     private List<String> ontologies;
     private String system;
     private int maxTokens;
     private String type;
-    private List<String> systems;
-    private List<QueryFormat> queryFormats;
     private String queryFormat;
-    // PAC epsilon and delta; null when the config leaves them out.
+    // Null when the config leaves them out; the launcher then keeps 0.2 / 0.1.
     private Double epsilon;
     private Double delta;
 
-    public Double getEpsilon() {
-        return epsilon;
-    }
+    public List<String> getModels() { return models; }
+    public void setModels(List<String> models) { this.models = models; }
 
-    public void setEpsilon(Double epsilon) {
-        this.epsilon = epsilon;
-    }
-
-    public Double getDelta() {
-        return delta;
-    }
-
-    public void setDelta(Double delta) {
-        this.delta = delta;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public List<String> getModels() {
-        return models;
-    }
-
-    public void setModels(List<String> models) {
-        this.models = models;
-    }
-
-    public List<String> getOntologies() {
-        return ontologies;
-    }
-
+    public List<String> getOntologies() { return ontologies; }
+    // Datasets are read from data_paclo/, so a path into someone else's scratch
+    // space is rewritten to the local copy. See PacloDataset.resolve.
     public void setOntologies(List<String> ontologies) {
-        // Single choke point for every config: datasets are read from
-        // data_paclo/, so a path into someone else's scratch space is
-        // rewritten to the local copy. See PacloDataset.resolve.
         this.ontologies = ontologies.stream().map(PacloDataset::resolve).collect(Collectors.toList());
     }
 
-    public String getSystem() {
-        return system;
-    }
+    public String getSystem() { return system; }
+    public void setSystem(String system) { this.system = system.trim(); }
 
-    public void setSystem(String system) {
-        this.system = system.trim();
-    }
+    public int getMaxTokens() { return maxTokens; }
+    public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
 
-    public int getMaxTokens() {
-        return maxTokens;
-    }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
 
-    public void setMaxTokens(int maxTokens) {
-        this.maxTokens = maxTokens;
-    }
+    // Throws when the config has no queryFormat; only the LLM launchers ask.
+    public String getQueryFormat() { return queryFormat.trim(); }
+    public void setQueryFormat(String queryFormat) { this.queryFormat = queryFormat; }
 
-    public String getQueryFormat() {
-        return queryFormat.trim();
-    }
+    public Double getEpsilon() { return epsilon; }
+    public void setEpsilon(Double epsilon) { this.epsilon = epsilon; }
 
-    public void setQueryFormat(String queryFormat) {
-        this.queryFormat = queryFormat.trim();
-    }
-
-    public String toString() {
-        return "Configuration{" +
-                "models=" + models +
-                ", ontologies=" + ontologies +
-                ", system='" + system + '\'' +
-                ", maxTokens=" + maxTokens +
-                ", queryFormat=" + queryFormat +
-                ", epsilon=" + epsilon +
-                ", delta=" + delta +
-                ", type='" + type + '\'' +
-                '}';
-    }
-
-    public List<String> getSystems() {
-        return systems;
-    }
-
-    public void setSystems(List<String> systems) {
-        this.systems = systems;
-    }
-
-    public List<QueryFormat> getQueryFormats() {
-        return queryFormats;
-    }
-
-    public void setQueryFormats(List<QueryFormat> queryFormats) {
-        this.queryFormats = queryFormats;
-    }
-
-    public static class QueryFormat {
-        private String name;
-        private String axiom;
-        private String conceptName;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getAxiom() {
-            return axiom;
-        }
-
-        public void setAxiom(String axiom) {
-            this.axiom = axiom;
-        }
-
-        public String getConceptName() {
-            return conceptName;
-        }
-
-        public void setConceptName(String conceptName) {
-            this.conceptName = conceptName;
-        }
-
-    }
+    public Double getDelta() { return delta; }
+    public void setDelta(Double delta) { this.delta = delta; }
 }
