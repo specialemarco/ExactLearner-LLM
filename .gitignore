@@ -1,6 +1,5 @@
 *.png
 statistics/*.csv
-statistics/*.png
 **__pycache__**
 results.sqlite
 cache.sqlite3
@@ -27,15 +26,8 @@ __pychache__
 cache.sqlite3
 results.sqlite
 results.sqlite3
-analysis/old
-analysis/*.txt
 results/*.txt
 results/
-
-!analysis/none
-!analysis/split
-!analysis/desaturate
-!analysis/simplify
 
 results/ontologies/none
 results/ontologies/simplify
