@@ -1,7 +1,6 @@
 package org.exactlearner.engine;
 
 import org.exactlearner.parser.OWLParser;
-import org.exactlearner.renderer.AnnotationShorFormProvider;
 import org.experiments.workload.WorkloadManager;
 import org.experiments.workload.WorkloadManagerImpl;
 import org.semanticweb.owlapi.io.OWLObjectRenderer;
@@ -47,7 +46,7 @@ public class LLMEngine implements BaseEngine {
 
     private OWLObjectRenderer createRenderer(OWLOntology ontology) {
         ManchesterOWLSyntaxOWLObjectRendererImpl renderer = new ManchesterOWLSyntaxOWLObjectRendererImpl();
-        renderer.setShortFormProvider(new AnnotationShorFormProvider(ontology));
+        renderer.setShortFormProvider(new AnnotationShortFormProvider(ontology));
         return renderer;
     }
 

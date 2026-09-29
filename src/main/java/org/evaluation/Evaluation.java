@@ -1,6 +1,6 @@
 package org.evaluation;
 
-import org.exactlearner.renderer.AnnotationShorFormProvider;
+import org.exactlearner.engine.AnnotationShortFormProvider;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
 import org.semanticweb.owlapi.model.*;
@@ -102,11 +102,11 @@ public class Evaluation {
         System.out.println("Result ontology classified: " + timeElapsed + " ms");
 
         // Short-form renderer for readable output: reuses the same
-        // AnnotationShorFormProvider already used by LLMEngine.createRenderer()
+        // AnnotationShortFormProvider already used by LLMEngine.createRenderer()
         // (falls back to the IRI fragment, e.g. "Woman", when no rdfs:label
         // exists). Without it every axiom prints as a full IRI.
         ManchesterOWLSyntaxOWLObjectRendererImpl shortRenderer = new ManchesterOWLSyntaxOWLObjectRendererImpl();
-        shortRenderer.setShortFormProvider(new AnnotationShorFormProvider(resultOntology));
+        shortRenderer.setShortFormProvider(new AnnotationShortFormProvider(resultOntology));
 
         start = Instant.now();
 

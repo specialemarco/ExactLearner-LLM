@@ -1,4 +1,4 @@
-package org.exactlearner.renderer;
+package org.exactlearner.engine;
 
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.util.ShortFormProvider;
@@ -6,12 +6,20 @@ import org.semanticweb.owlapi.util.ShortFormProvider;
 import java.util.HashMap;
 import java.util.Map;
 
-public class AnnotationShorFormProvider implements ShortFormProvider {
+/**
+ * The name used for each class and property when an axiom is rendered: its
+ * rdfs:label, or else its IRI fragment. This sets the vocabulary of every LLM
+ * prompt, and so every cache key. The OWL2Bench targets and the small
+ * ontologies have no labels, so prompts carry raw fragments such as
+ * "AssociateProfessor" or "has_part"; changing this is a new experimental
+ * condition, not a fix, since no existing cache entry would match again.
+ */
+public class AnnotationShortFormProvider implements ShortFormProvider {
 
     private final OWLOntology ontology;
     private final Map<IRI, String> labelMap = new HashMap<>();
 
-    public AnnotationShorFormProvider(OWLOntology ontology) {
+    public AnnotationShortFormProvider(OWLOntology ontology) {
         this.ontology = ontology;
     }
 
