@@ -7,9 +7,14 @@ import org.semanticweb.owlapi.model.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+/**
+ * How LLMEngine turns an axiom into LLM queries, with DummyWorkloadManager
+ * standing in for the model: it records each query and answers by a rule.
+ */
 public class LLMEngineTest {
     private final OWLOntologyManager man = OWLManager.createOWLOntologyManager();
 
+    // A EquivalentTo B is asked as two queries, A SubClassOf B and B SubClassOf A.
     @Test
     public void testSplitEquivalentInEntailed() throws OWLOntologyCreationException {
         OWLDataFactory df = man.getOWLDataFactory();
@@ -30,6 +35,7 @@ public class LLMEngineTest {
         ));
     }
 
+    // A SubClassOf B and C is asked as A SubClassOf B and A SubClassOf C.
     @Test
     public void testSplitAxiomInEntailed() throws OWLOntologyCreationException {
         OWLDataFactory df = man.getOWLDataFactory();
@@ -52,6 +58,7 @@ public class LLMEngineTest {
         ));
     }
 
+    // The split axiom is entailed only if the model says yes to every part.
     @Test
     public void testSplitAxiomResponseEntailed() throws OWLOntologyCreationException {
         OWLDataFactory df = man.getOWLDataFactory();
@@ -63,19 +70,16 @@ public class LLMEngineTest {
         OWLClassExpression expression = df.getOWLObjectIntersectionOf(b, c);
         OWLAxiom axiom = df.getOWLSubClassOfAxiom(a, expression);
 
-        // Test none are true
         DummyWorkloadManager dummy = new DummyWorkloadManager(s -> false);
         LLMEngine engine = new LLMEngine(man.createOntology(), man, dummy);
 
         assertThat(engine.entailed(axiom), is(false));
 
-        // Test one is true
         dummy = new DummyWorkloadManager(s -> s.equals("A SubClassOf B"));
         engine = new LLMEngine(man.createOntology(), man, dummy);
 
         assertThat(engine.entailed(axiom), is(false));
 
-        // Test both are true
         dummy = new DummyWorkloadManager(s -> s.equals("A SubClassOf B") || s.equals("A SubClassOf C"));
         engine = new LLMEngine(man.createOntology(), man, dummy);
 

@@ -5,7 +5,10 @@ import org.junit.jupiter.api.Test;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+/** ConceptRelation, the subsumption graph precomputation builds over class names. */
 public class ConceptRelationNodeTest {
+    // Ancestors follow edges transitively, and a cycle (E and H above each other)
+    // joins its members, so H loses E as an ancestor.
     @Test
     public void addEdges() {
         ConceptRelation<String> s = new ConceptRelation<>();

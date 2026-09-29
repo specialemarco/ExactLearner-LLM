@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+/** A fake model for LLMEngineTest: records each query, answers by a rule (default: yes). */
 public class DummyWorkloadManager implements WorkloadManager {
     List<String> queries = new ArrayList<>();
     Function<String, Boolean> response;

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 
+/** OWLParser reading an ontology file. */
 public class OWLParserTest {
     OWLParser parser;
     private final static int ANIMAL_CLASSES_NUMBER = 17;
@@ -18,6 +19,7 @@ public class OWLParserTest {
         }
     }
 
+    // animals.owl has 17 classes in its signature.
     @Test
     public void getClassesTest() {
         Assertions.assertEquals(ANIMAL_CLASSES_NUMBER, parser.getClasses().get().size());

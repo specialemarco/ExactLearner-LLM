@@ -12,6 +12,7 @@ import static org.hamcrest.core.Is.*;
 import static org.hamcrest.core.IsNull.*;
 
 
+/** The sqlite query cache: storing answers and reading them back as True/False. */
 public class CacheManagerTest {
     private final String testFile = "test.sqlite3";
     private CacheManager cacheManager;
@@ -26,6 +27,8 @@ public class CacheManagerTest {
         new File(testFile).delete();
     }
 
+    // A missing query reads as null. A stored answer reads as true if it contains
+    // "true" in any case, otherwise false: "False.", "I." and "\tTrue" below.
     @Test
     public void testCacheManager() throws SQLException {
         Cache cache = cacheManager.getCache("something", "something");

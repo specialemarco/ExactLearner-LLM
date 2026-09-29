@@ -9,7 +9,11 @@ import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
 
-
+/**
+ * Oracle operations with ELK on both sides. The last argument of each call is
+ * the probability of applying each step (1 or more means always), which keeps
+ * the otherwise random oracle deterministic here.
+ */
 public class ELOracleTest {
 
     private final OWLOntologyManager man = OWLManager.createOWLOntologyManager();
@@ -17,9 +21,7 @@ public class ELOracleTest {
     private OWLOntology hypothesisOntology = null;
     private ELEngine elQueryEngineForT = null;
     private ELEngine elQueryEngineForH = null;
-    //private ELLearner elLearner = null;
     private BaseOracle baseOracle = null;
-
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -31,13 +33,13 @@ public class ELOracleTest {
         elQueryEngineForH = new ELEngine(hypothesisOntology);
         elQueryEngineForT = new ELEngine(targetOntology);
 
-
         baseOracle = new Oracle(elQueryEngineForT, elQueryEngineForH);
     }
 
-
+    // branchRight splits A SubClassOf r some (B and C) into the separate edges T has:
+    // A SubClassOf r some B and r some C.
     @Test
-    public void branchRight() {
+    public void branchRight() throws Exception {
         OWLDataFactory df = man.getOWLDataFactory();
 
         OWLClass A = df.getOWLClass(IRI.create(":Cat"));
@@ -47,20 +49,18 @@ public class ELOracleTest {
         OWLClassExpression right = df.getOWLObjectIntersectionOf(df.getOWLObjectSomeValuesFrom(R, df.getOWLObjectIntersectionOf(B, C)));
         OWLSubClassOfAxiom axiom = df.getOWLSubClassOfAxiom(A, df.getOWLObjectIntersectionOf(df.getOWLObjectSomeValuesFrom(R, B), df.getOWLObjectSomeValuesFrom(R, C)));
         man.addAxiom(targetOntology, axiom);
-        try {
-            OWLSubClassOfAxiom newCounterexampleAxiom = baseOracle.branchRight(A, right, 2);
-            targetOntology.removeAxiom(axiom);
-            System.out.println("Branched: " + axiom);
-            Assertions.assertEquals(axiom, newCounterexampleAxiom);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        OWLSubClassOfAxiom newCounterexampleAxiom = baseOracle.branchRight(A, right, 2);
+        targetOntology.removeAxiom(axiom);
+        System.out.println("Branched: " + axiom);
+        Assertions.assertEquals(axiom, newCounterexampleAxiom);
     }
 
+    // unsaturateRight on A SubClassOf A and B and C and D and E and F. A SubClassOf D is
+    // in H as well as T, which forces the oracle to try a different combination.
+    // No assertion: only checks that it completes.
     @Test
-    public void unsaturateRight() {
+    public void unsaturateRight() throws Exception {
         OWLDataFactory df = man.getOWLDataFactory();
-        // Create 6 classes for target ontology
         OWLClass A = df.getOWLClass(IRI.create(":A"));
         OWLClass B = df.getOWLClass(IRI.create(":B"));
         OWLClass C = df.getOWLClass(IRI.create(":C"));
@@ -70,40 +70,28 @@ public class ELOracleTest {
 
         OWLClass F = df.getOWLClass(IRI.create(":F"));
 
-        // Create and add an axiom to ontology
         OWLSubClassOfAxiom axiom = df.getOWLSubClassOfAxiom(ABCDE, F);
         man.addAxiom(targetOntology, axiom);
 
-        // Add expected axiom to ontology
         axiom = df.getOWLSubClassOfAxiom(A, D);
         man.addAxiom(targetOntology, axiom);
 
-        // We add A \sqsubseteq D to the hypothesis
-        // This forces the oracle to try a different combination when unsaturating
         axiom = df.getOWLSubClassOfAxiom(A, D);
         man.addAxiom(hypothesisOntology, axiom);
 
-
-        // Begin unsaturation of inclusion
-        // A  \sqsubseteq A \sqcap B \sqcap C \sqcap D \sqcap E \sqcap F 
         OWLClassExpression ABCDEF = df.getOWLObjectIntersectionOf(A, B, C, D, E, F);
         axiom = df.getOWLSubClassOfAxiom(A, ABCDEF);
         man.addAxiom(targetOntology, axiom);
 
-        try {
-            //							  left, right, chance
-            axiom = baseOracle.unsaturateRight(A, ABCDEF, 1);
-            System.out.println("Unsaturated: " + axiom);
-        } catch (Exception e) {
-            System.out.println("Error in unsaturate right \n");
-            e.printStackTrace();
-        }
+        axiom = baseOracle.unsaturateRight(A, ABCDEF, 1);
+        System.out.println("Unsaturated: " + axiom);
     }
 
+    // saturateLeft on A SubClassOf C, where T also has A and B and C SubClassOf
+    // D and E and F. No assertion: only checks that it completes.
     @Test
-    public void saturateLeft() {
+    public void saturateLeft() throws Exception {
         OWLDataFactory df = man.getOWLDataFactory();
-        // Create 6 classes for target ontology
         OWLClass A = df.getOWLClass(IRI.create(":A"));
         OWLClass B = df.getOWLClass(IRI.create(":B"));
         OWLClass C = df.getOWLClass(IRI.create(":C"));
@@ -114,30 +102,22 @@ public class ELOracleTest {
         OWLClass F = df.getOWLClass(IRI.create(":F"));
         OWLClassExpression DEF = df.getOWLObjectIntersectionOf(D, E, F);
 
-        // Create and add an axiom to ontology
         OWLSubClassOfAxiom axiom = df.getOWLSubClassOfAxiom(ABC, DEF);
         man.addAxiom(targetOntology, axiom);
 
-        // Begin saturation of inclusion
-        // A \sqcap B \sqsubseteq C
         OWLClassExpression A_ = df.getOWLObjectIntersectionOf(A);
         axiom = df.getOWLSubClassOfAxiom(A_, C);
         man.addAxiom(targetOntology, axiom);
 
-        try {
-            //						   left, right, chance
-            axiom = baseOracle.saturateLeft(A_, C, 1);
-            System.out.println("Saturate left: " + axiom);
-        } catch (Exception e) {
-            System.out.println("Error in saturate left \n");
-            e.printStackTrace();
-        }
+        axiom = baseOracle.saturateLeft(A_, C, 1);
+        System.out.println("Saturate left: " + axiom);
     }
 
+    // mergeLeft on r some B and r some C SubClassOf A, with T holding
+    // r some (B and C) SubClassOf A. No assertion: only checks that it completes.
     @Test
-    public void mergeLeft() {
+    public void mergeLeft() throws Exception {
         OWLDataFactory df = man.getOWLDataFactory();
-
 
         OWLClass A = df.getOWLClass(IRI.create(":A"));
 
@@ -146,23 +126,18 @@ public class ELOracleTest {
         OWLClass C = df.getOWLClass(IRI.create(":C"));
         OWLClassExpression left = df.getOWLObjectIntersectionOf(df.getOWLObjectSomeValuesFrom(R, B), df.getOWLObjectSomeValuesFrom(R, C));
 
-        // expected axiom
-        // r.(B \sqcap C) \sqsubseteq A
         OWLSubClassOfAxiom axiom = df.getOWLSubClassOfAxiom(df.getOWLObjectSomeValuesFrom(R, df.getOWLObjectIntersectionOf(B, C)), A);
         man.addAxiom(targetOntology, axiom);
 
-        try {
-            axiom = baseOracle.mergeLeft(left, A, 1);
-            System.out.println("Merge left: " + axiom);
-        } catch (Exception e) {
-            System.out.println("Error in merge left \n");
-            e.printStackTrace();
-        }
+        axiom = baseOracle.mergeLeft(left, A, 1);
+        System.out.println("Merge left: " + axiom);
     }
 
-
+    // composeLeft and composeRight on one T. No assertion: only checks that both complete.
+    // The old comments expected A and r some F SubClassOf C (left) and
+    // C SubClassOf E and r some B (right), unchecked.
     @Test
-    public void compose() {
+    public void compose() throws Exception {
         OWLDataFactory df = man.getOWLDataFactory();
 
         OWLClass A = df.getOWLClass(IRI.create(":A"));
@@ -176,35 +151,21 @@ public class ELOracleTest {
         OWLSubClassOfAxiom axiom = df.getOWLSubClassOfAxiom(df.getOWLObjectIntersectionOf(A, B, C), df.getOWLObjectIntersectionOf(D, E, F));
         man.addAxiom(targetOntology, axiom);
 
-        // Left composition  
         OWLClassExpression ArB = df.getOWLObjectIntersectionOf(A, df.getOWLObjectSomeValuesFrom(R, B));
         axiom = df.getOWLSubClassOfAxiom(ArB, C);
         man.addAxiom(targetOntology, axiom);
-        // Expected axiom
-        // A \sqcap \exists r.F \sqsubseteq C
         axiom = df.getOWLSubClassOfAxiom(F, B);
         man.addAxiom(targetOntology, axiom);
 
-
-        // Right decomposition
         OWLClassExpression ErF = df.getOWLObjectIntersectionOf(E, df.getOWLObjectSomeValuesFrom(R, F));
         axiom = df.getOWLSubClassOfAxiom(C, ErF);
         man.addAxiom(targetOntology, axiom);
-        // Expected axiom
-        // C \sqsubseteq E \sqcap \exists r.B 
 
-        try {
-            axiom = baseOracle.composeLeft(ArB, C, 1);
-            System.out.println("Compose left: " + axiom);
-            axiom = baseOracle.composeRight(C, ErF, 1);
-            System.out.println("Compose right: " + axiom);
-        } catch (Exception e) {
-            System.out.println("Error in composition \n");
-            e.printStackTrace();
-        }
-
+        axiom = baseOracle.composeLeft(ArB, C, 1);
+        System.out.println("Compose left: " + axiom);
+        axiom = baseOracle.composeRight(C, ErF, 1);
+        System.out.println("Compose right: " + axiom);
 
     }
-
 
 }
