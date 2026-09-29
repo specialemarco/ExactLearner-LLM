@@ -11,7 +11,6 @@ import org.exactlearner.utils.Metrics;
 import org.pac.Pac;
 import org.semanticweb.owlapi.model.*;
 import org.utility.YAMLConfigLoader;
-import org.utility.OntologyManipulator;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -42,7 +41,7 @@ public class LaunchExactLearner extends LaunchLearner {
         Configuration config = new YAMLConfigLoader().getConfig(fileName, Configuration.class);
         ontologies = config.getOntologies();
         hypothesisSizes = ontologies.stream()
-                .map(OntologyManipulator::computeOntologySize)
+                .map(Pac::hypothesisSize)
                 .collect(Collectors.toList());
     }
 

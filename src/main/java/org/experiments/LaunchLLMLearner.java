@@ -24,7 +24,6 @@ import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.utility.PacloDataset;
-import org.utility.OntologyManipulator;
 import org.utility.YAMLConfigLoader;
 import java.io.File;
 import java.io.IOException;
@@ -173,7 +172,7 @@ public class LaunchLLMLearner extends LaunchLearner {
         if (config.getEpsilon() != null) epsilon = config.getEpsilon();
         if (config.getDelta() != null) delta = config.getDelta();
         System.out.println("epsilon = " + epsilon + ", delta = " + delta);
-        hypothesisSizes = ontologies.stream().map(OntologyManipulator::computeOntologySize).collect(Collectors.toList());
+        hypothesisSizes = ontologies.stream().map(Pac::hypothesisSize).collect(Collectors.toList());
     }
 
     // ---- The three experiment axes ---------------------------------------

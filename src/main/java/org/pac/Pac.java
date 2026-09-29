@@ -1,11 +1,19 @@
 package org.pac;
 import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.AxiomType;
+import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
 import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
+import org.semanticweb.owlapi.model.OWLOntology;
+import org.semanticweb.owlapi.model.OWLOntologyCreationException;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
+import org.utility.PacloDataset;
 
+import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Pac {
 
@@ -269,10 +277,51 @@ public class Pac {
         return (int) Math.ceil(Math.log(delta / (i * (i + 1))) / Math.log(1 - epsilon));
     }
 
+    /**
+     * |X| in the budget: the EL normal-form statements A ⊓ B ⊑ C, B ⊑ ∃R.A and
+     * ∃R.A ⊑ B that getRandomStatement() draws from. A and B are ordered and may
+     * be equal, so A ⊑ C is the A = B case and each conjunction counts twice.
+     *
+     * TODO: an exhaustive enumeration of X would let us check this. The version
+     * removed after 634f414 (OntologyManipulator.getAllPossibleAxiomsCombinationsOWL)
+     * did not match: it took conjunctions over unordered distinct pairs.
+     */
     public double computeInstanceSpaceSize() {
         var cn = this.classes.size();
         var rn = this.objectProperties.size();
         return cn*cn*(cn-1) + 2*(cn*cn*rn);
+    }
+
+    /**
+     * h in the budget: the number of the target's SubClassOf and EquivalentClasses
+     * axioms, 138 on the OWL2Bench target (121 + 17) for C1, C2 and C3 alike. It is
+     * a count, not a size -- "Size of T" in the run statistics is a different
+     * measure -- and each EquivalentClasses axiom counts once, however complex its
+     * sides. Property axioms (SubObjectPropertyOf, EquivalentObjectProperties,
+     * ObjectPropertyDomain) and DisjointClasses are left out because the learner
+     * cannot learn them; counting them too gave h = 250 before commit b7b3a90
+     * (2026-08-19).
+     */
+    public static int hypothesisSize(String ontologyFileName) {
+        if (!new File(ontologyFileName).exists()) {
+            throw new IllegalArgumentException("Ontology not found: " + ontologyFileName
+                    + " -- PACLO datasets live in " + PacloDataset.DATA_DIR
+                    + "/<dataset>/, which is gitignored: copy the folder in by hand.");
+        }
+        OWLOntologyManager manager = OWLManager.createOWLOntologyManager();
+        OWLOntology ontology = null;
+        try {
+            ontology = manager.loadOntologyFromOntologyDocument(new File(ontologyFileName));
+        } catch (OWLOntologyCreationException e) {
+            throw new RuntimeException(e);
+        }
+        return learnableAxioms(ontology.getAxioms()).size();
+    }
+
+    private static Set<OWLAxiom> learnableAxioms(Set<OWLAxiom> axioms) {
+        return axioms.stream().filter(axiom -> axiom.isOfType(AxiomType.SUBCLASS_OF)
+                        || axiom.isOfType(AxiomType.EQUIVALENT_CLASSES))
+                .collect(Collectors.toSet());
     }
 
 }
