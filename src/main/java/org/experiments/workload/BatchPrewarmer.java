@@ -32,7 +32,7 @@ import java.util.List;
  * path. It runs BEFORE precomputation() and writes answers into the same cache
  * the learner reads, keyed identically. precomputation() then runs unmodified
  * and finds every answer already present, so it issues no LLM calls at all.
- * Environment.run() skips any task whose query is already cached, which is the
+ * WorkloadManagerImpl.runWorkload() skips any query already cached, which is the
  * mechanism this relies on.
  *
  * The queries come from LLMEngine.queryFor(), the same code path that builds

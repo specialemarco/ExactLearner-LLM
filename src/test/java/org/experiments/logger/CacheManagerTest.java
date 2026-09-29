@@ -28,7 +28,7 @@ public class CacheManagerTest {
 
     @Test
     public void testCacheManager() throws SQLException {
-        Cache cache = cacheManager.getCache("something", "something", "something", "something");
+        Cache cache = cacheManager.getCache("something", "something");
         String query = "Is it true?";
         Boolean awnser = cache.isStrictlyTrue(query);
         assertThat(awnser, nullValue());

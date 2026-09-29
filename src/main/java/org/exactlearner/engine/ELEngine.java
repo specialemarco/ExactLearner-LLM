@@ -232,7 +232,7 @@ public class ELEngine implements BaseEngine {
      *
      * Unlocking after the result has been read lets the configured evictor
      * (RecencyEvictor(512,0.75) by default) do what it was built for. Measured by
-     * org.experiments.TestEntailmentQueryEvictor on expertOntology.owl over 20,000
+     * TestEntailmentQueryEvictor (deleted; see commit 907f0e5) on expertOntology.owl over 20,000
      * distinct queries: per-query cost stays flat at 0.23 ms instead of climbing
      * past 1.07 ms, for 0-4 ms of unlocking per 2,000 queries. Note that setting
      * elk.reasoner.entailmentquery.evictor does NOT help -- capacity 16 and 512

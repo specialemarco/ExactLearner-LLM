@@ -51,7 +51,6 @@ public class OpenAIWorkload implements BaseWorkload {
         }
         if (response == null) {
             System.out.println("Could not get a response from the Ollama bridge.");
-            System.out.println("Check file " + SmartLogger.getFilename() + " for more information.");
             response = "";
         }
         if (cache != null) {

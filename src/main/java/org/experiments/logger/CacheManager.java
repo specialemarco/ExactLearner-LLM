@@ -6,23 +6,12 @@ import java.io.File;
 import java.sql.*;
 
 public class CacheManager extends BaseDBHandler {
-    private boolean migrator = false;
-
     public CacheManager() {
-        this("cache.sqlite3", false);
+        this("cache.sqlite3");
     }
 
     public CacheManager(String filePath) {
-        this(filePath, false);
-    }
-
-    public CacheManager(boolean migrator) {
-        this("cache.sqlite3", migrator);
-    }
-
-    public CacheManager(String filePath, boolean migrator) {
         super(filePath);
-        this.migrator = migrator;
     }
 
     @Override
@@ -42,22 +31,6 @@ public class CacheManager extends BaseDBHandler {
         try {
             int model_id = getOrCreateId("model", model);
             int system_id = getOrCreateId("system", system);
-            return new Cache(connection, model_id, system_id);
-        } catch (Exception e) {
-            System.out.println("Could not get cache: " + e.getMessage());
-            System.exit(1);
-        }
-        return null;
-    }
-
-    public Cache getCache(String model, String ontology, String task, String system) {
-        try {
-            int model_id = getOrCreateId("model", model);
-            int system_id = getOrCreateId("system", system);
-            if (migrator) {
-                return new CacheMigrator(connection, model_id, system_id,
-                        model, task, system);
-            }
             return new Cache(connection, model_id, system_id);
         } catch (Exception e) {
             System.out.println("Could not get cache: " + e.getMessage());

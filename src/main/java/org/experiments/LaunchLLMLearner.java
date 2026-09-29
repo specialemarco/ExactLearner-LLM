@@ -14,7 +14,6 @@ import org.exactlearner.parser.OWLParserImpl;
 import org.exactlearner.utils.Metrics;
 import org.experiments.logger.Cache;
 import org.experiments.logger.CacheManager;
-import org.experiments.logger.SmartLogger;
 import org.experiments.workload.BatchPrewarmer;
 import org.experiments.workload.WorkLoadCounter;
 import org.experiments.workload.WorkloadManager;
@@ -100,7 +99,7 @@ public class LaunchLLMLearner extends LaunchLearner {
      */
     private static final boolean CACHE_EXISTED = new java.io.File(cachePath()).exists();
 
-    protected final CacheManager cacheManager = new CacheManager(cachePath(), false);
+    protected final CacheManager cacheManager = new CacheManager(cachePath());
 
     public static void main(String[] args) {
         LogManager.getRootLogger().atLevel(Level.OFF);
@@ -374,7 +373,6 @@ public class LaunchLLMLearner extends LaunchLearner {
     public void run(String[] args) {
         String configurationFile = args[0];
         parseExperimentArgs(args);
-        SmartLogger.checkCachedFiles();
         loadConfiguration(configurationFile);
         try {
             for (String ontology : ontologies) {

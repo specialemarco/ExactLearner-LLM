@@ -12,7 +12,6 @@ import org.pac.Pac;
 import org.semanticweb.owlapi.model.*;
 import org.utility.YAMLConfigLoader;
 import org.utility.OntologyManipulator;
-import org.experiments.logger.SmartLogger;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -56,7 +55,6 @@ public class LaunchExactLearner extends LaunchLearner {
         if (args.length > 1) epsilon = Double.parseDouble(args[1]);
         if (args.length > 2) delta = Double.parseDouble(args[2]);
 
-        SmartLogger.checkCachedFiles();
         loadConfiguration(configFile);
 
         try {

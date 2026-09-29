@@ -306,8 +306,7 @@ When `eval` is on and precomputation runs, the Baris evaluation now runs
 ```
 
 The pair separates what the exhaustive pass already knew from what the sampler
-went on to add — previously recoverable only by running `TestPrecomputationOnly`
-as a second job against the same target. With `precomp=false` there is nothing to
+went on to add. With `precomp=false` there is nothing to
 report at the first point, so only the second line appears.
 
 `scripts/run_args.sh` is the parser and the reference. Both `submit.sh` and the

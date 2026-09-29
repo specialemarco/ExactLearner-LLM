@@ -11,7 +11,7 @@ public class Cache {
 
     // Prepared once and reused for the life of the Cache rather than rebuilt
     // per call. This path runs far more often than a run's model-query count:
-    // resultString() is consulted for every task Environment.run() considers,
+    // resultString() is consulted for every query WorkloadManagerImpl considers,
     // and again for every candidate the decomposition prefetcher dedups before
     // it builds a batch. Re-preparing meant re-parsing the same SQL on each of
     // those, and -- see below -- leaking the statement that did it.
