@@ -152,7 +152,7 @@ while (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; do
   PORT=$(( PORT + 1 ))
 done
 echo "Server port: $PORT"
-export EXACTLEARNER_OLLAMA_URL="http://localhost:$PORT/api/generate"   # Read by the learner
+export EXACTLEARNER_LLM_URL="http://localhost:$PORT/api/generate"   # Read by the learner
 
 #------------------------- Notification ----------------------------------------------
 

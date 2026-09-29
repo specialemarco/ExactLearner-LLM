@@ -13,9 +13,6 @@ public interface BaseWorkload extends Runnable {
         if (model.equals("false")) {
             return new FalseWorkload(cache, message);
         }
-        if (OpenAIWorkload.supportedModels.contains(model)) {
-            return new OpenAIWorkload(model, system, message, maxTokens, cache);
-        }
-        return new OllamaWorkload(model, system, message, maxTokens, cache);
+        return new LLMServerWorkload(model, system, message, maxTokens, cache);
     }
 }

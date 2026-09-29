@@ -3,30 +3,39 @@ package org.exactlearner.connection;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 
-public class OllamaBridge extends BasicBridge {
+/** Client for scripts/llm_server.py's /api/generate (an Ollama-shaped JSON contract). */
+public class LLMServerBridge extends BasicBridge {
+
+    public static final String URL_ENV = "EXACTLEARNER_LLM_URL";
+    // Old name, still exported by job scripts submitted before the rename.
+    // Drop once those jobs have run.
+    private static final String LEGACY_URL_ENV = "EXACTLEARNER_OLLAMA_URL";
 
     private int maxTokens = 100;
-    private static final String defaultURL = System.getenv("EXACTLEARNER_OLLAMA_URL") == null ?
-            "http://clusters.almaai.unibo.it:11434/api/generate" : System.getenv("EXACTLEARNER_OLLAMA_URL");
 
-    public OllamaBridge(String model) {
-        super();
-        BasicBridge.model = model;
-        BasicBridge.url = defaultURL;
+    /** The /api/generate URL, or null when neither variable is set. */
+    public static String serverUrl() {
+        String url = System.getenv(URL_ENV);
+        if (url == null || url.isBlank()) {
+            url = System.getenv(LEGACY_URL_ENV);
+        }
+        return (url == null || url.isBlank()) ? null : url.trim();
     }
 
-    public OllamaBridge(String model, int maxTokens) {
-        super();
-        BasicBridge.model = model;
-        this.maxTokens = maxTokens;
-        BasicBridge.url = defaultURL;
+    public LLMServerBridge(String model) {
+        this(model, 100);
     }
 
-    public OllamaBridge(String host, int port, String model, int maxTokens) {
+    public LLMServerBridge(String model, int maxTokens) {
         super();
-        this.maxTokens = maxTokens;
+        String url = serverUrl();
+        if (url == null) {
+            throw new IllegalStateException(URL_ENV + " is not set; point it at llm_server.py's"
+                    + " /api/generate (run_experiment.sh does this).");
+        }
         BasicBridge.model = model;
-        BasicBridge.url = "http://" + host + ":" + port + "/api/generate";
+        this.maxTokens = maxTokens;
+        BasicBridge.url = url;
     }
 
     public String ask(String message, String system) {

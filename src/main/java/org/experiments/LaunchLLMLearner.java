@@ -15,7 +15,6 @@ import org.exactlearner.utils.Metrics;
 import org.experiments.logger.Cache;
 import org.experiments.logger.CacheManager;
 import org.experiments.workload.BatchPrewarmer;
-import org.experiments.workload.WorkLoadCounter;
 import org.experiments.workload.WorkloadManager;
 import org.experiments.workload.WorkloadManagerImpl;
 import org.evaluation.Evaluation;
@@ -42,7 +41,6 @@ public class LaunchLLMLearner extends LaunchLearner {
     protected List<String> ontologies;
     protected List<String> models;
     protected String system;
-    protected WorkLoadCounter counter;
 
     protected String queryFormat;
     protected Integer maxTokens;
@@ -382,7 +380,6 @@ public class LaunchLLMLearner extends LaunchLearner {
                     setup(ontology, model.replace(":", "-"));
                     elQueryEngineForH = new ELEngine(hypothesisOntology);
                     String ontologyShortName = ontology.substring(ontology.lastIndexOf("/") + 1, ontology.lastIndexOf("."));
-                    createWorkCounter(ontologyShortName, model);
                     conceptRelation = new ConceptRelation<>();
                     setLLMEngine(model, ontologyShortName);
                     learner = new Learner(llmQueryEngineForT, elQueryEngineForH, myMetrics, conceptRelation);
@@ -391,9 +388,6 @@ public class LaunchLLMLearner extends LaunchLearner {
                     beforeModelRun();
                     runLearningExperiment(args, hypothesisSizes.get(ontologies.indexOf(ontology)), model);
                     afterLearningExperiment();
-                    if (counter != null) {
-                        counter.close();
-                    }
                     cleaningUp();
                 }
                 System.out.println("\nFinished experiment for " + ontology + "\n");
@@ -456,16 +450,12 @@ public class LaunchLLMLearner extends LaunchLearner {
         return expertReasoner;
     }
 
-    protected void createWorkCounter(String ontologyShortName, String model) {
-        counter = null; //new WorkLoadCounter(infoString(ontologyShortName, model, queryFormat, system));
-    }
-
     protected void setLLMEngine(String model, String ontologyShortName) {
         // Bound here, not in setup(), so the cache and the engine can only ever
         // be resolved from one and the same model string.
         this.cacheModel = model;
         this.currentCache = null;
-        WorkloadManager workloadManager = new WorkloadManagerImpl(model, system, maxTokens, queryFormat, ontologyShortName, cacheManager, counter);
+        WorkloadManager workloadManager = new WorkloadManagerImpl(model, system, maxTokens, queryFormat, ontologyShortName, cacheManager);
         switch (queryFormat) {
             case "manchester" ->
                     llmQueryEngineForT = new LLMEngine(groundTruthOntology, myManager, workloadManager,

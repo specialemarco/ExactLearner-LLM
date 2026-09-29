@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Minimal Ollama-compatible server for ExactLearner-LLM.
-Request that OllamaBridge.ask() sends:
+Request that LLMServerBridge.ask() sends:
 
     POST /api/generate
     {"model": "...", "system": "...", "options": {"num_predict": 2},

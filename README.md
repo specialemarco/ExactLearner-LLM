@@ -572,8 +572,9 @@ the `mistral-` prefix predates the model change. Prefer `owl2bench/`.
 The OWL2Bench/PACLO configs read from `data_paclo/`, which is gitignored and must
 be staged by hand.
 
-> **Note:** the LLM service URLs live in `src/main/java/org/exactlearner/connection`;
-> `EXACTLEARNER_OLLAMA_URL` overrides the endpoint at runtime.
+> **Note:** `EXACTLEARNER_LLM_URL` names the `/api/generate` endpoint of
+> `scripts/llm_server.py`. `run_experiment.sh` sets it; there is no default, so
+> set it yourself when running a launcher by hand.
 
 > **Note:** a full run takes a long time — hours to days, depending on the
 > ontology, the PAC budget and the model.

@@ -1,6 +1,6 @@
 package org.experiments.workload;
 
-import org.exactlearner.connection.OllamaBridge;
+import org.exactlearner.connection.LLMServerBridge;
 import org.exactlearner.engine.LLMEngine;
 import org.experiments.logger.Cache;
 import org.semanticweb.owlapi.model.OWLClass;
@@ -81,7 +81,7 @@ public class BatchPrewarmer {
 
     /** Derives the batch endpoint from the configured /api/generate URL. */
     private static String batchUrl() {
-        String generate = System.getenv("EXACTLEARNER_OLLAMA_URL");
+        String generate = LLMServerBridge.serverUrl();
         if (generate == null || generate.isBlank()) {
             return null;
         }
@@ -101,7 +101,7 @@ public class BatchPrewarmer {
         }
         String url = batchUrl();
         if (url == null) {
-            System.out.println("Batch pre-warm skipped: EXACTLEARNER_OLLAMA_URL is unset or does "
+            System.out.println("Batch pre-warm skipped: " + LLMServerBridge.URL_ENV + " is unset or does "
                     + "not end in /api/generate, so the /api/batch endpoint cannot be derived.");
             return 0;
         }
@@ -240,12 +240,12 @@ public class BatchPrewarmer {
     private static BatchResponse postBatch(String url, List<String> prompts, String system)
             throws Exception {
         StringBuilder body = new StringBuilder();
-        body.append("{\"system\":\"").append(OllamaBridge.escapeJson(system)).append("\",\"prompts\":[");
+        body.append("{\"system\":\"").append(LLMServerBridge.escapeJson(system)).append("\",\"prompts\":[");
         for (int i = 0; i < prompts.size(); i++) {
             if (i > 0) {
                 body.append(',');
             }
-            body.append('"').append(OllamaBridge.escapeJson(prompts.get(i))).append('"');
+            body.append('"').append(LLMServerBridge.escapeJson(prompts.get(i))).append('"');
         }
         body.append("]}");
 
@@ -277,7 +277,7 @@ public class BatchPrewarmer {
 
     /**
      * Reads a flat array of JSON strings. The server writes compact JSON with no
-     * spaces (OllamaBridge depends on that too), and answers are bare
+     * spaces (LLMServerBridge depends on that too), and answers are bare
      * True/False, so a full parser would be more machinery than the format
      * warrants. Returns null if the key is absent.
      */
