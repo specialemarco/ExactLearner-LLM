@@ -6,8 +6,8 @@ import org.exactlearner.engine.BaseEngine;
 import org.exactlearner.engine.ELEngine;
 import org.exactlearner.tree.ELTree;
 import org.exactlearner.utils.Metrics;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.io.OWLObjectRenderer;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
@@ -15,7 +15,7 @@ import org.semanticweb.owlapi.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class ELLearnerTest {
 
@@ -30,7 +30,7 @@ public class ELLearnerTest {
      
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         LogManager.getRootLogger().atLevel(Level.OFF);
 

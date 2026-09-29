@@ -2,7 +2,6 @@ package org.exactlearner.engine;
 
 import org.exactlearner.parser.OWLParser;
 import org.experiments.workload.WorkloadManager;
-import org.experiments.workload.WorkloadManagerImpl;
 import org.semanticweb.owlapi.io.OWLObjectRenderer;
 import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxOWLObjectRendererImpl;
 import org.semanticweb.owlapi.model.*;
@@ -20,16 +19,6 @@ public class LLMEngine implements BaseEngine {
     private final WorkloadManager workloadManager;
     private final OWLObjectRenderer renderer;
     private final AxiomSimplifier simplifier;
-
-    public LLMEngine(OWLOntology ontology, String ontologyName, String model, String system, Integer maxTokens, OWLOntologyManager manager) {
-        this.ontology = ontology;
-        this.manager = manager;
-        this.parser = new OWLParser(ontology);
-        String queryFormat = "";
-        this.workloadManager = new WorkloadManagerImpl(model, system, maxTokens, queryFormat, ontologyName, null);
-        this.renderer = createRenderer(ontology);
-        simplifier = null;
-    }
 
     public LLMEngine(OWLOntology ontology, OWLOntologyManager manager, WorkloadManager workloadManager) {
         this(ontology, manager, workloadManager, new OWLParser(ontology), null);

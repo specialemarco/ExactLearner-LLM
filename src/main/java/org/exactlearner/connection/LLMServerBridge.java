@@ -32,7 +32,11 @@ public class LLMServerBridge {
     }
 
     public LLMServerBridge(String model, int maxTokens) {
-        String url = serverUrl();
+        this(model, maxTokens, serverUrl());
+    }
+
+    // Takes the URL directly, so BridgeTest can point it at a stub server.
+    LLMServerBridge(String model, int maxTokens, String url) {
         if (url == null) {
             throw new IllegalStateException(URL_ENV + " is not set; point it at llm_server.py's"
                     + " /api/generate (run_experiment.sh does this).");

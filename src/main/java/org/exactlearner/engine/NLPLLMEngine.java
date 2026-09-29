@@ -6,10 +6,6 @@ import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 
 public class NLPLLMEngine extends LLMEngine {
-    public NLPLLMEngine(OWLOntology ontology, String ontologyName, String model, String system, Integer maxTokens, OWLOntologyManager manager) {
-        super(ontology, ontologyName, model, system, maxTokens, manager);
-    }
-
     public NLPLLMEngine(OWLOntology ontology, OWLOntologyManager manager, WorkloadManager workloadManager) {
         super(ontology, manager, workloadManager);
     }

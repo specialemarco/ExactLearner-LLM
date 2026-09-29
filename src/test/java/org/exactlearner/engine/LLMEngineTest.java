@@ -1,15 +1,16 @@
 package org.exactlearner.engine;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-public class LLMEngineTest extends TestCase {
+public class LLMEngineTest {
     private final OWLOntologyManager man = OWLManager.createOWLOntologyManager();
 
+    @Test
     public void testSplitEquivalentInEntailed() throws OWLOntologyCreationException {
         OWLDataFactory df = man.getOWLDataFactory();
 
@@ -29,6 +30,7 @@ public class LLMEngineTest extends TestCase {
         ));
     }
 
+    @Test
     public void testSplitAxiomInEntailed() throws OWLOntologyCreationException {
         OWLDataFactory df = man.getOWLDataFactory();
 
@@ -50,6 +52,7 @@ public class LLMEngineTest extends TestCase {
         ));
     }
 
+    @Test
     public void testSplitAxiomResponseEntailed() throws OWLOntologyCreationException {
         OWLDataFactory df = man.getOWLDataFactory();
 

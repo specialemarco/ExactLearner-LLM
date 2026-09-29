@@ -3,9 +3,9 @@ package org.exactlearner.oracle;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.exactlearner.engine.ELEngine;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.*;
 
@@ -21,7 +21,7 @@ public class ELOracleTest {
     private BaseOracle baseOracle = null;
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         LogManager.getRootLogger().atLevel(Level.OFF);
 
@@ -51,7 +51,7 @@ public class ELOracleTest {
             OWLSubClassOfAxiom newCounterexampleAxiom = baseOracle.branchRight(A, right, 2);
             targetOntology.removeAxiom(axiom);
             System.out.println("Branched: " + axiom);
-            Assert.assertEquals(axiom, newCounterexampleAxiom);
+            Assertions.assertEquals(axiom, newCounterexampleAxiom);
         } catch (Exception e) {
             e.printStackTrace();
         }
