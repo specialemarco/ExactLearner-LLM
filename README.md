@@ -134,16 +134,27 @@ scripts/submit.sh <model> <config> [name=value ...]
 `src/main/java/org/configurations/experiments` — the directory and the `.yml`
 are both optional. Submit from the repository root.
 
-The model's weights must be downloaded first, once per machine. This submits a
-small CPU job that puts them where the model file's `MODEL_DIR` expects them,
-under `MODEL_ROOT` from your `scripts/experiment.env`:
+The model's weights must be downloaded first, once per machine. This checks that
+the cluster's vLLM supports the model, then submits a small CPU job that puts the
+weights where the model file's `MODEL_DIR` expects them, under `MODEL_ROOT` from
+your `scripts/experiment.env`:
 
 ```bash
-scripts/fetch_model.sh olmo2-13b      # logs -> logs/fetch/
+scripts/fetch_model.sh olmo2-13b              # logs -> logs/fetch/
+scripts/fetch_model.sh --check olmo2-13b      # only check vLLM support
 ```
 
 The model file names the Hugging Face repository (`HF_REPO`) and can pin a
 revision (`HF_REVISION`). A gated model needs `huggingface-cli login` once.
+
+For a model with no model file yet, pass its Hugging Face repository. After the
+check, it writes `scripts/models/<name>.env` (the repository name in lower case,
+or `--name`), pinned to the current revision, with GPUs, token budget and memory
+worked out from the model's metadata. Review it before a real run.
+
+```bash
+scripts/fetch_model.sh Qwen/Qwen3-4B-Thinking-2507 --name qwen3-4b
+```
 
 Everything after the config is `name=value`, in any order, all optional:
 

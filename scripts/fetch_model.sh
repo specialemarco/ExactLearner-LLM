@@ -7,7 +7,15 @@
 # scripts/models/<model>.env points into. Run from the repository root on a login
 # node; it submits itself as a small CPU job, since a 32B download takes a while.
 #
+# It first checks that the cluster's vLLM supports the model's architecture (from
+# config.json: the downloaded copy, or Hugging Face), and downloads only if it does.
+# Given a Hugging Face repository instead of a model name, it also writes the model
+# file, scripts/models/<name>.env, with settings from the model's metadata
+# (scripts/fetch_model.py); review them before a real run.
+#
 #   scripts/fetch_model.sh <model>                        e.g. olmo2-13b
+#   scripts/fetch_model.sh <org/repo> [--name <name>]     e.g. Qwen/Qwen3-4B-Thinking-2507
+#   scripts/fetch_model.sh --check <model | org/repo>     check only: no file, no download
 #   FETCH_WALLTIME=08:00:00 scripts/fetch_model.sh <model>
 #
 # The model file names the repository (HF_REPO) and can pin a revision (HF_REVISION).
@@ -31,10 +39,36 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 
 #------------------------- Load the Experiment and Model Settings --------------------
 
-MODEL="${1:-}"
-[[ -n "$MODEL" ]] || die "usage: scripts/fetch_model.sh <model>, one of: $(find scripts/models -name '*.env' -type f -exec basename {} .env \; | sort | tr '\n' ' ')"
+CHECK_ONLY=false
+NAME=""
+TARGET=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --check) CHECK_ONLY=true ;;
+    --name)  NAME="${2:-}"; shift ;;
+    -*)      die "unknown option $1" ;;
+    *)       [[ -z "$TARGET" ]] || die "one model at a time"; TARGET="$1" ;;
+  esac
+  shift
+done
+[[ -n "$TARGET" ]] || die "usage: scripts/fetch_model.sh [--check] <model | org/repo> [--name <name>], models: $(find scripts/models -name '*.env' -type f -exec basename {} .env \; | sort | tr '\n' ' ')"
+
+# A repository (org/repo) is a new model: its model file is written below.
+NEW=false
+if [[ "$TARGET" == */* ]]; then
+  NEW=true
+  REPO="$TARGET"
+  MODEL="${NAME:-$(basename "$REPO" | tr '[:upper:]' '[:lower:]')}"
+else
+  [[ -z "$NAME" ]] || die "--name only goes with a Hugging Face repository (org/repo)"
+  MODEL="$TARGET"
+fi
 MODEL_ENV="scripts/models/$MODEL.env"
-[[ -f "$MODEL_ENV" ]] || die "no model file $MODEL_ENV (run from the repository root)"
+if $NEW; then
+  [[ ! -e "$MODEL_ENV" ]] || die "$MODEL_ENV already exists; run scripts/fetch_model.sh $MODEL"
+else
+  [[ -f "$MODEL_ENV" ]] || die "no model file $MODEL_ENV (run from the repository root)"
+fi
 
 set +u
 source scripts/experiment.env
@@ -43,9 +77,48 @@ set -u
 # Before the model file: its MODEL_DIR may cd into MODEL_ROOT, and under set -e a
 # missing directory would end the script there without a word.
 mkdir -p "$MODEL_ROOT"
-set +u
-source "$MODEL_ENV"
-set -u
+if ! $NEW; then
+  set +u
+  source "$MODEL_ENV"
+  set -u
+fi
+
+#------------------------- Load Required Modules -------------------------------------
+
+# The stack run_experiment.sh serves the model with, so the check asks the right vLLM.
+module purge
+# Only ec30 members can read this module tree; others set MODULE_TREE.
+module use -a "${MODULE_TREE:-/fp/projects01/ec30/software/easybuild/modules/all/}"
+module load nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3
+module load Transformers/4.57.1-gfbf-2024a   # brings huggingface_hub
+module load nlpl-vllm/0.8.2-foss-2024a-Python-3.12.3
+export PYTHONNOUSERSITE=1
+
+#------------------------- Check vLLM Support ----------------------------------------
+
+# On the login node, before anything is submitted. A new model's file is written
+# only once the check has passed, so an unsupported model leaves nothing behind.
+if [[ -z "${SLURM_JOB_ID:-}" ]]; then
+  if $NEW; then
+    WRITE=()
+    $CHECK_ONLY || WRITE=(--write "$MODEL_ENV" --name "$MODEL")
+    python3 scripts/fetch_model.py --repo "$REPO" ${WRITE[@]+"${WRITE[@]}"} ||
+      die "the cluster's vLLM cannot serve $REPO; not fetching"
+  else
+    python3 scripts/fetch_model.py --config "$MODEL_ROOT/$MODEL_DIR/config.json" \
+      --repo "${HF_REPO:?$MODEL_ENV has no HF_REPO to check against}" ${HF_REVISION:+--revision "$HF_REVISION"} ||
+      die "the cluster's vLLM cannot serve $MODEL; not fetching"
+  fi
+  if $CHECK_ONLY; then
+    exit 0
+  fi
+  if $NEW; then
+    set +u
+    source "$MODEL_ENV"
+    set -u
+  fi
+fi
+
 [[ -n "${HF_REPO:-}" ]]    || die "$MODEL_ENV has no HF_REPO"
 [[ "$MODEL_DIR" == hub/* ]] ||
   die "$MODEL_ENV has MODEL_DIR=$MODEL_DIR, outside $MODEL_ROOT/hub where this script downloads to"
@@ -60,14 +133,6 @@ if [[ -z "${SLURM_JOB_ID:-}" ]]; then
   echo "logs -> logs/fetch/$MODEL-<jobid>.log"
   exit 0
 fi
-
-#------------------------- Load Required Modules -------------------------------------
-
-module purge
-# Only ec30 members can read this module tree; others set MODULE_TREE.
-module use -a "${MODULE_TREE:-/fp/projects01/ec30/software/easybuild/modules/all/}"
-module load Transformers/4.57.1-gfbf-2024a   # brings huggingface_hub
-export PYTHONNOUSERSITE=1
 
 #------------------------- Download --------------------------------------------------
 
@@ -89,7 +154,7 @@ path = snapshot_download(repo, revision=revision, ignore_patterns=[
 print("Downloaded to", path)
 PY
 
-#------------------------- Check -----------------------------------------------------
+#------------------------- Check the Download ----------------------------------------
 
 # Read the model file again: a MODEL_DIR that globs over snapshots/* only resolves
 # once the snapshot exists.
