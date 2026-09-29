@@ -1,7 +1,7 @@
 models:
   - "mistral"
 ontologies:
-  - "src/main/resources/ontologies/small/animals.owl"
+  - "data/ontologies/small/animals.owl"
 system: >
   You need to classify the following statements as True or False. The statement will be provided in either Manchester OWL syntax or natural language. Strictly follow these guidelines:
     1. answer with only True or False;

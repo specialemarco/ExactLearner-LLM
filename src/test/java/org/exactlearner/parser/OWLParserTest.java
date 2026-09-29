@@ -12,7 +12,7 @@ public class OWLParserTest {
 
     @Before
     public void setUp() throws OWLOntologyCreationException {
-        parser = new OWLParser("src/main/resources/ontologies/small/animals.owl", OWLManager.createOWLOntologyManager());
+        parser = new OWLParser("data/ontologies/small/animals.owl", OWLManager.createOWLOntologyManager());
         if (parser.getClasses().isEmpty()) {
             Assert.fail("FAILED TO LOAD ANIMAL.OWL");
         }

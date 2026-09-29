@@ -39,7 +39,7 @@ public class PacInstanceSpaceTest {
     private static final int HYPOTHESIS_SIZE = 1;
     private static final int SEED = 0;
 
-    private static final String ONTOLOGY_DIR = "src/main/resources/ontologies/small/";
+    private static final String ONTOLOGY_DIR = "data/ontologies/small/";
 
     // Measured against the current parser on 2026-08-27: {ontology, classes, objectProperties}.
     // FOOTBALL counts 10 classes rather than the 9 named in the file because football.owl is the

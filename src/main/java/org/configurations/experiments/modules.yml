@@ -1,16 +1,16 @@
 models:
   - "mistral"
 ontologies:
-  - "src/main/resources/ontologies/galen/AboveElbowJacketCast.owl"
-  - "src/main/resources/ontologies/galen/BNFSection13_11.owl"
-  - "src/main/resources/ontologies/galen/Chlorhexidine.owl"
-  - "src/main/resources/ontologies/galen/ConeOfTissue.owl"
-  - "src/main/resources/ontologies/galen/KalliKrein.owl"
-  - "src/main/resources/ontologies/galen/Neon.owl"
-  - "src/main/resources/ontologies/galen/Pin.owl"
-  - "src/main/resources/ontologies/galen/ProstaglandinDrug.owl"
-  - "src/main/resources/ontologies/galen/Zopiclone.owl"
-  - "src/main/resources/ontologies/galen/Zuccini.owl"
+  - "data/ontologies/galen/AboveElbowJacketCast.owl"
+  - "data/ontologies/galen/BNFSection13_11.owl"
+  - "data/ontologies/galen/Chlorhexidine.owl"
+  - "data/ontologies/galen/ConeOfTissue.owl"
+  - "data/ontologies/galen/KalliKrein.owl"
+  - "data/ontologies/galen/Neon.owl"
+  - "data/ontologies/galen/Pin.owl"
+  - "data/ontologies/galen/ProstaglandinDrug.owl"
+  - "data/ontologies/galen/Zopiclone.owl"
+  - "data/ontologies/galen/Zuccini.owl"
 system: >
   You need to classify the following statements as True or False. The statement will be provided in either Manchester OWL syntax or natural language. Strictly follow these guidelines:
     1. answer with only True or False;

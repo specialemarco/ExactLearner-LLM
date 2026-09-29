@@ -11,7 +11,8 @@ This repository contains both the code of the ExactLearner+LLM tool and the code
 The structure of the repository is as follows:
 - `src/main/java/exactlearner` contains the code of the ExactLearner+LLM tool.
 - `src/main/java/experiments` contains the code for the experiments.
-- `src/main/resources/ontologies` contains the ontologies used in the experiments.
+- `data/ontologies` contains the ontologies used in the experiments (the OWL2Bench/PACLO
+  datasets live separately in the gitignored `data_paclo/`).
 - `results/ontologies` contains the learnt ontologies.
 - `analysis` contains the metrics computed over the learnt ontologies.
 
@@ -523,7 +524,7 @@ row already contains:
 | Old figure | Comparable value |
 |---|---|
 | Size of H | old − 2 × *Hypothesis TBox logical axioms* |
-| Size of T, small ontologies (`src/main/resources/ontologies/small`) | old − 2 × *Target TBox logical axioms* |
+| Size of T, small ontologies (`data/ontologies/small`) | old − 2 × *Target TBox logical axioms* |
 | Size of T, OWL2Bench (C1–C3) | 592 → **304** (also drops 3 property equivalences at 4 each) |
 | Size of largest counterexample | old − 2 |
 | Size of largest concept in T/H | unchanged, unless a concept is nested and renders over several lines. None is in OWL2Bench; `generations.owl` goes from 16 to 8. |
@@ -532,6 +533,17 @@ For example, an old log that reads *Hypothesis TBox logical axioms: 2, Size of H
 8, Size of largest counterexample: 4* means **Size of H = 4, largest
 counterexample = 2** in today's terms. Anything the table doesn't cover can be
 recomputed from the saved hypothesis in `results/ontologies/` without rerunning.
+
+**Runs resumed across the change.** The resume checkpoint
+(`-run-state.properties`) stores `largestCounterExample`. A run checkpointed by the
+old code and resumed with the new code therefore starts from the old, inflated
+value and keeps it unless a new counterexample is strictly larger. Its final "Size
+of largest counterexample" is exact only if it is **larger** than the value in the
+pre-resume checkpoint, because a new counterexample then set it. If it is **equal**,
+it is either the old value (true size old − 2) or a new counterexample of exactly
+that size. Counterexamples themselves are not logged, so the log cannot tell which.
+Only this one figure is affected; the other sizes are recomputed from the
+hypothesis at the end of the run, in the new terms.
 
 **Never affected:** what is learned, the hypothesis axiom counts, membership and
 equivalence query counts, the PAC budget (`h` counts axioms, not sizes), and
