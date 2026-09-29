@@ -1,8 +1,5 @@
 package org.utility;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.sql.*;
 import java.util.*;
 
@@ -19,9 +16,14 @@ public abstract class BaseDBHandler {
         }
     }
 
-    protected abstract File[] getUpdateFiles();
+    /**
+     * Schema updates in the order they apply. The names are recorded in
+     * tbl_updates, so an existing database skips the ones it already has:
+     * never rename or reorder one, only append.
+     */
+    protected abstract List<Map.Entry<String, String>> getUpdates();
 
-    protected void setupSchema() throws SQLException, IOException {
+    protected void setupSchema() throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA busy_timeout = 600000;");
             statement.execute("BEGIN IMMEDIATE;");
@@ -30,7 +32,7 @@ public abstract class BaseDBHandler {
                 statement.executeUpdate("CREATE TABLE IF NOT EXISTS tbl_updates (update_title TEXT NOT NULL UNIQUE);");
                 applied = applyUpdates(statement);
                 statement.execute("COMMIT;");
-            } catch (SQLException | IOException | RuntimeException e) {
+            } catch (SQLException | RuntimeException e) {
                 statement.execute("ROLLBACK;");
                 throw e;
             }
@@ -41,8 +43,8 @@ public abstract class BaseDBHandler {
         }
     }
 
-    /** Applies the update files not yet in tbl_updates; true if any were. */
-    private boolean applyUpdates(Statement statement) throws SQLException, IOException {
+    /** Applies the updates not yet in tbl_updates; true if any were. */
+    private boolean applyUpdates(Statement statement) throws SQLException {
         Set<String> updated = new HashSet<>();
         try (ResultSet rs = statement.executeQuery("SELECT update_title FROM tbl_updates;")) {
             while (rs.next()) {
@@ -50,18 +52,18 @@ public abstract class BaseDBHandler {
             }
         }
         boolean applied = false;
-        for (File file : Arrays.stream(getUpdateFiles()).sorted().toList()) {
-            if (updated.contains(file.getName())) {
+        for (Map.Entry<String, String> update : getUpdates()) {
+            if (updated.contains(update.getKey())) {
                 continue;
             }
-            for (String update : Files.readString(file.toPath()).split(";")) {
-                if (!update.isBlank()) {
-                    statement.executeUpdate(update.strip() + ";");
+            for (String sql : update.getValue().split(";")) {
+                if (!sql.isBlank()) {
+                    statement.executeUpdate(sql.strip() + ";");
                 }
             }
             try (PreparedStatement insert = connection.prepareStatement(
                     "INSERT INTO tbl_updates (update_title) VALUES (?);")) {
-                insert.setString(1, file.getName());
+                insert.setString(1, update.getKey());
                 insert.executeUpdate();
             }
             applied = true;

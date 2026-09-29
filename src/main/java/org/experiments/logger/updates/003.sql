@@ -1,1 +1,0 @@
-ALTER TABLE tbl_cache DROP COLUMN bool_result;

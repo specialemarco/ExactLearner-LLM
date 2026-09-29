@@ -2,8 +2,9 @@ package org.experiments.logger;
 
 import org.utility.BaseDBHandler;
 
-import java.io.File;
 import java.sql.*;
+import java.util.List;
+import java.util.Map;
 
 public class CacheManager extends BaseDBHandler {
     public CacheManager() {
@@ -14,17 +15,64 @@ public class CacheManager extends BaseDBHandler {
         super(filePath);
     }
 
+    // Formerly updates/00N.sql; the names are what existing caches recorded.
+    // A new cache runs all three: 001 is the original schema, 002 drops
+    // ontology and task from the key, 003 drops the unused bool_result.
+    private static final List<Map.Entry<String, String>> UPDATES = List.of(
+            Map.entry("001.sql", """
+                    CREATE TABLE IF NOT EXISTS tbl_model (model_text TEXT NOT NULL UNIQUE);
+
+                    CREATE TABLE IF NOT EXISTS tbl_ontology (ontology_text TEXT NOT NULL UNIQUE);
+
+                    CREATE TABLE IF NOT EXISTS tbl_task (task_text TEXT NOT NULL UNIQUE);
+
+                    CREATE TABLE IF NOT EXISTS tbl_system (system_text TEXT NOT NULL UNIQUE);
+
+                    CREATE TABLE IF NOT EXISTS tbl_cache (
+                        model_id INTEGER NOT NULL REFERENCES tbl_model(ROWID),
+                        ontology_id INTEGER NOT NULL REFERENCES tbl_ontology(ROWID),
+                        task_id INTEGER NOT NULL REFERENCES tbl_task(ROWID),
+                        system_id INTEGER NOT NULL REFERENCES tbl_system(ROWID),
+                        query TEXT NOT NULL,
+                        result TEXT NOT NULL,
+                        bool_result BOOLEAN
+                    );
+
+                    CREATE INDEX IF NOT EXISTS tbl_cache_index ON tbl_cache(model_id,ontology_id,task_id,system_id,query);
+                    """),
+            Map.entry("002.sql", """
+                    CREATE TABLE IF NOT EXISTS tbl_new_cache (
+                        model_id INTEGER NOT NULL REFERENCES tbl_model(ROWID),
+                        system_id INTEGER NOT NULL REFERENCES tbl_system(ROWID),
+                        query TEXT NOT NULL,
+                        "result" TEXT NOT NULL,
+                        bool_result BOOLEAN
+                    );
+
+                    INSERT INTO tbl_new_cache (model_id, system_id, query, "result", bool_result)
+                        select model_id, system_id, query, "result", bool_result
+                        from tbl_cache
+                        group by model_id, system_id, query;
+
+                    DROP INDEX tbl_cache_index;
+
+                    DROP TABLE tbl_ontology;
+
+                    DROP TABLE tbl_task;
+
+                    DROP TABLE tbl_cache;
+
+                    ALTER TABLE tbl_new_cache RENAME TO tbl_cache;
+
+                    CREATE INDEX IF NOT EXISTS tbl_cache_index ON tbl_cache(model_id,system_id,query);
+                    """),
+            Map.entry("003.sql", """
+                    ALTER TABLE tbl_cache DROP COLUMN bool_result;
+                    """));
+
     @Override
-    protected File[] getUpdateFiles() {
-        try {
-            File[] files = new File("src/main/java/org/experiments/logger/updates").listFiles();
-            if (files == null) {
-                throw new RuntimeException("Invalid update folder");
-            }
-            return files;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected List<Map.Entry<String, String>> getUpdates() {
+        return UPDATES;
     }
 
     public Cache getCache(String model, String system) {
