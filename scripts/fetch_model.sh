@@ -6,6 +6,7 @@
 # $MODEL_ROOT/$MODEL_DIR, a plain folder named after the repository, the layout of
 # the group's shared model folder on Olivia. Run from the repository root on a login
 # node; it submits itself as a small CPU job, since a 32B download takes a while.
+# On Olivia the check and the download both run on accel (see below).
 #
 # It first checks that the cluster's vLLM supports the model's architecture (from
 # config.json: the downloaded copy, or Hugging Face), and downloads only if it does.
@@ -39,6 +40,7 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 
 #------------------------- Load the Experiment and Model Settings --------------------
 
+ARGS=("$@")
 CHECK_ONLY=false
 NAME=""
 TARGET=""
@@ -74,6 +76,21 @@ set +u
 source scripts/experiment.env
 set -u
 [[ -n "${MODEL_ROOT:-}" ]] || die "MODEL_ROOT is not set in scripts/experiment.env"
+
+#------------------------- Olivia: Run on a GPU Node ---------------------------------
+
+# Olivia's vLLM module is built for the aarch64 GH200 nodes and cannot run on the
+# x86 login nodes, so the check runs there in a short srun, and the download job
+# goes to accel too. accel reaches Hugging Face through the cluster proxy.
+FETCH_SBATCH=()
+if [[ "${CLUSTER:-fox}" == olivia ]]; then
+  FETCH_SBATCH=(--partition=accel --gpus=1)
+  if [[ "$(uname -m)" != aarch64 ]]; then
+    echo "Running the check on an accel node..."
+    exec srun --account="$SBATCH_ACCOUNT" "${FETCH_SBATCH[@]}" --time=00:20:00 --mem=16G \
+      "$0" ${ARGS[@]+"${ARGS[@]}"}
+  fi
+fi
 if ! $NEW; then
   set +u
   source "$MODEL_ENV"
@@ -142,7 +159,7 @@ fi
 # Outside the download job: submit this script as one, and stop.
 if [[ -z "${EXACTLEARNER_FETCH_JOB:-}" ]]; then
   mkdir -p logs/fetch
-  sbatch --account="$SBATCH_ACCOUNT" --time="${FETCH_WALLTIME:-04:00:00}" \
+  sbatch --account="$SBATCH_ACCOUNT" --time="${FETCH_WALLTIME:-04:00:00}" ${FETCH_SBATCH[@]+"${FETCH_SBATCH[@]}"} \
     --export=ALL,EXACTLEARNER_FETCH_JOB=1 \
     --output="logs/fetch/$MODEL-%j.log" "$0" "$MODEL"
   echo "logs -> logs/fetch/$MODEL-<jobid>.log"
