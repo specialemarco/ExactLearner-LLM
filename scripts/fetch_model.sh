@@ -3,8 +3,8 @@
 #------------------------- Fetch Model Weights ---------------------------------------
 
 # Downloads a model's weights from Hugging Face to where its model file expects them:
-# $MODEL_ROOT/hub, the Hugging Face cache layout that MODEL_DIR in
-# scripts/models/<model>.env points into. Run from the repository root on a login
+# $MODEL_ROOT/$MODEL_DIR, a plain folder named after the repository, the layout of
+# the group's shared model folder on Olivia. Run from the repository root on a login
 # node; it submits itself as a small CPU job, since a 32B download takes a while.
 #
 # It first checks that the cluster's vLLM supports the model's architecture (from
@@ -20,7 +20,7 @@
 #
 # The model file names the repository (HF_REPO) and can pin a revision (HF_REVISION).
 # A gated model needs a token: run `huggingface-cli login` once, or export HF_TOKEN.
-# Downloading again is safe: files already in the cache are skipped.
+# A folder that already holds a config.json is never touched: it may be the group's.
 
 #------------------------- SLURM Job Configuration -----------------------------------
 
@@ -74,9 +74,6 @@ set +u
 source scripts/experiment.env
 set -u
 [[ -n "${MODEL_ROOT:-}" ]] || die "MODEL_ROOT is not set in scripts/experiment.env"
-# Before the model file: its MODEL_DIR may cd into MODEL_ROOT, and under set -e a
-# missing directory would end the script there without a word.
-mkdir -p "$MODEL_ROOT"
 if ! $NEW; then
   set +u
   source "$MODEL_ENV"
@@ -120,9 +117,25 @@ if [[ -z "${EXACTLEARNER_FETCH_JOB:-}" ]]; then
   fi
 fi
 
-[[ -n "${HF_REPO:-}" ]]    || die "$MODEL_ENV has no HF_REPO"
-[[ "$MODEL_DIR" == hub/* ]] ||
-  die "$MODEL_ENV has MODEL_DIR=$MODEL_DIR, outside $MODEL_ROOT/hub where this script downloads to"
+[[ -n "${HF_REPO:-}" ]] || die "$MODEL_ENV has no HF_REPO"
+TARGET_DIR="$MODEL_ROOT/$MODEL_DIR"
+
+#------------------------- Existing Copy ---------------------------------------------
+
+# Someone else's copy is used as it is, never re-downloaded over: a download at
+# another revision would change it under their runs. A --local-dir download
+# records its commit on the first line of each .metadata file.
+if [[ -f "$TARGET_DIR/config.json" ]]; then
+  have=$(head -1 "$TARGET_DIR/.cache/huggingface/download/config.json.metadata" 2>/dev/null || true)
+  if [[ -z "$have" ]]; then
+    echo "Already present, revision unknown: $TARGET_DIR"
+  elif [[ -n "${HF_REVISION:-}" && "$have" != "$HF_REVISION" ]]; then
+    die "$TARGET_DIR is at $have, but $MODEL_ENV pins $HF_REVISION; pin that one, or use another MODEL_DIR"
+  else
+    echo "Already present at $have: $TARGET_DIR"
+  fi
+  exit 0
+fi
 
 #------------------------- Submit ----------------------------------------------------
 
@@ -138,19 +151,16 @@ fi
 
 #------------------------- Download --------------------------------------------------
 
-# HF_HUB_CACHE, not HF_HOME: HF_HOME would also move where `huggingface-cli login`
-# keeps its token.
-export HF_HUB_CACHE="$MODEL_ROOT/hub"
-mkdir -p "$HF_HUB_CACHE"
-echo "Fetching $HF_REPO${HF_REVISION:+ at $HF_REVISION} into $HF_HUB_CACHE"
+mkdir -p "$TARGET_DIR"
+echo "Fetching $HF_REPO${HF_REVISION:+ at $HF_REVISION} into $TARGET_DIR"
 
-python3 - "$HF_REPO" "${HF_REVISION:-}" <<'PY'
+python3 - "$HF_REPO" "${HF_REVISION:-}" "$TARGET_DIR" <<'PY'
 import sys
 from huggingface_hub import snapshot_download
 
-repo, revision = sys.argv[1], sys.argv[2] or None
+repo, revision, target = sys.argv[1], sys.argv[2] or None, sys.argv[3]
 # vLLM reads the config, tokenizer and safetensors; skip the duplicate formats.
-path = snapshot_download(repo, revision=revision, ignore_patterns=[
+path = snapshot_download(repo, revision=revision, local_dir=target, ignore_patterns=[
     "*.bin", "*.pth", "*.pt", "*.gguf", "*.h5", "*.msgpack", "*.onnx",
     "original/*", "consolidated*"])
 print("Downloaded to", path)
@@ -158,13 +168,6 @@ PY
 
 #------------------------- Check the Download ----------------------------------------
 
-# Read the model file again: a MODEL_DIR that globs over snapshots/* only resolves
-# once the snapshot exists.
-set +u
-source "$MODEL_ENV"
-set -u
-[[ "$MODEL_DIR" != *" "* ]] ||
-  die "MODEL_DIR matches more than one snapshot ($MODEL_DIR); delete the old one or pin HF_REVISION"
-[[ -f "$MODEL_ROOT/$MODEL_DIR/config.json" ]] ||
-  die "no config.json at $MODEL_ROOT/$MODEL_DIR, where the job will look"
+[[ -f "$TARGET_DIR/config.json" ]] ||
+  die "no config.json at $TARGET_DIR, where the job will look"
 echo "Ready: $MODEL_ROOT/$MODEL_DIR"
