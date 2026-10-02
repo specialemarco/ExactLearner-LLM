@@ -102,7 +102,8 @@ command -v curl >/dev/null ||
 [[ -f "$CONFIG" ]]      || die "no such config: $CONFIG"
 [[ -f cp.txt ]]         || die "cp.txt missing: mvn -o dependency:build-classpath -Dmdep.outputFile=cp.txt"
 [[ -d target/classes ]] || die "target/classes missing: mvn -o -DskipTests compile"
-[[ -d "$MODEL_PATH" ]]  || die "no model at $MODEL_PATH"
+[[ -f "$MODEL_PATH/config.json" ]] ||   # the folder can outlive its files: Olivia cleans old files
+  die "no model at $MODEL_PATH; download it again with scripts/fetch_model.sh"
 
 #------------------------- GPU Check -------------------------------------------------
 
@@ -198,6 +199,11 @@ RESPONSE=$(curl -s -m 300 --noproxy '*' -H 'Content-Type: application/json' -d "
              "http://localhost:$PORT/api/generate" || true)
 [[ "$RESPONSE" == *'"response":"'* ]] || die "server is ready but the probe did not parse: $RESPONSE"
 echo "Server ready. Probe: $RESPONSE"
+
+# Olivia deletes files left untouched for months, folders aside. The model has just
+# been loaded and used, so mark it as used. Someone else's copy may not be ours to
+# touch; that is fine.
+find -L "$MODEL_PATH" -type f -exec touch -c {} + 2>/dev/null || true
 
 #------------------------- Run the Learner -------------------------------------------
 

@@ -153,6 +153,10 @@ if [[ -f "$TARGET_DIR/config.json" ]]; then
   fi
   exit 0
 fi
+# A shared folder can exist without weights (the group's Mistral is a bare .git).
+if [[ -d "$TARGET_DIR" && ! -w "$TARGET_DIR" ]]; then
+  die "$TARGET_DIR has no config.json and is not writable; ask its owner ($(stat -c %U "$TARGET_DIR")), or use another MODEL_DIR"
+fi
 
 #------------------------- Submit ----------------------------------------------------
 

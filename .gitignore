@@ -134,6 +134,7 @@ cp.txt
 .venv*
 .github*
 scripts/experiment.env
+scripts/sync.sh
 
 # Per-run caches from cache=fresh; the shared one is listed above.
 cache-fresh-*.sqlite3

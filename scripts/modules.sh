@@ -34,7 +34,7 @@ load_modules() {
       # transformers. purge keeps the sticky init-NRIS but drops NRIS/GPU.
       # No Maven module on Olivia: a tarball unpacked in $HOME (MAVEN_HOME to override).
       if [[ "$purpose" == build ]]; then
-        module load NRIS/CPU Java/17.0.15
+        module load NRIS/Login Java/17.0.15   # the build runs on a login node
         export PATH="${MAVEN_HOME:-$HOME/apache-maven-3.9.12}/bin:$PATH"
         command -v mvn >/dev/null || { echo "ERROR: no mvn in ${MAVEN_HOME:-$HOME/apache-maven-3.9.12}/bin" >&2; return 1; }
         return
