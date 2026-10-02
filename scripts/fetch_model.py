@@ -108,7 +108,7 @@ MODEL_NAME="{args.name}"
 # {weights / GIB:.1f} GiB of weights, {kv_heads} KV heads (~{kv_per_token // 1024} KB/token of KV cache):
 # at most {WEIGHTS_PER_GPU // GIB} GiB of weights per 40 GB card.
 TENSOR_PARALLEL={tp}
-GPUS="a100:{tp}"
+GPUS={tp}
 
 # {"A reasoning model: its chat template opens <think>." if reasoning else "Not a reasoning model: no <think> budget needed."}
 MAX_NEW_TOKENS={1024 if reasoning else 128}

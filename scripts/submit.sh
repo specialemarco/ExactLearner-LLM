@@ -106,9 +106,12 @@ echo "logs -> $EXACTLEARNER_LOG_DIR/"
 
 # The Slurm options that vary per model or machine. The other Slurm options are the
 # #SBATCH lines in run_experiment.sh.
+# GPU_TYPE (scripts/experiment.env) pins the GPU model: on Fox, accel's H100s have
+# no kernel image for its vLLM; Olivia sets it empty.
+GPU_TYPE="${GPU_TYPE-a100}"
 DEPENDENCY=""
 submit() {
-  sbatch --parsable --account="$SBATCH_ACCOUNT" --gpus-per-node="$GPUS" \
+  sbatch --parsable --account="$SBATCH_ACCOUNT" --gpus-per-node="${GPU_TYPE:+$GPU_TYPE:}$GPUS" \
     --time="$WALLTIME" --mem="$MEMORY" \
     ${DEPENDENCY:+--dependency="$DEPENDENCY"} \
     --output="$EXACTLEARNER_LOG_DIR/%x-%j.log" \

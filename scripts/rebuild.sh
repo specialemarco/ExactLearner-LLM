@@ -3,8 +3,9 @@
 # `clean` is not optional: without it Maven prints "Nothing to compile" and
 # exits 0 after real edits, and the job then runs your old classes.
 
-module load Java/21.0.8
-module load Maven/3.6.3
+source scripts/experiment.env
+source scripts/modules.sh
+load_modules build || exit 1
 
 find src -type d -name .ipynb_checkpoints -exec rm -rf {} + 2>/dev/null
 

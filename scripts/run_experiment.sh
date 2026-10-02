@@ -2,7 +2,7 @@
 
 #------------------------- SLURM Job Script ------------------------------------------
 
-# This is a SLURM job script for running ExactLearner-LLM on the Fox cluster. One job
+# This is a SLURM job script for running ExactLearner-LLM on Fox or Olivia. One job
 # starts a model server (vLLM, via scripts/llm_server.py) on the GPUs and then runs
 # the Java learner against it, with the LLM as the teacher.
 #
@@ -25,8 +25,7 @@
 #SBATCH --nodes=1                    # vLLM hangs if the GPUs are split across nodes
 #SBATCH --cpus-per-task=8            # Shared by the model server and the learner
 
-# GPUs, time, memory and account come from submit.sh. GPUS in the model files keeps
-# the a100: prefix, as accel's H100s have no kernel image for this vLLM.
+# GPUs, time, memory and account come from submit.sh.
 
 #------------------------- Safety Settings -------------------------------------------
 
@@ -90,18 +89,9 @@ LEARNER_ARGS=("$CONFIG" ${EXACTLEARNER_EVAL:+"$EXACTLEARNER_EVAL"})
 
 #------------------------- Load Required Modules -------------------------------------
 
-# Restore to a clean environment
-module purge
-
-# Load the necessary modules for the job
-module load Java/21.0.8                                         
-# Only ec30 members can read this module tree; others set MODULE_TREE.
-module use -a "${MODULE_TREE:-/fp/projects01/ec30/software/easybuild/modules/all/}"
-module load nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3
-module load nlpl-accelerate/1.9.0-foss-2024a-Python-3.12.3
-module load Transformers/4.57.1-gfbf-2024a
-module load nlpl-vllm/0.8.2-foss-2024a-Python-3.12.3              # Runs the model server
-export PYTHONNOUSERSITE=1   # a `pip install --user` would outrank the modules' torch and vllm
+# This cluster's stack (scripts/modules.sh, CLUSTER in scripts/experiment.env)
+source scripts/modules.sh
+load_modules run
 
 #------------------------- Pre-flight Checks -----------------------------------------
 

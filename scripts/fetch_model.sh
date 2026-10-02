@@ -86,13 +86,8 @@ fi
 #------------------------- Load Required Modules -------------------------------------
 
 # The stack run_experiment.sh serves the model with, so the check asks the right vLLM.
-module purge
-# Only ec30 members can read this module tree; others set MODULE_TREE.
-module use -a "${MODULE_TREE:-/fp/projects01/ec30/software/easybuild/modules/all/}"
-module load nlpl-pytorch/2.6.0-foss-2024a-cuda-12.6.0-Python-3.12.3
-module load Transformers/4.57.1-gfbf-2024a   # brings huggingface_hub
-module load nlpl-vllm/0.8.2-foss-2024a-Python-3.12.3
-export PYTHONNOUSERSITE=1
+source scripts/modules.sh
+load_modules fetch
 
 #------------------------- Check vLLM Support ----------------------------------------
 
