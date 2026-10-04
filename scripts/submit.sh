@@ -21,6 +21,7 @@
 #   resume=false|true           continue from the previous job's checkpoint
 #   seed=N                      sampler seed, for whichever sampler runs
 #   repeats=N                   N jobs with seeds seed..seed+N-1
+#   temperature=0|<T>           sampling temperature; non-zero runs as <model>-t<T>
 #
 # They reach the job as EXACTLEARNER_* variables, which sbatch passes on.
 
@@ -55,6 +56,7 @@ for arg in "$@"; do
     sampler=weighted|sampler=unweighted|sampler=pac) export EXACTLEARNER_SAMPLER="$value" ;;
     seed=*)                         export EXACTLEARNER_SEED="$value" ;;
     repeats=*)                      REPEATS="$value" ;;
+    temperature=*)                  export EXACTLEARNER_TEMPERATURE="$value" ;;
     *) die "bad parameter: $arg" ;;
   esac
 done
@@ -71,6 +73,16 @@ source "$EXACTLEARNER_ENV"
 source "$EXACTLEARNER_MODEL_ENV"
 set -u
 #[[ -n "${MODEL_ROOT:-}" ]] || die "MODEL_ROOT is not set in $EXACTLEARNER_ENV"
+
+# A non-zero temperature samples, so its answers must not share the query cache
+# with greedy ones, whose key is (model, system prompt, question): it runs under
+# its own model name, which also names its logs and results. temperature= on the
+# command line beats TEMPERATURE in the model file.
+TEMPERATURE="${EXACTLEARNER_TEMPERATURE:-${TEMPERATURE:-0}}"
+[[ "$TEMPERATURE" =~ ^[0-9]*\.?[0-9]+$ ]] || die "temperature=$TEMPERATURE is not a number"
+if awk -v t="$TEMPERATURE" 'BEGIN { exit !(t + 0 != 0) }'; then
+  MODEL_NAME="$MODEL_NAME-t$TEMPERATURE"
+fi
 
 #------------------------- Experiment Arm --------------------------------------------
 
