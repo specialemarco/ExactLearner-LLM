@@ -109,7 +109,7 @@ different experiment, so check for that line.
 and evaluation on:**
 
 ```bash
-scripts/submit.sh <model> <config> precomp=false
+scripts/submit.sh <model> <config>
 ```
 
 Precomputation off is the point of this arm: `learner.precomputation()` sweeps
@@ -117,11 +117,12 @@ every atomic `A ⊑ B` pair before the loop starts, absorbing the easy subsumpti
 so with it on you cannot tell what the ABox-induced sampler found by itself.
 Evaluation on gives the Macro/Micro Precision/Recall report at the end.
 
-**This is not what you get by leaving the flags off.** Both LLM launchers default
-`precomp` to *on*, because each kept the behaviour of the class it replaced, so
-the main arm has to ask for `precomp=false` every time. `eval` is already on for
-`LaunchLLMLearnerAInduced` and needs nothing. The defaults are pinned by
-`LauncherFlagMatrixTest` — changing them is a deliberate decision, not an edit.
+`submit.sh` defaults to `precomp=false`, so leaving the flag off gives this arm.
+The Java launchers themselves still default `precomp` to *on*, because each kept
+the behaviour of the class it replaced; that only matters when running a launcher
+by hand. `eval` is already on for `LaunchLLMLearnerAInduced` and needs nothing. The
+launcher defaults are pinned by `LauncherFlagMatrixTest` — changing them is a
+deliberate decision, not an edit.
 
 ### Running on the cluster (the normal path)
 
@@ -160,10 +161,10 @@ Everything after the config is `name=value`, in any order, all optional:
 
 | Parameter | Meaning |
 |---|---|
-| `precomp=true\|false\|reuse` | run `learner.precomputation()` before the loop; `reuse` runs it once and replays it across repeats |
+| `precomp=false\|true\|reuse` | run `learner.precomputation()` before the loop (default off); `reuse` runs it once and replays it across repeats |
 | `eval=baris\|none` | Macro/Micro Precision/Recall after the loop |
 | `cache=shared\|fresh\|<path>` | query cache; `fresh` gives the job its own file |
-| `sampler=weighted\|unweighted\|pac` | where the loop's candidate axioms come from (default `weighted`) |
+| `sampler=unweighted\|weighted\|pac` | where the loop's candidate axioms come from (default `unweighted`) |
 | `budget=global\|per-round` | how the PAC sample budget is spent |
 | `resume=true\|false` | continue from the previous job's checkpoint (default off) |
 | `seed=N` `pacseed=N` | A-induced sampler seed, uniform PAC sampler seed |
@@ -198,8 +199,8 @@ ABox-induced samplers, ported into one class and selected by the flag:
 
 | `sampler=` | paclo class | Premise individual drawn from |
 |---|---|---|
-| `weighted` (default) | `WeightedABoxInducedSubsumptionSampler` | individuals with ≥1 base-set type, with probability ∝ 2^\|C(a,K₀)\| |
-| `unweighted` | `ABoxInducedSubsumptionSampler` | **every** individual in the signature, uniformly |
+| `weighted` | `WeightedABoxInducedSubsumptionSampler` | individuals with ≥1 base-set type, with probability ∝ 2^\|C(a,K₀)\| |
+| `unweighted` (default) | `ABoxInducedSubsumptionSampler` | **every** individual in the signature, uniformly |
 | `pac` | — (`Pac.getRandomStatement()`) | nothing; it samples the signature, never the ABox |
 
 The two ABox arms differ in the population as well as the weights, because

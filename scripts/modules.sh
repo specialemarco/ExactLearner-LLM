@@ -11,7 +11,7 @@
 
 load_modules() {
   local purpose="$1"
-  module purge
+  module --quiet purge 2>/dev/null   # it reports that the sticky init-NRIS stays
   case "${CLUSTER:-fox}" in
 
     fox)

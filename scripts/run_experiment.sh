@@ -50,6 +50,10 @@ set -u
 on_exit() {
   local status=$? how=finished
   if declare -F cleanup_server >/dev/null; then cleanup_server; fi
+  if [[ $status -ne 0 && -s "${SERVER_LOG:-}" ]]; then
+    echo "----- last 30 lines of $SERVER_LOG -----"
+    tail -n 30 "$SERVER_LOG"
+  fi
   if [[ -n "${KILLED:-}" ]]; then how="KILLED (walltime or scancel)"
   elif [[ $status -ne 0 ]]; then how="FAILED (exit $status)"; fi
   curl -s -m 10 -d "Experiment $how: $MODEL_NAME $(basename "$1" .yml) ${EXACTLEARNER_RUN_TAG:-} job ${SLURM_JOB_ID:-}" \
@@ -63,7 +67,7 @@ trap 'KILLED=1; exit 143' TERM INT
 CONFIG="$1"
 LOG_DIR="$EXACTLEARNER_LOG_DIR"
 REPO_DIR="$PWD"
-MODEL_PATH="$MODEL_ROOT/$MODEL_DIR"
+MODEL_PATH="${MODEL_ROOT%/}/$MODEL_DIR"
 SERVER_READY_TIMEOUT="${SERVER_READY_TIMEOUT:-5400}"   # a cold 32B load can take over 30 min
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
 JAVA_HEAP="${JAVA_HEAP:-64g}"
@@ -130,24 +134,18 @@ n_gpus=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)
 
 #------------------------- Software Versions -----------------------------------------
 
-# Print the versions the modules gave us, and check that torch can see the GPUs
-python3 -c '
+# The versions the modules gave us, for the header; and torch must see the GPUs.
+VERSIONS=$(python3 -c '
 import sys, torch, transformers, vllm
-print(f"python {sys.version.split()[0]} | torch {torch.__version__} | transformers {transformers.__version__} | vllm {vllm.__version__}")
 assert torch.cuda.is_available(), "torch sees no CUDA"
-'
+print(f"python {sys.version.split()[0]} | torch {torch.__version__} | transformers {transformers.__version__} | vllm {vllm.__version__}")
+' 2>&1 | tail -1) || die "the Python stack failed its check: $VERSIONS"
+GPU_NAMES=$(nvidia-smi --query-gpu=name --format=csv,noheader | sort | uniq -c | sed 's/^ *//; s/ / x /' | paste -sd, -)
 
 #------------------------- Output Folders --------------------------------------------
 
 # Where the learner writes the learned ontologies and the per-run statistics
 mkdir -p results/ontologies statistics
-
-#------------------------- Run Summary -----------------------------------------------
-
-echo "Config: $CONFIG"
-echo "Model: $EXACTLEARNER_MODEL ($MODEL_PATH) | run tag: $EXACTLEARNER_RUN_TAG"
-echo "Sampler: $EXACTLEARNER_SAMPLER ($LEARNER_MAIN_CLASS) | seed: $EXACTLEARNER_SEED | budget: $EXACTLEARNER_BUDGET_MODE | resume: $EXACTLEARNER_RESUME | precomp: $EXACTLEARNER_PRECOMP | precomp reuse: $EXACTLEARNER_PRECOMP_REUSE"
-echo "Batching: size=$EXACTLEARNER_BATCH_SIZE decompose=$EXACTLEARNER_BATCH_DECOMPOSE unsaturate=$EXACTLEARNER_BATCH_UNSATURATE | ELK unlock: $EXACTLEARNER_ELK_UNLOCK every $EXACTLEARNER_ELK_UNLOCK_INTERVAL"
 
 #------------------------- Server Port -----------------------------------------------
 
@@ -158,12 +156,33 @@ while (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; do
   echo "port $PORT is in use; trying $(( PORT + 1 ))"
   PORT=$(( PORT + 1 ))
 done
-echo "Server port: $PORT"
 export EXACTLEARNER_LLM_URL="http://localhost:$PORT/api/generate"   # Read by the learner
 
-#------------------------- Notification ----------------------------------------------
+#------------------------- Run Summary -----------------------------------------------
 
-curl -d "Experiment started: $MODEL_NAME" https://ntfy.sh/exact-llm
+# vLLM's startup output and the heartbeat go to their own file; this log keeps the
+# run's settings, the server's state and the learner.
+SERVER_LOG="$LOG_DIR/server-$SLURM_JOB_ID.log"
+BANNER="*********************************************************************************"
+echo "$BANNER"
+echo "ExactLearner-LLM: $MODEL_NAME on $(basename "$CONFIG" .yml)"
+echo "$BANNER"
+echo "Config              : $CONFIG"
+echo "Model               : $EXACTLEARNER_MODEL ($MODEL_PATH)"
+echo "Run tag             : $EXACTLEARNER_RUN_TAG"
+echo "Launcher            : $LEARNER_MAIN_CLASS"
+echo "Sampler             : $EXACTLEARNER_SAMPLER, seed $EXACTLEARNER_SEED"
+echo "Precomputation      : $EXACTLEARNER_PRECOMP (reuse $EXACTLEARNER_PRECOMP_REUSE)"
+echo "Budget              : $EXACTLEARNER_BUDGET_MODE, resume $EXACTLEARNER_RESUME"
+echo "Batching            : size $EXACTLEARNER_BATCH_SIZE, decompose $EXACTLEARNER_BATCH_DECOMPOSE, unsaturate $EXACTLEARNER_BATCH_UNSATURATE"
+echo "ELK unlock          : $EXACTLEARNER_ELK_UNLOCK, every $EXACTLEARNER_ELK_UNLOCK_INTERVAL queries"
+echo "Java heap           : $JAVA_HEAP"
+echo "GPUs                : $GPU_NAMES (tensor parallel $TENSOR_PARALLEL)"
+echo "Software            : $VERSIONS"
+echo "Server              : port $PORT, log $SERVER_LOG"
+echo "$BANNER"
+
+curl -s -o /dev/null -d "Experiment started: $MODEL_NAME" https://ntfy.sh/exact-llm || true
 
 #------------------------- Start the Model Server ------------------------------------
 
@@ -182,8 +201,10 @@ SERVER_ARGS=(--model "$MODEL_PATH" --port "$PORT"
 if [[ "${ENFORCE_EAGER:-0}" == 1 ]]; then
   SERVER_ARGS+=(--enforce-eager)
 fi
-( cd "$SERVER_CWD" && exec setsid python3 "$REPO_DIR/scripts/llm_server.py" "${SERVER_ARGS[@]}" ) &
+( cd "$SERVER_CWD" && exec setsid python3 "$REPO_DIR/scripts/llm_server.py" "${SERVER_ARGS[@]}" ) \
+  > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
+SERVER_STARTED=$(date +%s)
 
 #------------------------- Stop the Server on Exit -----------------------------------
 
@@ -198,12 +219,13 @@ cleanup_server() {
 
 #------------------------- Wait for the Server ---------------------------------------
 
-# Wait for the model to load (the server logs its own phases), then send one
+# Wait for the model to load (the server log has its phases), then send one
 # query the way Java will, to catch answers that do not parse. --noproxy: Educloud's
 # http_proxy would send these localhost requests to Squid.
+echo "Loading the model server..."
 DEADLINE=$(( $(date +%s) + SERVER_READY_TIMEOUT ))
 until [[ "$(curl -s -m 10 --noproxy '*' "http://localhost:$PORT/health")" == *'"ready":true'* ]]; do
-  kill -0 "$SERVER_PID" 2>/dev/null || die "server died during startup; traceback above"
+  kill -0 "$SERVER_PID" 2>/dev/null || die "server died during startup; see the end of $SERVER_LOG below"
   (( $(date +%s) < DEADLINE )) ||
     die "server not ready within ${SERVER_READY_TIMEOUT}s; raise SERVER_READY_TIMEOUT or set ENFORCE_EAGER=1"
   sleep 15
@@ -212,7 +234,7 @@ PROBE='{"system":"Answer with only True or False.","options":{"num_predict":2},"
 RESPONSE=$(curl -s -m 300 --noproxy '*' -H 'Content-Type: application/json' -d "$PROBE" \
              "http://localhost:$PORT/api/generate" || true)
 [[ "$RESPONSE" == *'"response":"'* ]] || die "server is ready but the probe did not parse: $RESPONSE"
-echo "Server ready. Probe: $RESPONSE"
+echo "Server ready after $(( $(date +%s) - SERVER_STARTED )) s. Probe: $RESPONSE"
 
 # Olivia deletes files left untouched for months, folders aside. The model has just
 # been loaded and used, so mark it as used. Someone else's copy may not be ours to
@@ -227,6 +249,7 @@ find -L "$MODEL_PATH" -type f -exec touch -c {} + 2>/dev/null || true
 echo "Starting learner at $(date), heap $JAVA_HEAP"
 # UTF-8: counterexamples are logged with ⊑, which a C locale prints as ?.
 java -Xmx"$JAVA_HEAP" -XX:ParallelGCThreads=4 \
-  -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -cp "target/classes:$(cat cp.txt)" \
+  -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 \
+  -Dslf4j.internal.verbosity=ERROR -cp "target/classes:$(cat cp.txt)" \
   "$LEARNER_MAIN_CLASS" "${LEARNER_ARGS[@]}"
 echo "Finished at $(date)"

@@ -337,6 +337,13 @@ public abstract class LaunchLearner {
      * `^Counterexample ...` and `^Checkpointed hypothesis ...`, and a leading
      * timestamp would silently break every one of them.
      */
+    /** C ⊑ D in Manchester syntax on one line, for the log. */
+    protected static String subsumption(OWLSubClassOfAxiom axiom) {
+        // The renderer breaks lines inside intersections.
+        return (myRenderer.render(axiom.getSubClass()) + " ⊑ " + myRenderer.render(axiom.getSuperClass()))
+                .replaceAll("\\s+", " ");
+    }
+
     protected static String wallClock() {
         return LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).toString();
     }

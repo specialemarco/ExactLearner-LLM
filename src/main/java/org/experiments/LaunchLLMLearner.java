@@ -60,6 +60,10 @@ public class LaunchLLMLearner extends LaunchLearner {
     // sampler and the evaluation share one rather than paying for it twice.
     // Cleared per (ontology, model) in setup().
     private PacloDataset pacloDataset;
+
+    // Read by the shutdown hook in the learning loop, from another thread.
+    private volatile int runCounterExamples = 0;
+    private volatile String runPhase = "starting";
     private boolean pacloDatasetLoaded;
     // Protected rather than private so LaunchLLMLearnerAInduced can accumulate
     // into them from its own runLearner override (see isPrecomputationEnabled).
@@ -864,18 +868,35 @@ public class LaunchLLMLearner extends LaunchLearner {
                     + " and results are NOT comparable with global-budget runs.");
         }
         numberOfCounterExamples = restoreFromCheckpoint(pac);
+        // A walltime kill never reaches the end-of-run report. Slurm's TERM runs
+        // this hook, which says where the run stopped: the sample count moves only
+        // while searching, and a learning step can take over an hour.
+        runCounterExamples = numberOfCounterExamples;
+        Thread stopReport = new Thread(() -> System.out.println("\nStopped at sample "
+                + (long) pac.getNumberOfProvidedSamples() + "/" + totalPacSamples
+                + ", counterexamples=" + runCounterExamples + ", " + runPhase + " wall=" + wallClock()));
+        Runtime.getRuntime().addShutdownHook(stopReport);
         while (true) {
             myMetrics.setEquivCount(myMetrics.getEquivCount() + 1);
             // A resumed run restores the global counter but always opens a
             // fresh round here, so under PER_ROUND the interrupted query's
             // partly-spent budget is handed back in full.
             pac.startRound();
+            runPhase = "searching for a counterexample";
+            long searchStart = System.currentTimeMillis();
+            long samplesBefore = (long) pac.getNumberOfProvidedSamples();
             counterExample = getCounterExample(pac);
             if (counterExample == null) {
                 System.out.println("No counterexample found, closing...");
                 break;
             }
             System.out.println("Counterexample number: " + ++numberOfCounterExamples);
+            runCounterExamples = numberOfCounterExamples;
+            runPhase = "learning from counterexample " + numberOfCounterExamples;
+            long learnStart = System.currentTimeMillis();
+            int membBefore = myMetrics.getMembCount();
+            System.out.printf("  found:   %s  (search: %d samples, %.1f s)%n", subsumption(counterExample),
+                    (long) pac.getNumberOfProvidedSamples() - samplesBefore, (learnStart - searchStart) / 1000.0);
             // Update the total number of counterexamples
             // Add the last counterexample to axiomsT
 
@@ -891,11 +912,19 @@ public class LaunchLLMLearner extends LaunchLearner {
             // Check if transformation can be applied
             checkTransformations();
             //addHypothesis(counterExample);
+            System.out.printf("  learned: %s  (%d membership queries, %.1f s; hypothesis %d axioms)%n",
+                    subsumption(counterExample), myMetrics.getMembCount() - membBefore,
+                    (System.currentTimeMillis() - learnStart) / 1000.0, hypothesisOntology.getLogicalAxiomCount());
 
             // Persist what has been learned so far. A job killed at walltime
             // otherwise loses every counterexample found up to that point.
             providedSamples = (long) pac.getNumberOfProvidedSamples();
             checkpointHypothesis(numberOfCounterExamples);
+        }
+        try {
+            Runtime.getRuntime().removeShutdownHook(stopReport);
+        } catch (IllegalStateException alreadyShuttingDown) {
+            // the hook is running or has run; nothing to undo
         }
         totalCE += (double) numberOfCounterExamples / (double) totalPacSamples;
         totalMembershipQ += (double) myMetrics.getMembCount() / (double) totalPacSamples;

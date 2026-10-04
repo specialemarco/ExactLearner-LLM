@@ -146,26 +146,36 @@ def set_phase(name: str) -> None:
     write_status()
 
 
+IDLE_PRINT_SECONDS = 600
+
+
 def heartbeat_loop(interval: int) -> None:
     """
     One line per interval for as long as the process lives: the cheapest
     possible proof that a long startup, or a long run, is still alive.
     """
+    # While the learner reasons for an hour without a query, an unchanged line
+    # every interval is noise: idle, print every IDLE_PRINT_SECONDS instead.
+    last_count, last_print = -1, 0.0
     while True:
         time.sleep(interval)
+        write_status()
+        idle = _ready and _request_count == last_count
+        if idle and time.time() - last_print < IDLE_PRINT_SECONDS:
+            continue
         gpus = gpu_snapshot() or []
         gpu_str = "".join(
             f"  g{g['gpu']}:{g['mem_used_mib'] // 1024}G/{g['util_pct']}%"
             for g in gpus)
         if _ready:
-            state = (f"serving  requests={_request_count} "
+            state = (f"{'idle    ' if idle else 'serving '} requests={_request_count} "
                      f"{_token_total / max(_gen_seconds, 1e-6):.1f}tok/s "
                      f"{_gen_seconds / max(_request_count, 1):.1f}s/query")
         else:
             state = f"{_phase} for {fmt_elapsed(time.time() - _phase_since)}"
         print(f"[t+{fmt_elapsed(time.time() - _started_at)}] {state}{gpu_str}",
               flush=True)
-        write_status()
+        last_count, last_print = _request_count, time.time()
 
 
 def _descendants(pid: int) -> list:
@@ -416,12 +426,15 @@ def generate_batch(texts: list, max_new_tokens: int):
     from vllm import SamplingParams
     params = SamplingParams(temperature=0.0, max_tokens=max_new_tokens)
 
+    # No progress bars: one per batch was ~95% of a job log. The heartbeat
+    # line reports throughput instead.
     try:
         from vllm import TokensPrompt
         outputs = _llm.generate([TokensPrompt(prompt_token_ids=i) for i in ids],
-                                params)
+                                params, use_tqdm=False)
     except ImportError:
-        outputs = _llm.generate(prompt_token_ids=ids, sampling_params=params)
+        outputs = _llm.generate(prompt_token_ids=ids, sampling_params=params,
+                                use_tqdm=False)
 
     return [(o.outputs[0].text, len(o.outputs[0].token_ids)) for o in outputs]
 

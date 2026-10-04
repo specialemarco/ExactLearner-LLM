@@ -120,7 +120,7 @@ submit() {
 
 #------------------------- Notification ----------------------------------------------
 
-curl -d "Experiment submitted: $MODEL_NAME" https://ntfy.sh/exact-llm
+curl -s -o /dev/null -d "Experiment submitted: $MODEL_NAME" https://ntfy.sh/exact-llm || true
 
 #------------------------- Single Run ------------------------------------------------
 

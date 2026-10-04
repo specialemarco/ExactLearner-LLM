@@ -28,6 +28,11 @@ public class Pac {
 
     private Long providedSamples = 0L;
 
+    // A line a minute while candidates are examined, so a job killed between
+    // checkpoints still shows how far into the budget it got.
+    private static final long PROGRESS_INTERVAL_MS = 60_000L;
+    private long lastProgressAt = System.currentTimeMillis();
+
     // ---- Sampling budget mode -------------------------------------------
     //
     // GLOBAL (the default, and what every experiment so far has run):
@@ -224,6 +229,7 @@ public class Pac {
         }
         providedSamples++;
         roundSamples++;
+        reportProgress();
         return statement;
     }
 
@@ -240,6 +246,18 @@ public class Pac {
     public void incrementProvidedSamples() {
         providedSamples++;
         roundSamples++;
+        reportProgress();
+    }
+
+    // Leading newline: vLLM's progress bars end on \r, and the line must start its own.
+    private void reportProgress() {
+        long now = System.currentTimeMillis();
+        if (now - lastProgressAt < PROGRESS_INTERVAL_MS) {
+            return;
+        }
+        lastProgressAt = now;
+        System.out.println("\nPAC progress: sample " + providedSamples + "/" + numberOfSamples
+                + " wall=" + java.time.LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
     }
 
     // NEW METHOD (resume): restores the counter to where an interrupted run

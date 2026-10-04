@@ -135,7 +135,7 @@ if [[ -z "${EXACTLEARNER_FETCH_JOB:-}" ]]; then
 fi
 
 [[ -n "${HF_REPO:-}" ]] || die "$MODEL_ENV has no HF_REPO"
-TARGET_DIR="$MODEL_ROOT/$MODEL_DIR"
+TARGET_DIR="${MODEL_ROOT%/}/$MODEL_DIR"
 
 #------------------------- Existing Copy ---------------------------------------------
 
