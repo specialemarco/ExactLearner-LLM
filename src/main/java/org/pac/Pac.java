@@ -249,15 +249,15 @@ public class Pac {
         reportProgress();
     }
 
-    // Leading newline: vLLM's progress bars end on \r, and the line must start its own.
     private void reportProgress() {
         long now = System.currentTimeMillis();
         if (now - lastProgressAt < PROGRESS_INTERVAL_MS) {
             return;
         }
         lastProgressAt = now;
-        System.out.println("\nPAC progress: sample " + providedSamples + "/" + numberOfSamples
+        System.out.println("PAC progress: sample " + providedSamples + "/" + numberOfSamples
                 + " wall=" + java.time.LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+        System.out.println();   // set apart, like a counterexample block
     }
 
     // NEW METHOD (resume): restores the counter to where an interrupted run

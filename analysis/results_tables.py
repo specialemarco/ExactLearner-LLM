@@ -24,15 +24,23 @@ LOGS = Path(__file__).resolve().parent.parent / "logs"
 BASELINES = LOGS / "baselines"
 
 MODELS = {"mistral": "Mistral-7b",
+          "deepseekQwen-1.5b": "DeepSeekR1-Qwen-1.5B",
           "deepseek-r1-14b": "DeepSeekR1-Qwen-14B",
           "deepseek-r1-32b": "DeepSeekR1-Qwen-32B",
           "olmo-2-13b": "OLMo2-13B",
+          "olmo3-7b-think": "OLMo3-7B-Think",
           "ministral-8b": "Ministral-8B"}
 BASESETS = ["C1", "C2", "C3"]
 SAMPLERS = ["weighted", "unweighted"]
 # As PacloDataset.baseSetTag() names the dataset folders.
 FOLDER_BASESET = {"class_names": "C1", "class_names_exists_thing": "C2",
                   "class_names_exists_partial": "C3"}
+
+# Job id -> why its run is left out of every table. Kept here, not by deleting the
+# log, which the next `scripts/sync.sh olivia pull` would bring back.
+EXCLUDED_JOBS = {
+    "2424865": "deepseekQwen-1.5b C1 seed 0 on the warm shared cache; rerun cold as 2426157",
+}
 
 QUALITY = ["Macro precision", "Macro recall", "Micro precision", "Micro recall"]
 COST = ["counterexamples", "Total membership queries", "Total time (ms)"]
@@ -113,6 +121,8 @@ def load(epsilon=0.2):
     """-> {(baseset, model, sampler, precomp): [finished runs]} at this epsilon."""
     results = defaultdict(list)
     for path in sorted(glob.glob(f"{LOGS}/*/*/*/exactl*-*.log")):
+        if Path(path).stem.rsplit("-", 1)[-1] in EXCLUDED_JOBS:
+            continue
         row = parse(path)
         if row["epsilon"] != epsilon:
             continue

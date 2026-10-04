@@ -143,7 +143,6 @@ public abstract class LaunchLearner {
             }
             addedAxiom = axiom.get();
         }
-        System.out.println(new ManchesterOWLSyntaxOWLObjectRendererImpl().render(addedAxiom));
         myManager.addAxiom(hypothesisOntology, addedAxiom);
     }
 

@@ -169,6 +169,7 @@ Everything after the config is `name=value`, in any order, all optional:
 | `resume=true\|false` | continue from the previous job's checkpoint (default off) |
 | `seed=N` `pacseed=N` | A-induced sampler seed, uniform PAC sampler seed |
 | `repeats=N` | submit N jobs, seeds `seed`..`seed+N-1`, for a confidence interval |
+| `temperature=T` | sampling temperature (default 0, greedy; a model file can set `TEMPERATURE`). A non-zero run is named `<model>-t<T>`: its own query-cache entries, log folder and table row |
 
 ```bash
 # THE MAIN ARM — A-induced sampler, no precomputation, evaluation on

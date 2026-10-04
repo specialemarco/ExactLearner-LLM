@@ -920,6 +920,7 @@ public class LaunchLLMLearner extends LaunchLearner {
             // otherwise loses every counterexample found up to that point.
             providedSamples = (long) pac.getNumberOfProvidedSamples();
             checkpointHypothesis(numberOfCounterExamples);
+            System.out.println();   // one block per counterexample
         }
         try {
             Runtime.getRuntime().removeShutdownHook(stopReport);
