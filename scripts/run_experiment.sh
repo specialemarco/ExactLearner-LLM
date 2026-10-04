@@ -42,6 +42,22 @@ source "$EXACTLEARNER_ENV"
 source "$EXACTLEARNER_MODEL_ENV"
 set -u
 
+#------------------------- Notify and Clean Up on Exit -------------------------------
+
+# One message however the job ends: finished, failed (a die below, a Java crash), or
+# killed by Slurm at walltime or by scancel. TERM and INT go through exit, as bash
+# skips the EXIT trap on a fatal signal. cleanup_server exists once the server does.
+on_exit() {
+  local status=$? how=finished
+  if declare -F cleanup_server >/dev/null; then cleanup_server; fi
+  if [[ -n "${KILLED:-}" ]]; then how="KILLED (walltime or scancel)"
+  elif [[ $status -ne 0 ]]; then how="FAILED (exit $status)"; fi
+  curl -s -m 10 -d "Experiment $how: $MODEL_NAME $(basename "$1" .yml) ${EXACTLEARNER_RUN_TAG:-} job ${SLURM_JOB_ID:-}" \
+    https://ntfy.sh/exact-llm >/dev/null || true
+}
+trap 'on_exit "$1"' EXIT
+trap 'KILLED=1; exit 143' TERM INT
+
 #------------------------- Paths and Limits ------------------------------------------
 
 CONFIG="$1"
@@ -72,7 +88,7 @@ export EXACTLEARNER_ELK_UNLOCK="${EXACTLEARNER_ELK_UNLOCK:-true}"
 export EXACTLEARNER_ELK_UNLOCK_INTERVAL="${EXACTLEARNER_ELK_UNLOCK_INTERVAL:-2000}"
 export EXACTLEARNER_RESUME="${EXACTLEARNER_RESUME:-false}"
 export EXACTLEARNER_BUDGET_MODE="${EXACTLEARNER_BUDGET_MODE:-global}"
-export EXACTLEARNER_PRECOMP="${EXACTLEARNER_PRECOMP:-true}"
+export EXACTLEARNER_PRECOMP="${EXACTLEARNER_PRECOMP:-false}"
 export EXACTLEARNER_PRECOMP_REUSE="${EXACTLEARNER_PRECOMP_REUSE:-false}"
 export EXACTLEARNER_SEED="${EXACTLEARNER_SEED:-0}"   # 0 reproduces earlier single runs
 
@@ -171,16 +187,14 @@ SERVER_PID=$!
 
 #------------------------- Stop the Server on Exit -----------------------------------
 
-# TERM too: Slurm sends it at walltime, and bash skips the EXIT trap on a fatal
-# signal. The wait is for the heartbeat, which can rewrite the status file while
-# the server exits.
+# Called by on_exit. The wait is for the heartbeat, which can rewrite the status
+# file while the server exits.
 cleanup_server() {
   # The plain PID covers a server killed before setsid has made its group.
   kill -TERM -"$SERVER_PID" 2>/dev/null || kill -TERM "$SERVER_PID" 2>/dev/null || true
   for _ in {1..10}; do kill -0 "$SERVER_PID" 2>/dev/null || break; sleep 1; done
   rm -f "$STATUS_FILE" "$STATUS_FILE.tmp"
 }
-trap cleanup_server EXIT TERM INT
 
 #------------------------- Wait for the Server ---------------------------------------
 
@@ -211,6 +225,8 @@ find -L "$MODEL_PATH" -type f -exec touch -c {} + 2>/dev/null || true
 # server, so cap the GC threads or a pause stalls them all. Plain java: the pom
 # has no exec-maven-plugin, and compute nodes have no network to fetch it.
 echo "Starting learner at $(date), heap $JAVA_HEAP"
-java -Xmx"$JAVA_HEAP" -XX:ParallelGCThreads=4 -cp "target/classes:$(cat cp.txt)" \
+# UTF-8: counterexamples are logged with ⊑, which a C locale prints as ?.
+java -Xmx"$JAVA_HEAP" -XX:ParallelGCThreads=4 \
+  -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -cp "target/classes:$(cat cp.txt)" \
   "$LEARNER_MAIN_CLASS" "${LEARNER_ARGS[@]}"
 echo "Finished at $(date)"

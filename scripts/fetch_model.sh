@@ -172,6 +172,16 @@ fi
 
 #------------------------- Download --------------------------------------------------
 
+# Downloads wait in the accel queue, so say when one ends, either way.
+notify_done() {
+  local status=$?
+  local msg="Model downloaded: $MODEL"
+  [[ $status -eq 0 ]] || msg="Model download FAILED ($status): $MODEL"
+  curl -s -m 10 -d "$msg" https://ntfy.sh/exact-llm >/dev/null || true
+}
+trap notify_done EXIT
+trap 'exit 143' TERM   # walltime: bash skips EXIT on a fatal signal
+
 mkdir -p "$TARGET_DIR"
 echo "Fetching $HF_REPO${HF_REVISION:+ at $HF_REVISION} into $TARGET_DIR"
 

@@ -7,16 +7,16 @@
 # scripts/run_experiment.sh. Run from the repository root, on a login node.
 #
 #   scripts/submit.sh <model> <config> [name=value ...]
-#   scripts/submit.sh mistral-7b owl2bench/c2-nlp-advanced sampler=unweighted repeats=10
+#   scripts/submit.sh mistral-7b owl2bench/c2-nlp-advanced sampler=weighted repeats=10
 #
 # <model> is scripts/models/<model>.env. <config> is a path, or a name under
 # src/main/java/org/configurations/experiments without the .yml. Parameters,
 # first value the default:
 #
-#   precomp=true|false|reuse    reuse: repeats replay the first one's precomputation
+#   precomp=false|true|reuse    reuse: repeats replay the first one's precomputation
 #   eval=baris|none             evaluation after the loop; default off for sampler=pac
 #   cache=shared|fresh|<path>   fresh: a new cache file for this job
-#   sampler=weighted|unweighted|pac
+#   sampler=unweighted|weighted|pac
 #   budget=global|per-round
 #   resume=false|true           continue from the previous job's checkpoint
 #   seed=N                      sampler seed, for whichever sampler runs
@@ -40,7 +40,7 @@ shift 2
 
 # Defaults, then each name=value argument overrides one of them
 REPEATS=1
-export EXACTLEARNER_SAMPLER=weighted EXACTLEARNER_PRECOMP=true
+export EXACTLEARNER_SAMPLER=unweighted EXACTLEARNER_PRECOMP=false
 for arg in "$@"; do
   value="${arg#*=}"
   case "$arg" in
