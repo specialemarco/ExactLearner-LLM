@@ -48,6 +48,7 @@ _unparsed_count = 0
 _token_total = 0
 _gen_seconds = 0.0
 _max_new_tokens = 512
+_temperature = 0.0
 _trace_file = None
 _started_at = time.time()
 _ready = False          # False until the warmup query has returned
@@ -104,6 +105,7 @@ def status_payload() -> dict:
         "truncated": _truncated_count,
         "at_cap": _at_cap_count,
         "unparsed": _unparsed_count,
+        "tokens": _token_total,
         # Generation-time rate, not wall-clock.
         "tokens_per_s": round(_token_total / max(_gen_seconds, 1e-6), 2),
         "device": str(_device),
@@ -424,7 +426,7 @@ def generate_batch(texts: list, max_new_tokens: int):
     ids = [_tokenizer(t, add_special_tokens=False)["input_ids"] for t in texts]
 
     from vllm import SamplingParams
-    params = SamplingParams(temperature=0.0, max_tokens=max_new_tokens)
+    params = SamplingParams(temperature=_temperature, max_tokens=max_new_tokens)
 
     # No progress bars: one per batch was ~95% of a job log. The heartbeat
     # line reports throughput instead.
@@ -699,6 +701,9 @@ def main():
     parser.add_argument("--disable-custom-all-reduce", action="store_true",
                         help="Skips the custom all-reduce kernel and its P2P "
                              "probe, which can hang on PCIe cards.")
+    parser.add_argument("--temperature", type=float, default=0.0,
+                        help="0 is greedy. Above 0 the answers are sampled, so the "
+                             "job names the model (and its cache entries) apart.")
     parser.add_argument("--max-new-tokens", type=int, default=1024,
                         help="Reasoning budget per query; overrides the client's "
                              "num_predict, which is 2. Generation stops at EOS, "
@@ -718,9 +723,10 @@ def main():
         sys.exit("ERROR: no model given. Pass --model /path/to/checkpoint "
                  "or set EXACTLEARNER_MODEL_PATH.")
 
-    global _max_new_tokens, _trace_file, _tokenizer, _status_file, _ready
+    global _max_new_tokens, _temperature, _trace_file, _tokenizer, _status_file, _ready
     global _reasoning_prompt
     _max_new_tokens = args.max_new_tokens
+    _temperature = args.temperature
     _trace_file = args.trace_file
     _status_file = args.status_file
 
