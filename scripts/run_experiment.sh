@@ -194,8 +194,8 @@ GPU_NAMES=$(nvidia-smi --query-gpu=name --format=csv,noheader | sort | uniq -c |
 
 #------------------------- Output Folders --------------------------------------------
 
-# Where the learner writes the learned ontologies and the per-run statistics
-mkdir -p results/ontologies statistics
+# Where the learner writes the learned ontologies. The statistics are in the job log.
+mkdir -p results/ontologies
 
 #------------------------- Server Port -----------------------------------------------
 

@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
-import static org.utility.StatsPrinter.printAndSaveStats;
+import static org.utility.StatsPrinter.printStats;
 
 
 public class LaunchExactLearner extends LaunchLearner {
@@ -124,12 +124,9 @@ public class LaunchExactLearner extends LaunchLearner {
         totalMembershipQ += (double) myMetrics.getMembCount() / totalSamples;
         totalEquivalenceQ += (double) myMetrics.getEquivCount() / totalSamples;
 
-        var filename =  targetFile.getName() + "_synthetic";
-        var dir = "statistics/cache/";
-        var statFile = new File(dir, filename);
         long timeEnd = System.currentTimeMillis();
-        printAndSaveStats(timeStart, timeEnd, args, true,
-                targetFile, statFile, myMetrics, learner, oracle, conceptNumber, roleNumber, groundTruthOntology, hypothesisOntology);
+        printStats(timeStart, timeEnd, args, true,
+                targetFile, myMetrics, learner, oracle, conceptNumber, roleNumber, groundTruthOntology, hypothesisOntology);
 
         saveOWLFile(hypothesisOntology, new File(ontologyFolderH));
         validation();

@@ -106,6 +106,20 @@ public class OutputNamingTest {
                 "parallel repeats would otherwise race on one target file");
     }
 
+    @Test
+    public void theTargetCopyIsDeletedOnceItsNamesAreCounted(@TempDir Path tmp) throws IOException {
+        Path copy = tmp.resolve("target_expertOntology_c2_seed1.owl");
+        Files.writeString(copy, "Class: <a#A>\nClass: <a#B>\nClass: owl:Thing\nObjectProperty: <a#r>\n");
+        LaunchLLMLearner launcher = taggedLauncher("seed1");
+        launcher.ontologyFolder = copy.toString();
+
+        launcher.computeConceptAndRoleNumbers();
+
+        assertEquals(2, launcher.conceptNumber);
+        assertEquals(1, launcher.roleNumber);
+        assertTrue(Files.notExists(copy));
+    }
+
     /** No tag set is the ordinary single run, whose names must not change at all. */
     @Test
     public void anUntaggedRunKeepsItsHistoricalName(@TempDir Path tmp) throws IOException {

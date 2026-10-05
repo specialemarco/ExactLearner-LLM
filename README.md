@@ -351,6 +351,7 @@ counterexample, into `results/ontologies/`:
 ```
 expertOntology_<...>.owl                  the hypothesis as of the last counterexample
 expertOntology_<...>-trajectory/0001.owl  a numbered copy per counterexample
+expertOntology_<...>-trajectory.tar.gz    the same folder, packed once the run finishes
 expertOntology_<...>-run-state.properties counterExamples, providedSamples, samplerDraws,
                                           and the metrics totals
 ```
@@ -412,14 +413,13 @@ variable to the job, and the launcher appends it to every output name:
 ```
 results/ontologies/expertOntology_c2_deepseek-r1-32b_nlp_advanced_seed1.owl
                                                      ...          _seed2.owl
-statistics/expertOntology.owl_deepseek-r1-32b_nlp_advanced_seed1
 ```
 
 That tag is the whole reason repeats can run at once. Without it all five jobs
 write the same hypothesis, the same `-trajectory/`, the same
-`-run-state.properties` and the same statistics file, and race on the shared
-target copy — which one job rewrites while another reads it, taking the wrong
-concept and role counts into its statistics.
+`-run-state.properties`, and race on the shared target copy — which one job
+rewrites while another reads it, taking the wrong concept and role counts into
+its results.
 
 Because they are separate jobs they queue independently, run in parallel on
 different nodes, and one failing leaves the rest alone. Each is an ordinary single

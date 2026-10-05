@@ -5,9 +5,6 @@ import org.exactlearner.utils.Metrics;
 import org.semanticweb.owlapi.model.AxiomType;
 import org.semanticweb.owlapi.model.OWLOntology;
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 
 public class StatsPrinter {
@@ -37,11 +34,10 @@ public class StatsPrinter {
         }
     }
 
-    public static void printAndSaveStats(long timeStart, long timeEnd, String[] args, boolean verb, File targetFile,
-                                         File statsFile,
-                                         Metrics myMetrics, Learner baseLearner, Oracle baseOracle,
-                                         int conceptNumber, int roleNumber, OWLOntology targetOntology,
-                                         OWLOntology hypothesisOntology) {
+    public static void printStats(long timeStart, long timeEnd, String[] args, boolean verb, File targetFile,
+                                  Metrics myMetrics, Learner baseLearner, Oracle baseOracle,
+                                  int conceptNumber, int roleNumber, OWLOntology targetOntology,
+                                  OWLOntology hypothesisOntology) {
         if (!verb) {
             System.out.print(targetFile.getName());
             Arrays.stream(args).skip(1).forEach(x -> System.out.print(", " + x));
@@ -52,44 +48,10 @@ public class StatsPrinter {
         printStat("Total equivalence queries: ", myMetrics.getEquivCount(), verb);
 
         printLearnerStats(baseLearner, verb);
-        // LaunchExactLearner writes to statistics/cache/, which nothing else creates.
-        File statsDir = statsFile.getAbsoluteFile().getParentFile();
-        if (statsDir != null) {
-            statsDir.mkdirs();
-        }
-        String statsFileName = statsFile + "_metrics.csv";
-        // Add "_sizes.csv" to the stats file name
-        String sizesFileName = statsFile + "_sizes.csv";
-        saveLearnerStats(baseLearner, statsFileName);
         // printOracleStats(baseOracle, verb);
         printOntologySizes(targetOntology, hypothesisOntology, myMetrics, verb, conceptNumber, roleNumber);
-        saveOntologySizes(targetOntology, hypothesisOntology, myMetrics, sizesFileName, conceptNumber, roleNumber);
     }
 
-    private static void saveLearnerStats(Learner baseLearner, String filename) {
-        var lComp = baseLearner.getNumberLeftDecomposition();
-        var tComp = baseLearner.getNumberRightDecomposition();
-        var merge = baseLearner.getNumberMerging();
-        var branch = baseLearner.getNumberBranching();
-        var sat = baseLearner.getNumberSaturations();
-        var unsat = baseLearner.getNumberUnsaturations();
-        var totalOps = lComp + tComp + merge + branch + sat + unsat;
-        // Create a csv file and save the stats
-        String header = "Decompose Left,Decompose Right,Merging,Branching,Saturation,Desaturation,Total Operations";
-        String data = String.format("%d,%d,%d,%d,%d,%d,%d", lComp, tComp, merge, branch, sat, unsat, totalOps);
-        final Path filePath = Paths.get(filename);
-        try {
-            if (!filePath.toFile().exists()) {
-                filePath.toFile().createNewFile();
-            }
-            if (filePath.toFile().length() == 0) {
-                java.nio.file.Files.writeString(filePath, header + "\n");
-            }
-            java.nio.file.Files.writeString(filePath, data + "\n", java.nio.file.StandardOpenOption.APPEND);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private static void printLearnerStats(Learner baseLearner, boolean verb) {
         var lComp = baseLearner.getNumberLeftDecomposition();
@@ -145,37 +107,5 @@ public class StatsPrinter {
         printStat("Size of largest  concept in T: ", myMetrics.getSizeOfTargetLargestConcept(), verb);
         printStat("Size of largest  concept in H: ", myMetrics.getSizeOfHypothesisLargestConcept(), verb);
         printStat("Size of largest  counterexample: ", myMetrics.getSizeOfLargestCounterExample(), verb);
-    }
-
-    private static void saveOntologySizes(OWLOntology targetOntology, OWLOntology hypothesisOntology,
-                                          Metrics myMetrics, String filename, int conceptNumber, int roleNumber) {
-        String header = "Target TBox logical axioms,Size of T,Hypothesis TBox logical axioms,Size of H,Number of concept names,Number of role names,Size of largest  concept in T,Size of largest  concept in H,Size of largest counterexample, Total membership queries, Total equivalent queries";
-        String data = String.format("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
-                targetOntology.getAxiomCount(AxiomType.SUBCLASS_OF) +
-                        targetOntology.getAxiomCount(AxiomType.EQUIVALENT_CLASSES),
-                myMetrics.getSizeOfTarget(),
-                hypothesisOntology.getAxiomCount(AxiomType.SUBCLASS_OF) +
-                        hypothesisOntology.getAxiomCount(AxiomType.EQUIVALENT_CLASSES),
-                myMetrics.getSizeOfHypothesis(),
-                conceptNumber,
-                roleNumber,
-                myMetrics.getSizeOfTargetLargestConcept(),
-                myMetrics.getSizeOfHypothesisLargestConcept(),
-                myMetrics.getSizeOfLargestCounterExample(),
-                myMetrics.getMembCount(),
-                myMetrics.getEquivCount()
-        );
-        final Path filePath = Paths.get(filename);
-        try {
-            if (!filePath.toFile().exists()) {
-                filePath.toFile().createNewFile();
-            }
-            if (filePath.toFile().length() == 0) {
-                java.nio.file.Files.writeString(filePath, header + "\n");
-            }
-            java.nio.file.Files.writeString(filePath, data + "\n", java.nio.file.StandardOpenOption.APPEND);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 }

@@ -87,7 +87,7 @@ fi
 #------------------------- Experiment Arm --------------------------------------------
 
 # Logs go to logs/<model>/<arm>/<config>/, and the run tag <arm>-seed<N>[-eps<E>]
-# names the per-run files in results/ontologies/ and statistics/.
+# names the per-run files in results/ontologies/.
 ARM="${EXACTLEARNER_SAMPLER}_precomp"
 if [[ "$EXACTLEARNER_PRECOMP" == false ]]; then
   ARM="${EXACTLEARNER_SAMPLER}_noprecomp"
@@ -96,7 +96,7 @@ fi
 #------------------------- Epsilon Tag -----------------------------------------------
 
 # Epsilon is set in the config, and a *-eps<E> config name gives it its own log
-# folder, but not its own results/ and statistics/ files: those are named without
+# folder, but not its own results/ files: those are named without
 # the config, so a non-default epsilon (the launcher's is 0.2) tags the run.
 EPSILON=$(awk '$1 == "epsilon:" { print $2 }' "$CONFIG")
 EPS_TAG=""

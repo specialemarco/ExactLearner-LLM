@@ -526,22 +526,9 @@ public class LaunchLLMLearner extends LaunchLearner {
         long timeEnd = System.currentTimeMillis();
         saveOWLFile(hypothesisOntology, hypoFile);
         validation();
-        var systemCode = "simple";
-        if (system.length() > 50) {
-            systemCode = "advanced";
-        }
-        // Built here rather than from infoString(), so the run tag has to be
-        // appended separately: without it every repeat of an experiment writes
-        // its statistics over the previous one's, which is precisely the file
-        // the confidence interval is computed from.
-        var filename =  targetFile.getName() + "_" + model + "_" + queryFormat + "_" + systemCode;
-        if (!runTag().isEmpty()) {
-            filename = filename + "_" + runTag();
-        }
-        var dir = "statistics/";
-        var statFile = new File(dir, filename);
-        printAndSaveStats(timeStart, timeEnd, args, true,
-                targetFile, statFile, myMetrics, learner, oracle, conceptNumber, roleNumber, groundTruthOntology, hypothesisOntology);
+        printStats(timeStart, timeEnd, args, true,
+                targetFile, myMetrics, learner, oracle, conceptNumber, roleNumber, groundTruthOntology, hypothesisOntology);
+        archiveTrajectory(hypoFile);
     }
 
     /**

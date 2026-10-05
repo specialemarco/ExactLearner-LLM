@@ -555,6 +555,8 @@ public abstract class LaunchLearner {
 
         this.conceptNumber = concepts.size();
         this.roleNumber = roles.size();
+        // Its only reader is above; kept, it was 1.7 MB per run tag (454 MB on Fox).
+        new File(ontologyFolder).delete();
     }
 
     /**
@@ -588,14 +590,57 @@ public abstract class LaunchLearner {
      */
     private File trajectoryFile(int counterExampleNumber) {
         try {
-            String base = hypoFile.getName().replaceFirst("\\.owl$", "");
-            File dir = new File(hypoFile.getParentFile(), base + "-trajectory");
+            File dir = trajectoryDir(hypoFile);
             if (!dir.isDirectory() && !dir.mkdirs()) {
                 return null;
             }
             return new File(dir, String.format("%04d.owl", counterExampleNumber));
         } catch (Throwable t) {
             return null;
+        }
+    }
+
+    static File trajectoryDir(File hypothesis) {
+        String base = hypothesis.getName().replaceFirst("\\.owl$", "");
+        return new File(hypothesis.getParentFile(), base + "-trajectory");
+    }
+
+    /**
+     * Packs a finished run's trajectory into <hypothesis>-trajectory.tar.gz and
+     * removes the folder. Only on a clean finish: a killed run keeps its folder,
+     * so a resume goes on appending to it. Snapshots compress ~20x (212 MB to
+     * 11 MB for C2 Mistral seed5); 340 folders took 3.4 GB on Fox.
+     *
+     * Never throws, and the folder is deleted only after tar succeeded.
+     */
+    static void archiveTrajectory(File hypothesis) {
+        File dir = trajectoryDir(hypothesis);
+        if (!dir.isDirectory()) {
+            return;
+        }
+        File archive = new File(dir.getParentFile(), dir.getName() + ".tar.gz");
+        // Written aside and moved, so a failed tar leaves an older archive intact.
+        File partial = new File(dir.getParentFile(), archive.getName() + ".partial");
+        try {
+            Process tar = new ProcessBuilder("tar", "czf", partial.getPath(),
+                    "-C", dir.getParentFile().getPath(), dir.getName())
+                    .redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            if (tar.waitFor() != 0) {
+                System.out.println("Trajectory archive failed (tar exit " + tar.exitValue() + "), keeping " + dir.getPath());
+                partial.delete();
+                return;
+            }
+            java.nio.file.Files.move(partial.toPath(), archive.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            try (var paths = java.nio.file.Files.walk(dir.toPath())) {
+                paths.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+            }
+            System.out.println("Trajectory archived -> " + archive.getPath());
+        } catch (Throwable t) {
+            System.out.println("Trajectory archive failed, keeping " + dir.getPath() + ": " + t);
+            partial.delete();
         }
     }
 
